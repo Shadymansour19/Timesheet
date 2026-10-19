@@ -54,3 +54,13 @@ All answered 2026-10-19; see Decision log.
 | 2026-10-19 | UI is English + Arabic with RTL from the start | User answer. Use i18n module, CSS logical properties (inline-start/end), `dir` toggled on `<html>`, language persisted per device; Excel export headers localisable per template |
 | 2026-10-19 | One department per user (`profiles.department_id`) | User answer |
 | 2026-10-19 | Username-only login via synthetic internal email (`<username>@timesheet.local`), no real email, no email recovery; admins reset passwords | User answer. Usernames lowercase, unique |
+| 2026-10-19 | Clients get SELECT only; every write is a SECURITY DEFINER RPC that re-checks role/department (`set_day_status[_bulk]`, `set_overtime`, `set_holiday`, `update_profile`, `set_user_role`, `soft_delete_user`, department RPCs) | Brief: enforce in DB, soft-delete must be an RPC |
+| 2026-10-19 | Column named `day` (not `date`) in day_status/overtime/holidays | Avoid SQL keyword |
+| 2026-10-19 | Setting status back to E deletes the row; overtime 0 deletes the row | Keeps "no row = E / no overtime" invariant |
+| 2026-10-19 | Admin cannot demote himself; only super_admin can. No guard against a department having zero admins | Prevent accidental lock-out; super_admin can reassign |
+| 2026-10-19 | Admin creates role=user only; super_admin creates role=admin only. Nobody can create/grant super_admin via the app (manual SQL only) | Per brief roles |
+| 2026-10-19 | super_admin may promote/demote/reset/delete admins but cannot edit user data or touch plain users' passwords | Brief: super_admin only manages departments and admins |
+| 2026-10-19 | Soft-deleted users keep data, lose all access (RLS keyed on active); usernames are NOT reusable after deletion; OPR can be reused (unique among active only) | Preserves audit/history; auth user is banned by the Edge Function |
+| 2026-10-19 | Edge Function authorises by calling `assert_can_create` / `assert_can_manage` / `soft_delete_user` with the CALLER's JWT, then uses the service role for auth.users work | Single source of authorisation truth in the DB |
+| 2026-10-19 | Tests run migrations + `supabase/tests/rls.sql` in one transaction on the real project and ROLLBACK (`supabase/tests/run.sh`) | Real Supabase auth/roles, nothing left behind |
+| 2026-10-19 | Fixed by tests: soft-deleted users could still read their own profile/rows; own-row policies now require active | Found by RLS test |
