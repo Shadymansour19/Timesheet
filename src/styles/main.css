@@ -4,9 +4,15 @@
   --radius: 12px;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans Arabic', sans-serif;
 }
+/* Theme: follows the device unless the user chose Light or Dark (html[data-theme]). Dark values are listed twice
+   (device preference, explicit choice) because CSS cannot share them between a media query and an attribute selector. */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #11181f; --card: #1a232c; --text: #e6edf3; --muted: #93a4b5; --line: #2b3844; --brand: #2dd4bf; --brand-dark: #14b8a6; --danger: #f97066; --ok: #47cd89; }
+  :root:not([data-theme="light"]) { --bg: #11181f; --card: #1a232c; --text: #e6edf3; --muted: #93a4b5; --line: #2b3844; --brand: #2dd4bf; --brand-dark: #14b8a6; --danger: #f97066; --ok: #47cd89; }
 }
+:root[data-theme="dark"] { --bg: #11181f; --card: #1a232c; --text: #e6edf3; --muted: #93a4b5; --line: #2b3844; --brand: #2dd4bf; --brand-dark: #14b8a6; --danger: #f97066; --ok: #47cd89; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); min-height: 100dvh; }
 #app { min-height: 100dvh; padding-inline: 16px; padding-block: env(safe-area-inset-top) env(safe-area-inset-bottom); }
@@ -42,8 +48,9 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
   --ot-bg: #fde68a; --ot-fg: #78350f; --ot-bar: #f59e0b;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --s-x-bg: #064e3b; --s-x-fg: #a7f3d0; --s-y-bg: #1e3a8a; --s-y-fg: #bfdbfe; --ot-bg: #78350f; --ot-fg: #fde68a; --ot-bar: #f59e0b; }
+  :root:not([data-theme="light"]) { --s-x-bg: #064e3b; --s-x-fg: #a7f3d0; --s-y-bg: #1e3a8a; --s-y-fg: #bfdbfe; --ot-bg: #78350f; --ot-fg: #fde68a; --ot-bar: #f59e0b; }
 }
+:root[data-theme="dark"] { --s-x-bg: #064e3b; --s-x-fg: #a7f3d0; --s-y-bg: #1e3a8a; --s-y-fg: #bfdbfe; --ot-bg: #78350f; --ot-fg: #fde68a; --ot-bar: #f59e0b; }
 .cal { max-width: 560px; margin: 8px auto; }
 .cal-head { display: flex; align-items: center; gap: 8px; margin-block-end: 12px; }
 .cal-head h2 { flex: 1; margin: 0; text-align: center; font-size: 1.15rem; }
@@ -277,3 +284,10 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 /* links styled as buttons (e.g. "Timesheet") */
 a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 a.btn.primary { color: #fff; }
+
+/* ---- theme row in the account menu ---- */
+.menu-theme { padding: 4px 4px 2px; }
+.menu-theme .menu-title { margin: 4px 4px 6px; }
+.theme-seg { display: flex; gap: 4px; }
+.theme-seg .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 6px; }
+.theme-seg .btn svg { margin: 0; }

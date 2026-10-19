@@ -152,4 +152,8 @@ export default {
   users_none_match: "لا أحد يطابق بحثك أو التصفية.",
   clear_filters: "مسح التصفية",
   of: "من",
+  theme: "المظهر",
+  theme_light: "فاتح",
+  theme_dark: "داكن",
+  theme_system: "الجهاز",
 };

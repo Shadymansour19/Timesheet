@@ -3,7 +3,8 @@ import { t, otherLang, setLang } from '../i18n/index.js';
 import { state, signOut, signOutAll, switchTo, addAccount, removeAccount, listAccounts } from '../auth/session.js';
 import { navFor } from '../router.js';
 import { openDialog } from './dialog.js';
-import { icon, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT } from './icons.js';
+import { icon, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT, SUN, MOON, MONITOR } from './icons.js';
+import { getTheme, setTheme } from '../theme.js';
 import { field } from './form.js';
 import { toast } from './toast.js';
 
@@ -21,6 +22,16 @@ function addAccountDialog() {
       if (key) throw Object.assign(new Error(t(key)), { code: '22023' });
     } }],
   });
+}
+
+// Light / Dark / System; applies at once and is remembered on this device.
+function themeRow() {
+  const opts = [['light', SUN, t('theme_light')], ['dark', MOON, t('theme_dark')], ['system', MONITOR, t('theme_system')]];
+  const btns = opts.map(([v, ic, label]) => h('button', { type: 'button', class: 'btn small', title: label, 'aria-label': label, 'data-theme-opt': v,
+    onclick: () => { setTheme(v); paint(); } }, icon(ic, 16), h('span', {}, label)));
+  const paint = () => btns.forEach((b) => { const on = b.dataset.themeOpt === getTheme(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  paint();
+  return h('div', { class: 'menu-theme' }, h('p', { class: 'menu-title muted' }, t('theme')), h('div', { class: 'seg theme-seg', role: 'group', 'aria-label': t('theme') }, btns));
 }
 
 function accountMenu() {
@@ -56,6 +67,7 @@ function accountMenu() {
       h('ul', { class: 'acct-list' }, accounts.map(row)),
       h('button', { class: 'menu-item', type: 'button', onclick: () => { close(); addAccountDialog(); } }, icon(PLUS, 18), t('add_account')),
       h('a', { class: 'menu-item', href: '#/account', onclick: close }, icon(KEY, 18), t('change_password')),
+      themeRow(),
       h('hr'),
       h('button', { class: 'menu-item', type: 'button', onclick: () => { close(); signOut(); } }, withFlip(icon(LOGOUT, 18)), t('sign_out')),
       accounts.length > 1 ? h('button', { class: 'menu-item danger-text', type: 'button', onclick: () => { close(); signOutAll(); } }, withFlip(icon(LOGOUT, 18)), t('sign_out_all')) : null));

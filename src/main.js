@@ -3,6 +3,7 @@ import { h } from './dom.js';
 import { applyDir, t, otherLang, setLang } from './i18n/index.js';
 import { state, restore, onChange, takeNotice, refreshProfile } from './auth/session.js';
 import * as live from './live.js';
+import { applyTheme } from './theme.js';
 import { loginView } from './views/login.js';
 import { resolve } from './router.js';
 import { shell } from './components/shell.js';
@@ -37,6 +38,7 @@ function render() {
 }
 
 applyDir();
+applyTheme();
 window.addEventListener('hashchange', () => state.profile && render());
 onChange(() => { live.dispose(); watchedFor = null; if (!state.profile) location.hash = ''; render(); });
 

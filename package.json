@@ -16,7 +16,8 @@
     "test:ui-polish": "node tests/ui/polish.mjs",
     "test:ui-overtime": "node tests/ui/overtime-tab.mjs",
     "test:ui-team": "node tests/ui/team-grid.mjs",
-    "test:ui-live": "node tests/ui/live-users-person.mjs"
+    "test:ui-live": "node tests/ui/live-users-person.mjs",
+    "test:ui-theme": "node tests/ui/theme.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

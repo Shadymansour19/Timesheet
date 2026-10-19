@@ -144,15 +144,21 @@ export async function removeAccount(id) {
 let refreshing = null;
 export function refreshProfile() {
   // several announcements can arrive together: run one refresh at a time
-  refreshing ??= guard(doRefreshProfile).finally(() => { refreshing = null; });   // guard: our own sign-out must not trigger the "session ended elsewhere" reload
+  refreshing ??= doRefreshProfile().finally(() => { refreshing = null; });
   return refreshing;
 }
 async function doRefreshProfile() {
   const me = state.profile;
   if (!me) return;
   const r = await loadProfile(me.id);
+  // The answer is only meaningful if the SAME person is still signed in: an account switch can happen while the request
+  // is in flight, and asking "as B" about A's profile returns nothing (RLS) -- which must not be mistaken for "A was deactivated".
+  const { data: cur } = await supabase.auth.getSession();
+  if (state.profile?.id !== me.id) return;                                              // we switched accounts ourselves meanwhile
+  if (cur.session?.user.id !== me.id) { setTimeout(() => location.reload(), 0); return; }   // another tab changed the session meanwhile
   if (r.error === 'account_disabled') {
-    await supabase.auth.signOut({ scope: 'local' });
+    // guard: this deliberate sign-out must not trigger the "session ended elsewhere" reload
+    await guard(() => supabase.auth.signOut({ scope: 'local' }));
     removeLocal(me.id);
     pendingNotice = 'account_disabled';
     state.profile = null;

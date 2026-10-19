@@ -152,4 +152,8 @@ export default {
   users_none_match: "No one matches your search or filter.",
   clear_filters: "Clear filters",
   of: "of",
+  theme: "Theme",
+  theme_light: "Light",
+  theme_dark: "Dark",
+  theme_system: "System",
 };

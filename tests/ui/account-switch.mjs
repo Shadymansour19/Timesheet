@@ -79,7 +79,10 @@ ok('audit shows the admin as actor of that change', db(`select count(*) from pub
 await p.reload(); await p.waitForSelector('.acct');
 ok('after reload: same active account', (await who()) === 'Switch Admin');
 await openMenu(); ok('after reload: both accounts still listed', (await rows()) === 2);
-await p.locator('.acct-pick', { hasText: 'Switch User' }).click(); await p.waitForSelector('.day');
+await p.locator('.acct-pick', { hasText: 'Switch User' }).click();
+await p.waitForSelector('.day', { timeout: 20000 }).catch(async () => {   // diagnostics for a stuck switch
+  console.log('DIAG url:', p.url(), '| body:', JSON.stringify((await p.textContent('body')).replace(/\s+/g, ' ').slice(0, 200)), '| accounts:', await stored(), '| toast:', JSON.stringify(await p.locator('.toast').allTextContents()));
+});
 ok('switch works after a reload', (await who()) === 'Switch User');
 
 // a saved account whose session was revoked server-side: the CURRENT session must survive the failed switch
@@ -129,7 +132,7 @@ ok('after reload still on the login screen', true);
 
 // Arabic menu
 await login('swadm'); await p.click('text=العربية'); await openMenu(); await p.waitForTimeout(300);
-ok('Arabic menu text and RTL', (await p.locator('.menu-title').textContent()).includes('الحسابات') && (await p.getAttribute('html', 'dir')) === 'rtl');
+ok('Arabic menu text and RTL', (await p.locator('.menu > .menu-title').textContent()).includes('الحسابات') && (await p.getAttribute('html', 'dir')) === 'rtl');
 await p.screenshot({ path: S + '/menu-ar.png' });
 ok('no page errors ' + JSON.stringify(errs), errs.length === 0);
 
