@@ -12,3 +12,11 @@ Each phase ends with local commits (never pushed) and a hand-off of push + Supab
 7. **Export** (DONE: default template): data model → template mapping engine → default layout; verify the generated xlsx contents programmatically.
 8. **Polish** (DONE: offline banner; LIVE UPDATES via Realtime; offline write queue deferred): offline tolerance, optional realtime, a11y, mobile QA.
 9. **Template swap** (WAITING for the official form): when the official form arrives, add a new template mapping.
+
+## Backlog (agreed, NOT now - do later when asked)
+- [ ] **Desktop keyboard use** in the department grid: arrow keys move between cells; X / Y / E keys set the status of the focused cell (with Undo support).
+- [ ] **Bottom tab bar with icons on phones** (thumb-reachable navigation; also fixes the cropped tab row on narrow screens).
+- [ ] **Light / dark theme choice**: let the user pick Light / Dark / System (saved per device or per user). Today the app already follows the device setting automatically (prefers-color-scheme); this item is the manual override.
+- [ ] Offline write queue (deferred earlier).
+- [ ] Waiting on the company: the official Excel form (phase 9) and the weekend/week-start confirmation.
+
