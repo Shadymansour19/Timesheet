@@ -156,7 +156,7 @@ ok('admin own calendar: Y on days 10-12', (await p.locator('.day').nth(9).locato
 // ================= super admin =================
 const sa = await session('uisa'); await sa.waitForSelector('.dept');
 ok('super_admin lands on departments', sa.url().endsWith('#/departments'));
-ok('super_admin has no calendar/team/users tabs', (await sa.locator('.nav a').allTextContents()).join('|') === 'Departments|Change password');
+ok('super_admin has only the Departments tab', (await sa.locator('.nav a').allTextContents()).join('|') === 'Departments');
 ok('super_admin sees both departments', (await sa.locator('.dept').count()) >= 2);
 await sa.click('button:text-is("Add department")'); await sa.waitForSelector('dialog[open]');
 await dlg(sa).getByLabel('Department name').fill('UI New Dept'); await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached' });

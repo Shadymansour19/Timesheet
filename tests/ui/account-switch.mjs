@@ -66,7 +66,7 @@ await p.screenshot({ path: S + '/menu-2.png' });
 
 // switch back and forth; prove identity through writes
 await p.locator('.acct-pick', { hasText: 'Switch User' }).click(); await p.waitForSelector('.day');
-ok('switch to the user: name, role view, calendar', (await who()) === 'Switch User' && (await p.locator('.nav a').allTextContents()).join('|') === 'My calendar|Change password');
+ok('switch to the user: name, role view, calendar', (await who()) === 'Switch User' && (await p.locator('.nav a').allTextContents()).join('|') === 'My calendar');
 await tapToday();   // X -> Y as the user
 ok('after switching, writes are performed AS THE USER', (await statusBy(ID.u1)) === 'Y|true', await statusBy(ID.u1));
 await openMenu(); await p.locator('.acct-pick', { hasText: 'Switch Admin' }).click(); await p.waitForSelector('.tgrid');

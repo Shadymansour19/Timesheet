@@ -14,3 +14,8 @@ export const CHEVRON_LEFT = ['M15 6l-6 6 6 6'];
 export const CHEVRON_RIGHT = ['M9 6l6 6-6 6'];
 // Up/down chevrons: the usual "switcher" affordance (account, workspace pickers).
 export const CHEVRON_UPDOWN = ['M7 15l5 5 5-5', 'M7 9l5-5 5 5'];
+export const PLUS = ['M12 5v14', 'M5 12h14'];
+export const KEY = ['M21 2l-2 2', 'M15.5 7.5l3 3L22 7l-3-3', 'M11.4 11.6a5.5 5.5 0 11-7.8 7.8 5.5 5.5 0 017.8-7.8z', 'M11.4 11.6L15.5 7.5'];
+export const LOGOUT = ['M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4', 'M16 17l5-5-5-5', 'M21 12H9'];
+export const ARROW_LEFT = ['M19 12H5', 'M12 19l-7-7 7-7'];
+
