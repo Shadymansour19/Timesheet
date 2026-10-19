@@ -68,7 +68,7 @@ export function calendarView() {
     const v = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
     const lim = earliest();
     const locked = lim !== null && day < lim;
-    const cls = ['day', 's-' + v.eff.toLowerCase(), day === todayStr ? 'today' : '', v.hol ? 'holiday' : ''].join(' ');
+    const cls = ['day', 's-' + v.eff.toLowerCase(), day === todayStr ? 'today' : '', v.hol ? 'holiday' : '', v.ot ? 'has-ot' : ''].join(' ');
     const label = `${fmt({ weekday: 'long', day: 'numeric', month: 'long' }, new Date(cursor.y, cursor.m, d))}: ${v.eff}${v.ot ? `, ${v.ot} ${t('overtime_h')}` : ''}`;
     return h('button', { class: cls, type: 'button', disabled: locked, 'aria-label': label, onclick: () => change(day) },
       h('span', { class: 'num' }, d),
@@ -95,8 +95,8 @@ export function calendarView() {
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         ['X', 'Y', 'XH', 'YH'].map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
-        h('span', { class: 'chip' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`)),
-      h('p', { class: 'muted legend' }, t('legend')),
+        h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`)),
+      h('p', { class: 'muted legend' }, `${t('legend')} ${t('legend_ot')}`),
       ...(editWindow !== null ? [h('p', { class: 'muted' }, t('edit_window_note').replace('{n}', editWindow))] : []));
   }
 

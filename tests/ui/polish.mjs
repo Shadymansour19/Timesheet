@@ -17,6 +17,9 @@ const cleanup = () => db(`delete from auth.users where id::text like '50000000%'
   delete from public.audit_log where (target_user is not null and target_user not in (select id from public.profiles)) or (department_id is not null and department_id not in (select id from public.departments));`);
 cleanup(); db(`insert into public.departments (id,name) values ('${D}','PL Dept')`);
 mk(ID.adm, 'pladm', 'admin', 'Polish Admin'); mk(ID.u, 'plu', 'user', 'Polish User');
+db(`insert into public.day_status (user_id, day, status) values ('${ID.u}', date_trunc('month',current_date)::date + 3, 'X'), ('${ID.u}', date_trunc('month',current_date)::date + 4, 'Y'), ('${ID.u}', date_trunc('month',current_date)::date + 5, 'X');
+    insert into public.overtime (user_id, day, hours) values ('${ID.u}', date_trunc('month',current_date)::date + 3, 3), ('${ID.u}', date_trunc('month',current_date)::date + 4, 12), ('${ID.u}', date_trunc('month',current_date)::date + 10, 1);
+    insert into public.holidays (department_id, day) values ('${D}', date_trunc('month',current_date)::date + 5);`);
 
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 let fails = 0;
@@ -59,8 +62,43 @@ await p.click(PREV); await p.waitForFunction((t) => document.querySelector('.cal
 ok('Arabic: right chevron goes to the next month and left chevron comes back', nextTitle !== titleAr);
 await p.screenshot({ path: S + '/cal-ar2.png' });
 
+// ---- overtime highlight + taller cells (user calendar)
+await p.click('text=English'); await p.waitForSelector('.day');
+const cellBox = await p.locator('.day').nth(3).boundingBox();
+ok('calendar cells are taller than wide (ratio >= 1.25)', cellBox.height / cellBox.width >= 1.25, (cellBox.height / cellBox.width).toFixed(2));
+const otCell = p.locator('.day.has-ot');
+ok('exactly the 3 overtime days are marked', (await otCell.count()) === 3);
+const ot = p.locator('.day').nth(3).locator('.ot');
+ok('overtime area text +3h', (await ot.textContent()) === '+3h');
+const otBg = await ot.evaluate((e) => getComputedStyle(e).backgroundColor);
+const cellBg = await p.locator('.day').nth(3).evaluate((e) => getComputedStyle(e).backgroundColor);
+ok('overtime area has its own amber colour, different from the cell', otBg === 'rgb(253, 230, 138)' && otBg !== cellBg, `${otBg} vs ${cellBg}`);
+const ob = await ot.boundingBox(), cb = await p.locator('.day').nth(3).boundingBox();
+ok('overtime strip is flush with the bottom edge and full width of the cell', ob.y >= cb.y + cb.height * 0.6 && Math.abs(ob.y + ob.height - (cb.y + cb.height)) <= 1.5 && Math.abs(ob.width - cb.width) <= 1.5, JSON.stringify({ ob, cb }));
+ok('12h overtime is shown on the Y day', (await p.locator('.day').nth(4).locator('.ot').textContent()) === '+12h' && (await p.locator('.day').nth(4).locator('.st').textContent()) === 'Y');
+ok('day without overtime has no strip', (await p.locator('.day').nth(5).locator('.ot').count()) === 0 && (await p.locator('.day').nth(6).locator('.ot').count()) === 0);
+ok('holiday X day still shows XH', (await p.locator('.day').nth(5).locator('.st').textContent()) === 'XH');
+ok('totals chip for overtime is amber and sums 16h', (await p.locator('.chip.ot').textContent()).includes('16h') && (await p.locator('.chip.ot').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(253, 230, 138)');
+await p.screenshot({ path: S + '/cal-ot.png' });
+
+// ---- account menu trigger
+const caret = p.locator('.acct .caret svg');
+ok('account trigger has a drawn up/down chevron icon (no text arrow)', (await caret.count()) === 1 && (await p.locator('.acct .caret').textContent()).trim() === '' && (await caret.locator('path').count()) === 2);
+const before = await caret.evaluate((e) => getComputedStyle(e).transform);
+await p.locator('.acct > summary').click(); await p.waitForTimeout(400);
+const after = await caret.evaluate((e) => getComputedStyle(e).transform);
+ok('chevron animates (rotates) when the menu opens', before === 'none' && after !== 'none', `${before} -> ${after}`);
+ok('trigger looks like a button: bordered pill', (await p.locator('.acct > summary').evaluate((e) => parseFloat(getComputedStyle(e).borderTopWidth) >= 1 && parseFloat(getComputedStyle(e).borderTopLeftRadius) >= 10)));
+await p.screenshot({ path: S + '/trigger-open.png' });
+await p.locator('.acct > summary').click();
+await p.emulateMedia({ colorScheme: 'dark' }); await p.waitForTimeout(300);
+await p.screenshot({ path: S + '/cal-ot-dark.png' });
+const darkBg = await p.locator('.day').nth(3).locator('.ot').evaluate((e) => getComputedStyle(e).backgroundColor);
+ok('dark mode uses the dark amber', darkBg === 'rgb(120, 53, 15)', darkBg);
+await p.emulateMedia({ colorScheme: 'light' });
+
 // ---- account page: three independent toggles
-await p.click('text=English'); await p.click('.nav a:text("Change password")'); await p.waitForSelector('#cur');
+await p.click('.nav a:text("Change password")'); await p.waitForSelector('#cur');
 ok('account page has 3 toggles', (await p.locator('.pw-toggle').count()) === 3);
 await p.locator('.pw-toggle').nth(1).click();
 ok('only the clicked field is revealed', (await p.getAttribute('#cur', 'type')) === 'password' && (await p.getAttribute('#nw', 'type')) === 'text' && (await p.getAttribute('#cf', 'type')) === 'password');
@@ -79,6 +117,7 @@ await p.waitForSelector('.tgrid'); await p.click('text=العربية'); await p
 o = await order(); ok('Arabic department grid: same reverted arrow layout', o.prev.x < o.next.x && o.glyphs === 'M15 6l-6 6 6 6|M9 6l6 6-6 6');
 ok('Arabic grid tab says "القسم"', (await p.locator('.nav a').first().textContent()).trim() === 'القسم');
 await p.screenshot({ path: S + '/team-ar2.png' });
+ok('admin grid marks overtime cells (amber bar + badge)', (await p.locator('td.has-ot').count()) === 3 && (await p.locator('td.has-ot').first().evaluate((e) => getComputedStyle(e).boxShadow)) !== 'none');
 ok('no page errors ' + JSON.stringify(errs), errs.length === 0);
 cleanup();
 ok('cleanup removed every test row (real data untouched)', db("select count(*) from auth.users where email like 'pl%@timesheet.local'") === '0');

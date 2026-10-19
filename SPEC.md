@@ -85,4 +85,6 @@ All answered 2026-10-19; see Decision log.
 | 2026-10-19 | Password fields get a show/hide eye button (login, change password, add account); generated temporary passwords stay visible text on purpose so admins can read them out | Requested UX; a11y: aria-pressed + localized label |
 | 2026-10-19 | Arabic wording: "جدولي" for My calendar, "وردية" for Y (shift) in the legend and in the Excel legend | Requested; modern wording |
 | 2026-10-19 | Month navigation is laid out left-to-right in every language (previous left, next right) using drawn SVG chevrons; text arrows were rendered mirrored by the Arabic font | Requested "revert" for Arabic; verified by zooming screenshots and geometry tests |
+| 2026-10-19 | Calendar cells are taller (1:1.32); a day with overtime gets an amber strip flush with the bottom of the cell showing `+Nh` (still text, so colour is not the only cue), amber overtime chip in the totals, amber also in dark mode. Department grid marks overtime cells with an amber bar and badge | Requested: overtime must stand out |
+| 2026-10-19 | Account menu trigger is a bordered pill with a drawn up/down chevron badge (switcher icon) that fills with the brand colour and rotates when open; menu fades in (disabled for prefers-reduced-motion) | Requested "real modern" dropdown affordance |
 

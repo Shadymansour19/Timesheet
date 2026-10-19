@@ -3,6 +3,7 @@ import { t, otherLang, setLang } from '../i18n/index.js';
 import { state, signOut, signOutAll, switchTo, addAccount, removeAccount, listAccounts } from '../auth/session.js';
 import { navFor } from '../router.js';
 import { openDialog } from './dialog.js';
+import { icon, CHEVRON_UPDOWN } from './icons.js';
 import { field } from './form.js';
 import { toast } from './toast.js';
 
@@ -48,7 +49,7 @@ function accountMenu() {
     h('summary', { class: 'who', 'aria-label': t('account_menu') },
       h('span', { class: 'avatar big' }, initials(p.full_name)),
       h('span', { class: 'acct-text' }, h('strong', {}, p.full_name), h('span', { class: 'muted' }, t('role_' + p.role))),
-      h('span', { class: 'caret', 'aria-hidden': 'true' }, '▾')),
+      h('span', { class: 'caret', 'aria-hidden': 'true' }, icon(CHEVRON_UPDOWN, 18))),
     h('div', { class: 'menu' },
       h('p', { class: 'menu-title muted' }, t('accounts_here')),
       h('ul', { class: 'acct-list' }, accounts.map(row)),

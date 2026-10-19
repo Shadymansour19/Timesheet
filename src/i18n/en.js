@@ -102,4 +102,5 @@ export default {
   account_menu: "Account menu",
   show_password: "Show password",
   hide_password: "Hide password",
+  legend_ot: "Overtime hours appear in amber.",
 };

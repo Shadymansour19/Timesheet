@@ -51,7 +51,7 @@ export function teamView() {
       const day = dayOf(d);
       const eff = effective(statusOf(p.id, day), data.holidays.has(day));
       const ot = otOf(p.id, day);
-      tr.append(h('td', { class: `c s-${eff.toLowerCase()}${data.holidays.has(day) ? ' holiday' : ''}`, 'data-u': p.id, 'data-d': day },
+      tr.append(h('td', { class: `c s-${eff.toLowerCase()}${data.holidays.has(day) ? ' holiday' : ''}${ot ? ' has-ot' : ''}`, 'data-u': p.id, 'data-d': day },
         eff, ot ? h('sup', {}, ot) : null));
     }
     const c = totals(p.id);

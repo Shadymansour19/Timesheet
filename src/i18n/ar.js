@@ -102,4 +102,5 @@ export default {
   account_menu: "قائمة الحساب",
   show_password: "إظهار كلمة المرور",
   hide_password: "إخفاء كلمة المرور",
+  legend_ot: "الساعات الإضافية تظهر باللون الكهرماني.",
 };
