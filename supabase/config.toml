@@ -1,0 +1,5 @@
+# Minimal config (local name only; the real project is selected with `supabase link`).
+project_id = "timesheet"
+
+[functions.admin-manage-users]
+verify_jwt = true
