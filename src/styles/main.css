@@ -29,7 +29,6 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .success { color: var(--ok); min-height: 1.2em; margin: 4px 0; }
 .shell { max-width: 1100px; margin: 0 auto; }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-block: 12px; flex-wrap: wrap; }
-.who { display: grid; }
 .actions { display: flex; gap: 8px; }
 .nav { display: flex; gap: 4px; overflow-x: auto; border-block-end: 1px solid var(--line); }
 .nav a { padding: 10px 14px; text-decoration: none; color: var(--muted); border-block-end: 3px solid transparent; white-space: nowrap; }
@@ -118,3 +117,31 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .dept summary { cursor: pointer; padding-block: 4px; }
 .offline-banner { background: #b45309; color: #fff; text-align: center; padding: 6px 16px; font-size: .85rem; }
 .offline-banner[hidden] { display: none; }
+
+/* ---- account menu ---- */
+.acct { position: relative; }
+.acct > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; min-height: 44px; }
+.acct > summary::-webkit-details-marker { display: none; }
+.acct > summary:hover, .acct[open] > summary { background: var(--card); }
+.acct > summary:focus-visible { outline: 2px solid var(--brand); }
+.acct-text { display: grid; line-height: 1.25; text-align: start; min-width: 0; }
+.acct-text strong, .acct-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--s-y-bg); color: var(--s-y-fg); font-weight: 700; font-size: .8rem; flex: none; }
+.avatar.big { background: var(--brand); color: #fff; }
+.caret { color: var(--muted); font-size: .8rem; }
+.menu { position: absolute; inset-inline-start: 0; inset-block-start: calc(100% + 4px); z-index: 30; width: min(92vw, 330px); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 28px rgba(0, 0, 0, .18); padding: 8px; }
+.menu-title { margin: 4px 8px 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+.menu hr { border: 0; border-block-start: 1px solid var(--line); margin: 6px 0; }
+.acct-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.acct-row { display: flex; align-items: center; gap: 4px; border-radius: 8px; }
+.acct-row.active { background: var(--bg); }
+.acct-pick, .menu-item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: start; font: inherit; color: var(--text); background: none; border: 0; padding: 8px; border-radius: 8px; cursor: pointer; min-height: 44px; }
+.menu-item { width: 100%; }
+.acct-pick:hover:not(:disabled), .menu-item:hover { background: var(--bg); }
+.acct-pick:disabled { cursor: default; opacity: 1; color: var(--text); }
+.acct-pick:focus-visible, .menu-item:focus-visible, .acct-x:focus-visible { outline: 2px solid var(--brand); }
+.acct-pick .acct-text { flex: 1; }
+.tick { color: var(--brand); font-weight: 700; }
+.acct-x { background: none; border: 0; color: var(--muted); cursor: pointer; width: 36px; height: 36px; border-radius: 8px; flex: none; }
+.acct-x:hover { background: var(--bg); color: var(--danger); }
+.danger-text { color: var(--danger); }

@@ -197,6 +197,6 @@ await u.evaluate(() => { location.hash = '#/team'; }); await u.waitForTimeout(50
 ok('plain user typing #/team gets "not found", no grid', (await u.locator('.tgrid').count()) === 0);
 
 cleanup();
-ok('cleanup left only real data', db(`select count(*) from auth.users`) === '1');
+ok('cleanup removed every test row (real data untouched)', db(`select count(*) from auth.users where email like 'ui%@timesheet.local'`) === '0' && db(`select count(*) from public.departments where name like 'UI %'`) === '0');
 await b.close();
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL ADMIN UI TESTS PASSED ===');

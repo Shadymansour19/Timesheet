@@ -92,4 +92,12 @@ export default {
   department_name: "Department name",
   admins: "admins",
   people: "people",
+  accounts_here: "Accounts on this device",
+  add_account: "Add account",
+  sign_out_all: "Sign out of all accounts",
+  remove_account: "Remove from this device",
+  switch_expired: "That account must sign in again. It was removed from this device.",
+  current_account: "Current",
+  switch_account: "Switch account",
+  account_menu: "Account menu",
 };

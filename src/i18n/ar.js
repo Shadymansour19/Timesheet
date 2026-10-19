@@ -92,4 +92,12 @@ export default {
   department_name: "اسم القسم",
   admins: "مسؤولين",
   people: "أشخاص",
+  accounts_here: "الحسابات على هذا الجهاز",
+  add_account: "إضافة حساب",
+  sign_out_all: "تسجيل الخروج من كل الحسابات",
+  remove_account: "إزالة من هذا الجهاز",
+  switch_expired: "يجب على هذا الحساب تسجيل الدخول مجدداً. تمت إزالته من هذا الجهاز.",
+  current_account: "الحالي",
+  switch_account: "تبديل الحساب",
+  account_menu: "قائمة الحساب",
 };
