@@ -262,8 +262,8 @@ select t.count('dept A user does not see dept B holiday', $$select 1 from public
 
 -- ---------------------------------------------------------------- super_admin
 select t.login('00000000-0000-0000-0000-0000000000a0');
-select t.count('super_admin sees all 6 profiles', 'select 1 from public.profiles', 6);
-select t.count('super_admin sees both departments', 'select 1 from public.departments', 2);
+select t.count('super_admin sees all fixture profiles (other real rows may exist)', $$select 1 from public.profiles where username in ('sadm','adma','ua1','ua2','admb','ub1')$$, 6);
+select t.count('super_admin sees both fixture departments', $$select 1 from public.departments where name in ('Dept A','Dept B')$$, 2);
 select t.count('super_admin has NO day_status access', 'select 1 from public.day_status', 0);
 select t.count('super_admin has NO overtime access', 'select 1 from public.overtime', 0);
 select t.count('super_admin get_timesheet empty', $$select 1 from public.get_timesheet(null, current_date, current_date)$$, 0);
@@ -291,6 +291,8 @@ select t.ok('super_admin soft-deletes an admin', $$select public.soft_delete_use
 
 -- ---------------------------------------------------------------- last super_admin guard (owner / service-role path)
 select t.su();
+-- real super_admins may exist in the target DB: remove them inside this (rolled-back) transaction so the fixture is the only one
+delete from public.profiles where role = 'super_admin' and id <> '00000000-0000-0000-0000-0000000000a0';
 select t.denied('cannot demote last super_admin', $$update public.profiles set role = 'user', department_id = '10000000-0000-0000-0000-00000000000a', opr = 'Z' where id = '00000000-0000-0000-0000-0000000000a0'$$, 'P0001');
 select t.denied('cannot deactivate last super_admin', $$update public.profiles set active = false where id = '00000000-0000-0000-0000-0000000000a0'$$, 'P0001');
 select t.denied('cannot delete last super_admin', $$delete from public.profiles where id = '00000000-0000-0000-0000-0000000000a0'$$, 'P0001');

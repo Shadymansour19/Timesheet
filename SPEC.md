@@ -68,3 +68,5 @@ All answered 2026-10-19; see Decision log.
 | 2026-10-19 | Public sign-up disabled in Supabase Auth (verified: /auth/v1/signup returns signup_disabled) | Anyone with the publishable key could otherwise self-register |
 | 2026-10-19 | Frontend: Vite + vanilla JS, hash router with per-role route tables, `h()` DOM helper (no innerHTML), vite-plugin-pwa (app shell cached, API never cached), i18n en/ar with `dir` toggled on `<html>` and CSS logical properties | Per brief; XSS-safe by construction |
 | 2026-10-19 | Change password re-authenticates with the current password before `auth.updateUser` | updateUser alone does not verify the old password; protects an unlocked phone |
+| 2026-10-19 | `get_timesheet` also returns `is_holiday` (migration 5) | UI must show XH immediately when an E day on a holiday is set to X |
+| 2026-10-19 | Calendar: week starts Sunday (constant `WEEK_START` in views/calendar.js), Latin digits in both languages, per-day serialised optimistic writes with rollback on error, days older than `user_edit_window_days` disabled in UI (server still enforces) | Easy to change later; assumed Sunday, confirm with company |

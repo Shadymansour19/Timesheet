@@ -1,13 +1,14 @@
 import { state } from './auth/session.js';
 import { accountView } from './views/account.js';
 import { placeholderView } from './views/placeholder.js';
+import { calendarView } from './views/calendar.js';
 
 // Each role gets its own set of routes; the first is the landing page.
 const routes = {
-  user: [{ path: '/calendar', label: 'nav_calendar', view: placeholderView('nav_calendar') }],
+  user: [{ path: '/calendar', label: 'nav_calendar', view: calendarView }],
   admin: [
     { path: '/team', label: 'nav_team', view: placeholderView('nav_team') },
-    { path: '/calendar', label: 'nav_calendar', view: placeholderView('nav_calendar') },
+    { path: '/calendar', label: 'nav_calendar', view: calendarView },
   ],
   super_admin: [{ path: '/departments', label: 'nav_departments', view: placeholderView('nav_departments') }],
 };
