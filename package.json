@@ -12,7 +12,8 @@
     "test:rls": "SKIP_MIGRATIONS=1 supabase/tests/run.sh",
     "test:e2e-users": "supabase/tests/e2e_admin_users.sh",
     "test:ui": "node tests/ui/admin-flows.mjs",
-    "test:ui-accounts": "node tests/ui/account-switch.mjs"
+    "test:ui-accounts": "node tests/ui/account-switch.mjs",
+    "test:ui-polish": "node tests/ui/polish.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

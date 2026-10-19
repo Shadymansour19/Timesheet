@@ -100,4 +100,6 @@ export default {
   current_account: "Current",
   switch_account: "Switch account",
   account_menu: "Account menu",
+  show_password: "Show password",
+  hide_password: "Hide password",
 };

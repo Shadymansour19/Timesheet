@@ -1,12 +1,14 @@
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { changePassword } from '../auth/session.js';
+import { passwordInput } from '../components/form.js';
 
 export function accountView() {
   const msg = h('p', { role: 'status' });
-  const cur = h('input', { id: 'cur', type: 'password', autocomplete: 'current-password', required: true });
-  const nw = h('input', { id: 'nw', type: 'password', autocomplete: 'new-password', required: true, minlength: 8 });
-  const cf = h('input', { id: 'cf', type: 'password', autocomplete: 'new-password', required: true, minlength: 8 });
+  const curP = passwordInput({ id: 'cur', autocomplete: 'current-password', required: true });
+  const nwP = passwordInput({ id: 'nw', autocomplete: 'new-password', required: true, minlength: 8 });
+  const cfP = passwordInput({ id: 'cf', autocomplete: 'new-password', required: true, minlength: 8 });
+  const [cur, nw, cf] = [curP.input, nwP.input, cfP.input];
   const btn = h('button', { type: 'submit', class: 'btn primary' }, t('save'));
 
   const show = (text, ok) => { msg.className = ok ? 'success' : 'error'; msg.textContent = text; };
@@ -23,8 +25,8 @@ export function accountView() {
     show(t('password_changed'), true);
   } },
     h('h2', {}, t('change_password')),
-    h('label', { for: 'cur' }, t('current_password')), cur,
-    h('label', { for: 'nw' }, t('new_password')), nw,
-    h('label', { for: 'cf' }, t('confirm_password')), cf,
+    h('label', { for: 'cur' }, t('current_password')), curP.wrap,
+    h('label', { for: 'nw' }, t('new_password')), nwP.wrap,
+    h('label', { for: 'cf' }, t('confirm_password')), cfP.wrap,
     msg, btn);
 }

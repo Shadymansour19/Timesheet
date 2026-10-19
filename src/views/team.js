@@ -7,6 +7,7 @@ import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { field } from '../components/form.js';
 import { toast } from '../components/toast.js';
+import { monthHead } from '../components/month-head.js';
 
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
 
@@ -184,11 +185,7 @@ export function teamView() {
     const go = (delta) => { shiftMonth(delta); load(); };
     const modes = [['edit', t('mode_edit')], ['X', 'X'], ['Y', 'Y'], ['E', 'E'], ['holiday', t('holiday')]];
     root.replaceChildren(
-      h('div', { class: 'cal-head' },
-        h('button', { class: 'btn small', onclick: () => go(-1), 'aria-label': t('prev_month') }, getLang() === 'ar' ? '›' : '‹'),
-        h('h2', {}, `${dept?.name ?? ''} · ${fmt({ month: 'long', year: 'numeric' }, new Date(cursor.y, cursor.m, 1))}`),
-        h('button', { class: 'btn small', onclick: () => go(1), 'aria-label': t('next_month') }, getLang() === 'ar' ? '‹' : '›'),
-        h('button', { class: 'btn small', onclick: () => { goToday(); load(); } }, t('today'))),
+      monthHead(`${dept?.name ?? ''} · ${fmt({ month: 'long', year: 'numeric' }, new Date(cursor.y, cursor.m, 1))}`, { onPrev: () => go(-1), onNext: () => go(1), onToday: () => { goToday(); load(); } }),
       h('div', { class: 'toolbar' },
         h('div', { class: 'seg', role: 'group', 'aria-label': t('tap_mode') },
           modes.map(([m, label]) => h('button', { class: 'btn small' + (mode === m ? ' on' : ''), type: 'button', 'aria-pressed': String(mode === m),

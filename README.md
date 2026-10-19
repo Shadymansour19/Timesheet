@@ -36,6 +36,7 @@ Put the DB connection string in an untracked `.env.db` (`TS_DB_URL='postgresql:/
 | `npm run test:export` | Builds real .xlsx files, re-reads them and checks cell contents (+ fill-mode template) |
 | `npm run test:i18n` | Every translation key exists in English and Arabic |
 | `npm run test:ui-accounts` | Browser E2E of account switching: add/switch/remove/sign-out, revoked sessions, two tabs, no password in storage |
+| `npm run test:ui-polish` | Browser checks: password show/hide, Arabic wording, month arrows in both languages |
 | `npm run test:ui` | Browser E2E of admin + super_admin flows and Excel download (needs `npx vite preview --port 4173`, Playwright Chromium) |
 
 ## Export template

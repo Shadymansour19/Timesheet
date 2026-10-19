@@ -3,6 +3,7 @@ import { t, getLang } from '../i18n/index.js';
 import { state } from '../auth/session.js';
 import { fetchMonth, fetchEditWindow, setDayStatus, ymd, daysIn, cursor, shiftMonth, goToday } from '../api/timesheet.js';
 import { toast } from '../components/toast.js';
+import { monthHead } from '../components/month-head.js';
 
 const NEXT = { E: 'X', X: 'Y', Y: 'E' };
 const WEEK_START = 0; // 0 = Sunday. Change here if the company week starts on another day.
@@ -90,11 +91,7 @@ export function calendarView() {
     const go = (delta) => { shiftMonth(delta); load(); };
 
     root.replaceChildren(
-      h('div', { class: 'cal-head' },
-        h('button', { class: 'btn small', onclick: () => go(-1), 'aria-label': t('prev_month') }, getLang() === 'ar' ? '›' : '‹'),
-        h('h2', {}, fmt({ month: 'long', year: 'numeric' }, first)),
-        h('button', { class: 'btn small', onclick: () => go(1), 'aria-label': t('next_month') }, getLang() === 'ar' ? '‹' : '›'),
-        h('button', { class: 'btn small', onclick: () => { goToday(); load(); } }, t('today'))),
+      monthHead(fmt({ month: 'long', year: 'numeric' }, first), { onPrev: () => go(-1), onNext: () => go(1), onToday: () => { goToday(); load(); } }),
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         ['X', 'Y', 'XH', 'YH'].map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),

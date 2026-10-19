@@ -9,7 +9,7 @@ export default {
     en: { title: 'Monthly timesheet', department: 'Department', month: 'Month', no: '#', name: 'Employee', opr: 'OPR', level: 'Level',
       ot: 'Overtime (h)', legend: 'X = normal work   Y = operation   E = no work   XH / YH = X / Y on a holiday' },
     ar: { title: 'سجل الدوام الشهري', department: 'القسم', month: 'الشهر', no: 'م', name: 'الموظف', opr: 'الرمز', level: 'المستوى',
-      ot: 'ساعات إضافية', legend: 'X = عمل عادي   Y = تشغيل   E = بدون عمل   XH / YH = X / Y في يوم عطلة' },
+      ot: 'ساعات إضافية', legend: 'X = عمل عادي   Y = وردية   E = بدون عمل   XH / YH = X / Y في يوم عطلة' },
   },
   sheetName: (m) => `${m.year}-${String(m.month + 1).padStart(2, '0')}`,
   // Fixed columns before the day columns.

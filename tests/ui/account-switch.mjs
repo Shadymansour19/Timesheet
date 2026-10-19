@@ -47,7 +47,7 @@ await p.screenshot({ path: S + '/menu-1.png' });
 
 // add account: wrong password keeps the current session
 await p.click('.menu-item:text("Add account")'); await p.waitForSelector('dialog[open]');
-await p.locator('dialog[open]').getByLabel('Username').fill('swadm'); await p.locator('dialog[open]').getByLabel('Password').fill('wrong-wrong'); await p.locator('dialog[open] button.primary').click();
+await p.locator('dialog[open]').getByLabel('Username').fill('swadm'); await p.locator('dialog[open]').getByLabel('Password', { exact: true }).fill('wrong-wrong'); await p.locator('dialog[open] button.primary').click();
 ok('wrong password is rejected in the dialog', (await dialogErr()).includes('Invalid username or password'));
 await p.locator('dialog[open] button:text-is("Cancel")').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('still signed in as the original user', (await who()) === 'Switch User' && (await stored()).join() === 'swu1');
@@ -56,7 +56,7 @@ ok('...and the session still works (write lands as that user)', (await statusBy(
 
 // add account for real
 await openMenu(); await p.click('.menu-item:text("Add account")'); await p.waitForSelector('dialog[open]');
-await p.locator('dialog[open]').getByLabel('Username').fill('swadm'); await p.locator('dialog[open]').getByLabel('Password').fill(PW); await p.locator('dialog[open] button.primary').click();
+await p.locator('dialog[open]').getByLabel('Username').fill('swadm'); await p.locator('dialog[open]').getByLabel('Password', { exact: true }).fill(PW); await p.locator('dialog[open] button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.waitForSelector('.tgrid');
 ok('adding the admin switches to it and lands on its home (department grid)', (await who()) === 'Switch Admin' && p.url().endsWith('#/team'));
 await openMenu();
@@ -84,7 +84,7 @@ ok('switch works after a reload', (await who()) === 'Switch User');
 
 // a saved account whose session was revoked server-side: the CURRENT session must survive the failed switch
 await openMenu(); await p.click('.menu-item:text("Add account")'); await p.waitForSelector('dialog[open]');
-await p.locator('dialog[open]').getByLabel('Username').fill('swu2'); await p.locator('dialog[open]').getByLabel('Password').fill(PW); await p.locator('dialog[open] button.primary').click();
+await p.locator('dialog[open]').getByLabel('Username').fill('swu2'); await p.locator('dialog[open]').getByLabel('Password', { exact: true }).fill(PW); await p.locator('dialog[open] button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.waitForSelector('.day');
 ok('third account added, active', (await who()) === 'Switch Other');
 await openMenu(); await p.locator('.acct-pick', { hasText: 'Switch User' }).click(); await p.waitForSelector('.day'); await p.waitForTimeout(500);
@@ -106,19 +106,20 @@ ok('second tab follows the switch (no stale identity)', (await who(p2)) === 'Swi
 await p2.close();
 
 // remove a saved account (inactive one)
-await openMenu(); await p.locator('.acct-row', { hasText: 'Switch User' }).locator('.acct-x').click(); await p.waitForTimeout(800);
+await openMenu(); await p.locator('.acct-row', { hasText: 'Switch User' }).locator('.acct-x').click();
+await p.waitForFunction(() => JSON.parse(localStorage.getItem('ts.accounts') ?? '[]').length === 1 && document.querySelectorAll('.acct-row').length === 1, null, { timeout: 8000 }).catch(() => {});
 ok('remove: only the active account remains listed', (await stored()).join() === 'swadm' && (await rows()) === 1);
 ok('...and its session was revoked on the server', db(`select count(*) from auth.sessions where user_id='${ID.u1}'`) === '0', db(`select count(*) from auth.sessions where user_id='${ID.u1}'`));
 
 // sign out: falls back to another saved account; sign out of last -> login screen
 await openMenu(); await p.click('.menu-item:text("Add account")'); await p.waitForSelector('dialog[open]');
-await p.locator('dialog[open]').getByLabel('Username').fill('swu1'); await p.locator('dialog[open]').getByLabel('Password').fill(PW); await p.locator('dialog[open] button.primary').click();
+await p.locator('dialog[open]').getByLabel('Username').fill('swu1'); await p.locator('dialog[open]').getByLabel('Password', { exact: true }).fill(PW); await p.locator('dialog[open] button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.waitForSelector('.day');
 await openMenu(); await p.click('.menu-item:text-is("Sign out")'); await p.waitForSelector('.tgrid');
 ok('sign out of one account falls back to the other saved account', (await who()) === 'Switch Admin' && (await stored()).join() === 'swadm');
 ok('...only that session was revoked (admin session intact)', db(`select count(*) from auth.sessions where user_id='${ID.u1}'`) === '0' && db(`select count(*) from auth.sessions where user_id='${ID.adm}'`) !== '0');
 await openMenu(); await p.click('.menu-item:text("Add account")'); await p.waitForSelector('dialog[open]');
-await p.locator('dialog[open]').getByLabel('Username').fill('swu1'); await p.locator('dialog[open]').getByLabel('Password').fill(PW); await p.locator('dialog[open] button.primary').click();
+await p.locator('dialog[open]').getByLabel('Username').fill('swu1'); await p.locator('dialog[open]').getByLabel('Password', { exact: true }).fill(PW); await p.locator('dialog[open] button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.waitForSelector('.day');
 await openMenu(); await p.click('.menu-item:text("Sign out of all")'); await p.waitForSelector('#username');
 ok('sign out of all: login screen, nothing stored', (await stored()).length === 0);

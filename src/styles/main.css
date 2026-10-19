@@ -145,3 +145,10 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .acct-x { background: none; border: 0; color: var(--muted); cursor: pointer; width: 36px; height: 36px; border-radius: 8px; flex: none; }
 .acct-x:hover { background: var(--bg); color: var(--danger); }
 .danger-text { color: var(--danger); }
+
+/* ---- password show/hide ---- */
+.pw { position: relative; display: block; }
+.pw input { padding-inline-end: 46px; }
+.pw-toggle { position: absolute; inset-inline-end: 2px; inset-block: 2px; width: 42px; display: grid; place-items: center; background: none; border: 0; border-radius: 8px; color: var(--muted); cursor: pointer; }
+.pw-toggle:hover { color: var(--text); }
+.pw-toggle:focus-visible { outline: 2px solid var(--brand); }
