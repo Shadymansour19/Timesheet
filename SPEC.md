@@ -66,3 +66,5 @@ All answered 2026-10-19; see Decision log.
 | 2026-10-19 | Fixed by tests: soft-deleted users could still read their own profile/rows; own-row policies now require active | Found by RLS test |
 | 2026-10-19 | Edge Function `admin-manage-users` (actions create_user / reset_password / delete_user) authorises through RPCs run with the caller's JWT, then uses the service role; failed profile insert rolls back the auth user; delete = soft_delete RPC + auth ban (~100y) | Keeps authorisation rules in one place (DB) |
 | 2026-10-19 | Public sign-up disabled in Supabase Auth (verified: /auth/v1/signup returns signup_disabled) | Anyone with the publishable key could otherwise self-register |
+| 2026-10-19 | Frontend: Vite + vanilla JS, hash router with per-role route tables, `h()` DOM helper (no innerHTML), vite-plugin-pwa (app shell cached, API never cached), i18n en/ar with `dir` toggled on `<html>` and CSS logical properties | Per brief; XSS-safe by construction |
+| 2026-10-19 | Change password re-authenticates with the current password before `auth.updateUser` | updateUser alone does not verify the old password; protects an unlocked phone |

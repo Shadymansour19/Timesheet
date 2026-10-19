@@ -8,7 +8,7 @@ timesheet/
 ├── .env.example              # no real values
 ├── public/                   # icons, manifest, service worker assets
 ├── src/
-│   ├── main.js, router.js, supabase.js
+│   ├── main.js, router.js, supabase.js, dom.js
 │   ├── auth/                 # login, change password, session
 │   ├── api/                  # thin wrappers over RPCs / queries
 │   ├── views/                # user-calendar, admin-grid, superadmin, login
