@@ -28,5 +28,8 @@ export function accountView() {
     h('label', { for: 'cur' }, t('current_password')), curP.wrap,
     h('label', { for: 'nw' }, t('new_password')), nwP.wrap,
     h('label', { for: 'cf' }, t('confirm_password')), cfP.wrap,
-    msg, btn);
+    msg,
+    h('div', { class: 'form-actions' },
+      h('button', { type: 'button', class: 'btn', onclick: () => { location.hash = ''; } }, t('cancel')),   // '' resolves to the role's home page
+      btn));
 }

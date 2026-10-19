@@ -129,7 +129,7 @@ await p.screenshot({ path: S + '/team-ar2.png' });
 ok('admin grid marks overtime cells (amber bar + badge)', (await p.locator('td.has-ot').count()) === 3 && (await p.locator('td.has-ot').first().evaluate((e) => getComputedStyle(e).boxShadow)) !== 'none');
 // ---- every role has it in the menu: admin and super_admin
 await p.click('text=English'); await p.waitForSelector('.tgrid');
-ok('admin tabs without Change password', (await p.locator('.nav a').allTextContents()).join('|') === 'Department|Users|My calendar');
+ok('admin tabs (no Change password tab)', (await p.locator('.nav a').allTextContents()).join('|') === 'Department|Overtime|Users|My calendar');
 await p.click('.acct > summary'); ok('admin menu has Change password', (await p.locator('.menu a.menu-item').textContent()).trim() === 'Change password');
 await p.click('.menu a.menu-item'); await p.waitForSelector('#cur'); ok('admin: opens the page, Back goes to the department grid', (await p.locator('.back-link').count()) === 1);
 await p.click('.back-link'); await p.waitForSelector('.tgrid');

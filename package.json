@@ -13,7 +13,8 @@
     "test:e2e-users": "supabase/tests/e2e_admin_users.sh",
     "test:ui": "node tests/ui/admin-flows.mjs",
     "test:ui-accounts": "node tests/ui/account-switch.mjs",
-    "test:ui-polish": "node tests/ui/polish.mjs"
+    "test:ui-polish": "node tests/ui/polish.mjs",
+    "test:ui-overtime": "node tests/ui/overtime-tab.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

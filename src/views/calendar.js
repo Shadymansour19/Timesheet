@@ -2,11 +2,11 @@ import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state } from '../auth/session.js';
 import { fetchMonth, fetchEditWindow, setDayStatus, ymd, daysIn, cursor, shiftMonth, goToday } from '../api/timesheet.js';
+import { WEEK_START } from '../lib/core.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
 
 const NEXT = { E: 'X', X: 'Y', Y: 'E' };
-const WEEK_START = 0; // 0 = Sunday. Change here if the company week starts on another day.
 
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
 

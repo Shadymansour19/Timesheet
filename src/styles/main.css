@@ -95,9 +95,10 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 
 /* ---- dialogs, forms, lists ---- */
 .dlg { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--text); padding: 20px; width: min(92vw, 440px); max-height: 90dvh; }
+.dlg:focus { outline: none; }
 .dlg::backdrop { background: rgba(0, 0, 0, .45); }
 .dlg h3 { margin: 0 0 12px; font-size: 1.05rem; }
-.dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-block-start: 12px; flex-wrap: wrap; }
+.dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-block-start: 12px; flex-wrap: wrap; position: sticky; inset-block-end: -20px; background: var(--card); padding-block: 10px 0; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .field { display: grid; gap: 4px; margin-block-end: 8px; }
 .field label { margin: 0; }
@@ -169,3 +170,23 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .pw-toggle { position: absolute; inset-inline-end: 2px; inset-block: 2px; width: 42px; display: grid; place-items: center; background: none; border: 0; border-radius: 8px; color: var(--muted); cursor: pointer; }
 .pw-toggle:hover { color: var(--text); }
 .pw-toggle:focus-visible { outline: 2px solid var(--brand); }
+
+/* ---- admin overtime tab ---- */
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-block-start: 8px; }
+.ot-day.has-ot { background: color-mix(in srgb, var(--ot-bg) 40%, var(--card)); border-color: var(--ot-bar); }
+.ot-day .st { color: var(--s-e-fg); }
+.ot-day.has-ot .st { color: var(--ot-fg); }
+.dlg.wide { width: min(94vw, 580px); }
+.ot-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-block-end: 8px; }
+.ot-search { flex: 1; min-width: 150px; }
+.otlist { max-height: 38dvh; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding-inline: 10px; }
+.otrow { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 6px 10px; align-items: center; padding-block: 8px; border-block-end: 1px solid var(--line); }
+.otrow[hidden], .ot-note[hidden] { display: none; }
+.otrow:last-child { border-block-end: 0; }
+.otrow.has { background: color-mix(in srgb, var(--ot-bg) 30%, transparent); margin-inline: -10px; padding-inline: 10px; }
+.otrow.invalid .ot-hours { border-color: var(--danger); outline: 2px solid var(--danger); }
+.otname { display: grid; min-width: 0; }
+.otname strong, .otname small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ot-hours { text-align: center; padding-inline: 6px; }
+.ot-note { grid-column: 1 / -1; }
+.ot-total { margin: 10px 0 0; font-weight: 600; color: var(--ot-fg); background: var(--ot-bg); padding: 8px 12px; border-radius: 8px; }

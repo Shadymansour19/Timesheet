@@ -4,9 +4,9 @@ import { explain } from '../api/errors.js';
 
 // buttons: [{ label, kind?: 'primary'|'danger', onClick?: async () => (false to keep open) }]
 // Errors thrown by onClick are shown inside the dialog. Enter submits the first primary/danger button.
-export function openDialog({ title, content, buttons, onClose }) {
+export function openDialog({ title, content, buttons, onClose, wide = false, autofocus = true }) {
   const err = h('p', { class: 'error', role: 'alert' });
-  const dlg = h('dialog', { class: 'dlg' });
+  const dlg = h('dialog', { class: 'dlg' + (wide ? ' wide' : '') });
   const els = buttons.map((b) => h('button', { type: 'button', class: 'btn ' + (b.kind || ''), onclick: async () => {
     if (!b.onClick) return dlg.close();
     els.forEach((x) => { x.disabled = true; }); err.textContent = '';
@@ -20,7 +20,8 @@ export function openDialog({ title, content, buttons, onClose }) {
   dlg.addEventListener('close', () => { dlg.remove(); onClose?.(); });
   document.body.append(dlg);
   dlg.showModal();
-  dlg.querySelector('input, select')?.focus();
+  if (autofocus) dlg.querySelector('input, select')?.focus();
+  else { dlg.tabIndex = -1; dlg.focus(); }    // showModal() itself focuses the first field; keep it unfocused (e.g. phone keyboard)
   return dlg;
 }
 

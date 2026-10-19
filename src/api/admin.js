@@ -9,6 +9,8 @@ async function rpc(name, args) {
 export const setStatus = (uid, day, status) => rpc('set_day_status', { p_user: uid, p_day: day, p_status: status });
 export const setStatusBulk = (users, days, status) => rpc('set_day_status_bulk', { p_users: users, p_days: days, p_status: status });
 export const setOvertime = (uid, day, hours, note) => rpc('set_overtime', { p_user: uid, p_day: day, p_hours: hours, p_note: note || null });
+// One transaction for a whole day: rows = [{ user, hours (0-24 integer, 0 removes), note }]. All succeed or none do.
+export const setOvertimeBulk = (day, rows) => supabase.rpc('set_overtime_bulk', { p_day: day, p_rows: rows }).then(({ error }) => { if (error) throw error; });
 export const setHoliday = (day, on) => rpc('set_holiday', { p_day: day, p_on: on });
 export const updateProfile = (uid, fullName, opr, level) => rpc('update_profile', { p_user: uid, p_full_name: fullName, p_opr: opr, p_level: level });
 export const setUserRole = (uid, role) => rpc('set_user_role', { p_user: uid, p_role: role });

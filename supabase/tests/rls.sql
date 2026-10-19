@@ -100,6 +100,7 @@ insert into public.overtime (user_id, day, hours) values
 -- ---------------------------------------------------------------- anon
 select t.anon();
 select t.denied('anon cannot read profiles', 'select * from public.profiles');
+select t.denied('anon cannot call set_overtime_bulk', $$select public.set_overtime_bulk(current_date, '[]'::jsonb)$$);
 select t.denied('anon cannot call set_day_status',
   $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
 
@@ -133,6 +134,7 @@ select t.denied('user direct INSERT overtime',
   $$insert into public.overtime (user_id, day, hours) values ('00000000-0000-0000-0000-0000000000a2', current_date + 1, 5)$$);
 select t.denied('user set_overtime on self',
   $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date, 9)$$);
+select t.denied('user bulk overtime', $$select public.set_overtime_bulk(current_date, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":9}]'::jsonb)$$);
 select t.denied('user set_holiday', $$select public.set_holiday(current_date, true)$$);
 select t.denied('user direct INSERT holidays',
   $$insert into public.holidays (department_id, day) values ('10000000-0000-0000-0000-00000000000a', current_date)$$);
@@ -205,6 +207,29 @@ select t.count('get_timesheet for dept B returns nothing to adminA',
 select t.ok('adminA removes holiday', $$select public.set_holiday(current_date + 40, false)$$);
 select t.eq('...status reverts to Y',
   $$select effective_status from public.get_timesheet(null, current_date + 40, current_date + 40) where user_id = '00000000-0000-0000-0000-0000000000a3'$$, 'Y');
+-- bulk overtime for a whole day (atomic, same rules as set_overtime)
+select t.ok('adminA bulk overtime for two people with different hours and notes',
+  $$select public.set_overtime_bulk(current_date + 7, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":4,"note":"inventory"},{"user":"00000000-0000-0000-0000-0000000000a3","hours":6,"note":"night shift"}]'::jsonb)$$);
+select t.eq('bulk stored both rows with notes and entered_by',
+  $$select string_agg(hours || ':' || note || ':' || (entered_by = '00000000-0000-0000-0000-0000000000a1')::text, ',' order by hours) from public.overtime where day = current_date + 7$$, '4:inventory:true,6:night shift:true');
+select t.ok('bulk can edit (update) and remove (0) in the same call',
+  $$select public.set_overtime_bulk(current_date + 7, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":8,"note":"edited"},{"user":"00000000-0000-0000-0000-0000000000a3","hours":0}]'::jsonb)$$);
+select t.eq('...ua1 updated to 8, ua2 row removed',
+  $$select count(*) || ':' || max(hours) from public.overtime where day = current_date + 7$$, '1:8');
+select t.denied('bulk with a dept B user fails as a whole (atomic): nothing is written for the valid row either',
+  $$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":3},{"user":"00000000-0000-0000-0000-0000000000b2","hours":3}]'::jsonb)$$);
+select t.count('...no rows exist for that day', $$select 1 from public.overtime where day = current_date + 8$$, 0);
+select t.denied('bulk with one invalid hour (25) rejects everything', $$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":3},{"user":"00000000-0000-0000-0000-0000000000a3","hours":25}]'::jsonb)$$, '22023');
+select t.denied('bulk rejects a fractional hour (1.5)', $$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":1.5}]'::jsonb)$$, '22023');
+select t.denied('bulk rejects hours given as a string', $$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":"5"}]'::jsonb)$$, '22023');
+select t.denied('bulk rejects a negative hour', $$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":-1}]'::jsonb)$$, '22023');
+select t.denied('bulk rejects a non-array payload', $$select public.set_overtime_bulk(current_date + 8, '{"user":"x"}'::jsonb)$$, '22023');
+select t.denied('bulk rejects a 201-character note', format($f$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":1,"note":"%s"}]'::jsonb)$f$, repeat('x', 201)), '22023');
+select t.count('...still nothing written for that day', $$select 1 from public.overtime where day = current_date + 8$$, 0);
+select t.denied('bulk cannot target the super_admin', $$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a0","hours":1}]'::jsonb)$$);
+select t.ok('bulk may include the admin himself', $$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a1","hours":2}]'::jsonb)$$);
+select t.eq('audit logged the bulk change with adminA as actor',
+  $$select count(*)::text from public.audit_log where table_name = 'overtime' and actor = '00000000-0000-0000-0000-0000000000a1' and day = current_date + 7$$, '4');
 -- profile edits
 select t.ok('adminA edits ua1 data', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1 Renamed', 'OPR-A2', 7)$$);
 select t.eq('edit persisted', $$select level::text from public.profiles where username = 'ua1'$$, '7');
@@ -250,6 +275,7 @@ select t.count('adminB sees no dept A overtime', $$select 1 from public.overtime
 select t.count('adminB sees no dept A holidays', 'select 1 from public.holidays', 0);
 select t.count('adminB sees no dept A audit', $$select 1 from public.audit_log where department_id = '10000000-0000-0000-0000-00000000000a'$$, 0);
 select t.denied('adminB set status in dept A', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
+select t.denied('adminB bulk overtime in dept A', $$select public.set_overtime_bulk(current_date, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":9}]'::jsonb)$$);
 select t.denied('adminB overtime in dept A', $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date, 2)$$);
 select t.denied('adminB edit dept A user', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', 1)$$);
 select t.denied('adminB promote dept A user', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a2', 'admin')$$);
@@ -271,6 +297,7 @@ select t.count('super_admin audit limited to profiles/departments',
   $$select 1 from public.audit_log where table_name not in ('profiles','departments')$$, 0);
 select t.denied('super_admin cannot set status', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
 select t.denied('super_admin cannot set own status', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a0', current_date, 'X')$$);
+select t.denied('super_admin cannot bulk-set overtime', $$select public.set_overtime_bulk(current_date, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":9}]'::jsonb)$$);
 select t.denied('super_admin cannot set overtime', $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date, 2)$$);
 select t.denied('super_admin cannot set holiday', $$select public.set_holiday(current_date, true)$$);
 select t.denied('super_admin cannot edit user data', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', 1)$$);

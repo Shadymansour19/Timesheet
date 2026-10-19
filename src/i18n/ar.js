@@ -103,4 +103,12 @@ export default {
   show_password: "إظهار كلمة المرور",
   hide_password: "إخفاء كلمة المرور",
   legend_ot: "الساعات الإضافية تظهر باللون الكهرماني.",
+  nav_overtime: "الإضافي",
+  ot_hint: "اضغط على يوم لإدخال الساعات الإضافية لكل الموظفين.",
+  search_people: "بحث بالاسم أو الرمز",
+  only_with_overtime: "من لديهم إضافي فقط",
+  ot_total: "الإجمالي",
+  saved: "تم الحفظ.",
+  overtime_hours_short: "الساعات الإضافية",
+  days_with_overtime: "أيام",
 };

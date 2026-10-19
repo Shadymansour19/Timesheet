@@ -7,3 +7,6 @@ export const monthRange = (y, m) => [ymd(y, m, 1), ymd(y, m, daysIn(y, m))];
 
 // X/Y become XH/YH on a department holiday; E stays E. Holidays are derived, never stored on the row.
 export const effective = (status, isHoliday) => (status === 'E' ? 'E' : isHoliday ? status + 'H' : status);
+
+// First day of the week in calendars: 0 = Sunday. Change here if the company week starts on another day.
+export const WEEK_START = 0;

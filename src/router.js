@@ -3,6 +3,7 @@ import { accountView } from './views/account.js';
 import { placeholderView } from './views/placeholder.js';
 import { calendarView } from './views/calendar.js';
 import { teamView } from './views/team.js';
+import { overtimeView } from './views/overtime.js';
 import { usersView } from './views/users.js';
 import { departmentsView } from './views/departments.js';
 
@@ -11,6 +12,7 @@ const routes = {
   user: [{ path: '/calendar', label: 'nav_calendar', view: calendarView }],
   admin: [
     { path: '/team', label: 'nav_team', view: teamView },
+    { path: '/overtime', label: 'nav_overtime', view: overtimeView },
     { path: '/users', label: 'nav_users', view: usersView },
     { path: '/calendar', label: 'nav_calendar', view: calendarView },
   ],
