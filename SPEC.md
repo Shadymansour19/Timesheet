@@ -64,3 +64,5 @@ All answered 2026-10-19; see Decision log.
 | 2026-10-19 | Edge Function authorises by calling `assert_can_create` / `assert_can_manage` / `soft_delete_user` with the CALLER's JWT, then uses the service role for auth.users work | Single source of authorisation truth in the DB |
 | 2026-10-19 | Tests run migrations + `supabase/tests/rls.sql` in one transaction on the real project and ROLLBACK (`supabase/tests/run.sh`) | Real Supabase auth/roles, nothing left behind |
 | 2026-10-19 | Fixed by tests: soft-deleted users could still read their own profile/rows; own-row policies now require active | Found by RLS test |
+| 2026-10-19 | Edge Function `admin-manage-users` (actions create_user / reset_password / delete_user) authorises through RPCs run with the caller's JWT, then uses the service role; failed profile insert rolls back the auth user; delete = soft_delete RPC + auth ban (~100y) | Keeps authorisation rules in one place (DB) |
+| 2026-10-19 | Public sign-up disabled in Supabase Auth (verified: /auth/v1/signup returns signup_disabled) | Anyone with the publishable key could otherwise self-register |
