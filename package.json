@@ -6,12 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:i18n": "node tests/check-i18n.mjs",
+    "test:export": "node tests/export.test.mjs",
+    "test:rls": "SKIP_MIGRATIONS=1 supabase/tests/run.sh",
+    "test:e2e-users": "supabase/tests/e2e_admin_users.sh",
+    "test:ui": "node tests/ui/admin-flows.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.118.0"
+    "@supabase/supabase-js": "^2.118.0",
+    "exceljs": "^4.4.0"
   },
   "devDependencies": {
+    "playwright": "^1.64.1",
     "vite": "^8.3.4",
     "vite-plugin-pwa": "^2.0.0"
   }

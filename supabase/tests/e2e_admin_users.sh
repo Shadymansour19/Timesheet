@@ -23,7 +23,8 @@ cleanup() {
   sql "delete from public.audit_log where department_id in ('$DEPT_A','$DEPT_B') or actor in ('$SA','$ADM')
        or target_user in (select id from public.profiles where username like 'e2e%');
        delete from auth.users where email like 'e2e%@timesheet.local';
-       delete from public.departments where id in ('$DEPT_A','$DEPT_B');" >/dev/null
+       delete from public.departments where id in ('$DEPT_A','$DEPT_B');
+       delete from public.audit_log where (target_user is not null and target_user not in (select id from public.profiles)) or (department_id is not null and department_id not in (select id from public.departments)) or (table_name = 'departments' and new_value like 'E2E %');" >/dev/null
 }
 trap cleanup EXIT
 cleanup # in case a previous run died

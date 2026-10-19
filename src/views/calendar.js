@@ -1,13 +1,11 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state } from '../auth/session.js';
-import { fetchMonth, fetchEditWindow, setDayStatus, ymd, daysIn } from '../api/timesheet.js';
+import { fetchMonth, fetchEditWindow, setDayStatus, ymd, daysIn, cursor, shiftMonth, goToday } from '../api/timesheet.js';
 import { toast } from '../components/toast.js';
 
 const NEXT = { E: 'X', X: 'Y', Y: 'E' };
 const WEEK_START = 0; // 0 = Sunday. Change here if the company week starts on another day.
-
-let cursor = (() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() }; })();
 
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
 
@@ -89,14 +87,14 @@ export function calendarView() {
 
     const count = (s) => Object.values(data).filter((v) => v.eff === s).length;
     const ot = Object.values(data).reduce((a, v) => a + (v.ot || 0), 0);
-    const go = (delta) => { const n = new Date(cursor.y, cursor.m + delta, 1); cursor = { y: n.getFullYear(), m: n.getMonth() }; load(); };
+    const go = (delta) => { shiftMonth(delta); load(); };
 
     root.replaceChildren(
       h('div', { class: 'cal-head' },
         h('button', { class: 'btn small', onclick: () => go(-1), 'aria-label': t('prev_month') }, getLang() === 'ar' ? '›' : '‹'),
         h('h2', {}, fmt({ month: 'long', year: 'numeric' }, first)),
         h('button', { class: 'btn small', onclick: () => go(1), 'aria-label': t('next_month') }, getLang() === 'ar' ? '‹' : '›'),
-        h('button', { class: 'btn small', onclick: () => { const n = new Date(); cursor = { y: n.getFullYear(), m: n.getMonth() }; load(); } }, t('today'))),
+        h('button', { class: 'btn small', onclick: () => { goToday(); load(); } }, t('today'))),
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         ['X', 'Y', 'XH', 'YH'].map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),

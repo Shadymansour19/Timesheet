@@ -7,9 +7,15 @@ import { resolve } from './router.js';
 import { shell } from './components/shell.js';
 
 const root = document.getElementById('app');
+const banner = h('div', { class: 'offline-banner', role: 'status', hidden: true }, t('offline'));
+document.body.prepend(banner);
+const syncOnline = () => { banner.textContent = t('offline'); banner.hidden = navigator.onLine; };
+window.addEventListener('online', syncOnline);
+window.addEventListener('offline', syncOnline);
 let notice = null;
 
 function render() {
+  syncOnline();
   root.replaceChildren();
   if (!state.profile) {
     const lang = h('button', { class: 'btn small floating', onclick: () => { setLang(otherLang()); render(); } }, t('language'));

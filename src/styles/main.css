@@ -65,3 +65,56 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .chip.s-y, .chip.s-yh { background: var(--s-y-bg); color: var(--s-y-fg); border-color: transparent; }
 .toasts { position: fixed; inset-block-end: 16px; inset-inline: 16px; display: grid; gap: 8px; justify-items: center; pointer-events: none; }
 .toast { background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: .9rem; }
+
+/* ---- department grid ---- */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-block-end: 8px; }
+.seg { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.btn.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.team { max-width: none; }
+.gridwrap { overflow: auto; max-height: 70dvh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.tgrid { border-collapse: separate; border-spacing: 0; font-size: .8rem; min-width: max-content; }
+.tgrid th, .tgrid td { border-block-end: 1px solid var(--line); border-inline-end: 1px solid var(--line); padding: 0; text-align: center; }
+.tgrid thead th { position: sticky; inset-block-start: 0; background: var(--card); z-index: 2; padding: 4px 0; }
+.tgrid .nm { position: sticky; inset-inline-start: 0; background: var(--card); z-index: 1; text-align: start; padding: 4px 10px; min-width: 150px; max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tgrid thead .nm { z-index: 3; }
+.tgrid .nm span, .tgrid .nm small { display: block; overflow: hidden; text-overflow: ellipsis; }
+.tgrid .nm small { font-weight: 400; font-size: .7rem; }
+.tgrid .dh { min-width: 34px; }
+.tgrid .dh small { display: block; color: var(--muted); font-weight: 400; }
+.tgrid .dh.pick { cursor: pointer; outline: 1px dashed var(--brand); outline-offset: -3px; }
+.tgrid .dh.holiday { background: #fde68a; color: #78350f; }
+.tgrid td.c { min-width: 34px; height: 34px; cursor: pointer; font-weight: 600; background: var(--s-e-bg); color: var(--s-e-fg); user-select: none; }
+.tgrid td.c sup { font-size: .6rem; margin-inline-start: 1px; }
+.tgrid td.s-x, .tgrid td.s-xh { background: var(--s-x-bg); color: var(--s-x-fg); }
+.tgrid td.s-y, .tgrid td.s-yh { background: var(--s-y-bg); color: var(--s-y-fg); }
+.tgrid td.holiday { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,.12) 5px 7px); }
+.tgrid .tot { min-width: 34px; padding-inline: 4px; font-weight: 600; background: var(--card); }
+
+/* ---- dialogs, forms, lists ---- */
+.dlg { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--text); padding: 20px; width: min(92vw, 440px); max-height: 90dvh; }
+.dlg::backdrop { background: rgba(0, 0, 0, .45); }
+.dlg h3 { margin: 0 0 12px; font-size: 1.05rem; }
+.dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-block-start: 12px; flex-wrap: wrap; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.field { display: grid; gap: 4px; margin-block-end: 8px; }
+.field label { margin: 0; }
+.radios { display: flex; gap: 10px; margin-block-end: 8px; }
+.radio { display: inline-flex; align-items: center; gap: 6px; margin: 0; cursor: pointer; }
+.radio input { width: auto; }
+.checklist { max-height: 200px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.check { display: flex; align-items: center; gap: 8px; margin: 0; padding-block: 4px; color: var(--text); }
+.check input { width: auto; }
+.check.strong { font-weight: 600; }
+.plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.person { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 12px 14px; margin: 0; max-width: none; }
+.plist .person:not(.card) { border-block-end: 1px solid var(--line); padding-inline: 0; }
+.pinfo { display: grid; gap: 2px; min-width: 180px; }
+.pactions { display: flex; flex-wrap: wrap; gap: 6px; }
+.pactions.top { margin-block: 8px; }
+.badge { font-size: .7rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); justify-self: start; }
+.badge.admin { background: var(--s-y-bg); color: var(--s-y-fg); border-color: transparent; }
+.users, .depts { max-width: 760px; margin: 8px auto; }
+.dept { max-width: none; margin: 12px 0; }
+.dept summary { cursor: pointer; padding-block: 4px; }
+.offline-banner { background: #b45309; color: #fff; text-align: center; padding: 6px 16px; font-size: .85rem; }
+.offline-banner[hidden] { display: none; }
