@@ -10,5 +10,5 @@ Each phase ends with local commits (never pushed) and a hand-off of push + Supab
 5. **Admin screens** (DONE): department grid, quick set, bulk fill, overtime entry, user management dialog.
 6. **Super admin screen** (DONE): departments and admins.
 7. **Export** (DONE: default template): data model → template mapping engine → default layout; verify the generated xlsx contents programmatically.
-8. **Polish** (DONE: offline banner; offline write queue + realtime deferred): offline tolerance, optional realtime, a11y, mobile QA.
+8. **Polish** (DONE: offline banner; LIVE UPDATES via Realtime; offline write queue deferred): offline tolerance, optional realtime, a11y, mobile QA.
 9. **Template swap** (WAITING for the official form): when the official form arrives, add a new template mapping.

@@ -40,6 +40,7 @@ const st = (uid, d) => db(`select coalesce((select status from public.day_status
 const ot = (uid, d) => db(`select coalesce((select hours::text from public.overtime where user_id='${uid}' and day='${dstr(d)}'),'0')`);
 async function session(un, pw = PW, viewport = { width: 390, height: 800 }) {
   const ctx = await b.newContext({ viewport, acceptDownloads: true });
+  await ctx.addInitScript(() => { try { localStorage.setItem('ts.teamView', 'month'); } catch { /* ignore */ } });   // phones default to week view
   const p = await ctx.newPage(); p.errs = [];
   p.on('pageerror', (e) => p.errs.push(e.message));
   await p.goto('http://localhost:4173/');
@@ -59,7 +60,7 @@ ok('admin lands on department grid', p.url().endsWith('#/team'));
 ok('grid shows exactly the 3 people of own department', (await p.locator('.tgrid tbody tr').count()) === 3);
 const bodyText = await p.textContent('.tgrid');
 ok('other department people are not shown', !bodyText.includes('UI User Bee') && !bodyText.includes('UI Admin B'));
-ok('heading shows own department', (await p.textContent('.cal-head h2')).includes('UI Dept A'));
+ok('subtitle shows own department and headcount', (await p.textContent('.dept-sub')).includes('UI Dept A') && (await p.textContent('.dept-sub')).includes('3 employees'));
 await p.screenshot({ path: S + '/team.png' });
 
 // edit dialog: status + overtime
@@ -102,7 +103,7 @@ ok('other department data untouched', db(`select status||'|'||(select hours from
 
 // export (real download, parsed back)
 await p.click('.seg button:text-is("Holiday")'); await p.locator(`th.dh[data-d="${dstr(5)}"]`).click(); await settle(p); await p.click('.seg button:text-is("Edit")');
-const [dl] = await Promise.all([p.waitForEvent('download'), p.click('button:text-is("Export Excel")')]);
+const [dl] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Export Excel")'); await p.waitForSelector('dialog[open]'); await dlg(p).locator('button.primary').click(); })()]);
 const file = S + '/export.xlsx'; await dl.saveAs(file);
 ok('download filename', dl.suggestedFilename() === `timesheet_UI_Dept_A_${month}.xlsx`, dl.suggestedFilename());
 const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(file); const ws = wb.worksheets[0];

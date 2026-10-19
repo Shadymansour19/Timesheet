@@ -6,6 +6,7 @@ import { teamView } from './views/team.js';
 import { overtimeView } from './views/overtime.js';
 import { usersView } from './views/users.js';
 import { departmentsView } from './views/departments.js';
+import { personView } from './views/person.js';
 
 // Each role gets its own set of routes; the first is the landing page.
 const routes = {
@@ -27,6 +28,9 @@ export function resolve() {
   const all = [...navFor(), ...common];
   const match = all.find((r) => r.path === path);
   if (match) return match;
+  // admin only: one employee's timesheet, #/person/<uuid>
+  const person = path.match(/^\/person\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+  if (person && state.profile.role === 'admin') return { path, view: () => personView(person[1]) };
   const home = navFor()[0];
   if (path === '/' && home) { location.replace('#' + home.path); return null; }
   return { path, view: placeholderView('not_found') };

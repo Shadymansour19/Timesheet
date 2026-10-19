@@ -7,6 +7,10 @@ async function rpc(name, args) {
 }
 
 export const setStatus = (uid, day, status) => rpc('set_day_status', { p_user: uid, p_day: day, p_status: status });
+// Exact cells in ONE transaction (bulk fill, Undo): rows = [{ user, day, status }] (E removes). Chunked above 5000 cells.
+export async function setStatusRows(rows) {
+  for (let i = 0; i < rows.length; i += 5000) await rpc('set_day_status_rows', { p_rows: rows.slice(i, i + 5000) });
+}
 export const setStatusBulk = (users, days, status) => rpc('set_day_status_bulk', { p_users: users, p_days: days, p_status: status });
 export const setOvertime = (uid, day, hours, note) => rpc('set_overtime', { p_user: uid, p_day: day, p_hours: hours, p_note: note || null });
 // One transaction for a whole day: rows = [{ user, hours (0-24 integer, 0 removes), note }]. All succeed or none do.

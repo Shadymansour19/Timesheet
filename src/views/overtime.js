@@ -7,6 +7,9 @@ import { fetchDeptPeople, setOvertimeBulk } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { toast } from '../components/toast.js';
+import * as live from '../live.js';
+import { sameData } from '../lib/core.js';
+import { monthRange } from '../api/timesheet.js';
 import { monthHead } from '../components/month-head.js';
 
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
@@ -20,12 +23,23 @@ export function overtimeView() {
   let people = [], data = null;
   const todayStr = (() => { const n = new Date(); return ymd(n.getFullYear(), n.getMonth(), n.getDate()); })();
 
-  async function load() {
-    root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
-    try { [people, data] = await Promise.all([fetchDeptPeople(deptId), fetchMonthData(cursor.y, cursor.m)]); }
-    catch (e) { root.replaceChildren(h('p', { class: 'error' }, explain(e))); return; }
+  async function load({ quiet = false } = {}) {
+    if (!quiet) root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
+    let p, d;
+    try { [p, d] = await Promise.all([fetchDeptPeople(deptId), fetchMonthData(cursor.y, cursor.m)]); }
+    catch (e) { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, explain(e))); return; }
+    if (quiet && data && sameData(data, d) && JSON.stringify(p.map((x) => x.id)) === JSON.stringify(people.map((x) => x.id))) return;   // nothing new
+    people = p; data = d;
     draw();
   }
+
+  // live: another admin changed overtime / holidays / people -> refetch quietly
+  let liveTimer;
+  live.watch([`dept:${deptId}`, `deptpub:${deptId}`], (p) => {
+    if (p.t === 'profile') return;
+    if (p.t !== 'resync' && p.t !== 'profiles') { const [a, b] = monthRange(cursor.y, cursor.m); if (p.to < a || p.from > b) return; }
+    clearTimeout(liveTimer); liveTimer = setTimeout(() => load({ quiet: true }), 350);
+  });
 
   // day -> { hours, n } over the department's current employees
   function dayTotals() {

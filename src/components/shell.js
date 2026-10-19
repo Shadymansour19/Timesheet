@@ -71,8 +71,12 @@ export function shell(content, { onLang }) {
   const nav = h('nav', { class: 'nav' },
     navFor().map((r) => h('a', { href: '#' + r.path, class: here === r.path ? 'active' : '' }, t(r.label))));
   const home = navFor()[0];
-  const back = here === '/account' && home
-    ? h('a', { class: 'back-link', href: '#' + home.path }, withFlip(icon(ARROW_LEFT, 18)), t('back'))
+  // sub-pages (change password, one person's timesheet) get a Back link to where they came from
+  const sub = here === '/account' || here.startsWith('/person/');
+  const back = sub && home
+    ? h('a', { class: 'back-link', href: here.startsWith('/person/') ? '#/users' : '#' + home.path,
+        onclick: (e) => { if (here.startsWith('/person/') && history.length > 1) { e.preventDefault(); history.back(); } } },
+      withFlip(icon(ARROW_LEFT, 18)), t('back'))
     : null;
 
   return h('div', { class: 'shell' },

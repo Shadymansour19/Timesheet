@@ -24,7 +24,9 @@ db(`insert into public.day_status (user_id, day, status) values ('${ID.u}', date
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
-const p = await (await b.newContext({ viewport: { width: 390, height: 800 } })).newPage();
+const ctx0 = await b.newContext({ viewport: { width: 390, height: 800 } });
+await ctx0.addInitScript(() => { try { localStorage.setItem('ts.teamView', 'month'); } catch { /* ignore */ } });   // phones default to week view
+const p = await ctx0.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 const box = (sel) => p.locator(sel).first().boundingBox();
 

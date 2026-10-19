@@ -1,6 +1,9 @@
 import { supabase, usernameToEmail, revokeSession } from '../supabase.js';
 
 export const state = { profile: null };
+let pendingNotice = null;
+// A message for the login screen after the account was ended elsewhere (deactivated by an admin, etc.).
+export const takeNotice = () => { const n = pendingNotice; pendingNotice = null; return n; };
 const listeners = new Set();
 export const onChange = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 const notify = () => listeners.forEach((fn) => fn(state.profile));
@@ -134,6 +137,34 @@ export async function removeAccount(id) {
   if (!a || id === state.profile?.id) return;
   removeLocal(id);
   await revokeSession(a.access_token);
+}
+
+// Re-read the signed-in person's profile (called when the database announces a change to it).
+// Deactivated -> back to the login screen; role or department changed -> the app re-renders with the new menus.
+let refreshing = null;
+export function refreshProfile() {
+  // several announcements can arrive together: run one refresh at a time
+  refreshing ??= guard(doRefreshProfile).finally(() => { refreshing = null; });   // guard: our own sign-out must not trigger the "session ended elsewhere" reload
+  return refreshing;
+}
+async function doRefreshProfile() {
+  const me = state.profile;
+  if (!me) return;
+  const r = await loadProfile(me.id);
+  if (r.error === 'account_disabled') {
+    await supabase.auth.signOut({ scope: 'local' });
+    removeLocal(me.id);
+    pendingNotice = 'account_disabled';
+    state.profile = null;
+    notify();
+    return;
+  }
+  if (!r.profile) return;
+  const changed = r.profile.role !== me.role || r.profile.department_id !== me.department_id;
+  state.profile = r.profile;
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user.id === r.profile.id) upsert(entry(data.session, r.profile));
+  if (changed) { location.hash = ''; notify(); }
 }
 
 // Verify the current password, then set the new one. Returns an i18n error key or null.

@@ -1,202 +1,403 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state } from '../auth/session.js';
-import { cursor, shiftMonth, goToday, ymd, daysIn, fetchMonthData, effective } from '../api/timesheet.js';
-import { fetchDeptPeople, fetchDepartment, setStatus, setStatusBulk, setOvertime, setHoliday } from '../api/admin.js';
+import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchMonthData, effective } from '../api/timesheet.js';
+import { WEEK_START, sameData } from '../lib/core.js';
+import * as live from '../live.js';
+import { fetchDeptPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { field } from '../components/form.js';
+import { openDayEditor } from '../components/day-editor.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
+import { icon, SEARCH, INFO, UNDO, DOWNLOAD, REFRESH } from '../components/icons.js';
 
-const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
+const locale = () => (getLang() === 'ar' ? 'ar-u-nu-latn' : 'en');
+const fmt = (opts, date) => new Intl.DateTimeFormat(locale(), opts).format(date);
+const dateOf = (s) => new Date(s + 'T00:00:00');
+const todayStr = () => { const n = new Date(); return ymd(n.getFullYear(), n.getMonth(), n.getDate()); };
+const addDays = (s, n) => { const d = dateOf(s); d.setDate(d.getDate() + n); return ymd(d.getFullYear(), d.getMonth(), d.getDate()); };
+const weekStartOf = (s) => addDays(s, -((dateOf(s).getDay() - WEEK_START + 7) % 7));
+const key = (uid, day) => `${uid}|${day}`;
+
+// Month vs week view: week fits a phone without sideways scrolling. Remembered per device.
+const PREF = 'ts.teamView';
+const readPref = () => { try { const v = localStorage.getItem(PREF); if (v === 'week' || v === 'month') return v; } catch { /* ignore */ } return matchMedia('(max-width: 640px)').matches ? 'week' : 'month'; };
+const writePref = (v) => { try { localStorage.setItem(PREF, v); } catch { /* ignore */ } };
+let viewMode = null, weekStart = null;      // module state: survives switching tabs
 
 export function teamView() {
   const deptId = state.profile.department_id;
-  const root = h('section', { class: 'team' });
-  let people = [], data = null, dept = null;
-  let mode = 'edit';                       // 'edit' | 'X' | 'Y' | 'E' | 'holiday'
-  const rows = new Map();                  // user id -> <tr>
-  let table;
+  viewMode ??= readPref();
+  weekStart ??= weekStartOf(todayStr());
 
-  const key = (uid, day) => `${uid}|${day}`;
-  const dayOf = (d) => ymd(cursor.y, cursor.m, d);
-  const nDays = () => daysIn(cursor.y, cursor.m);
+  const root = h('section', { class: 'team' });
+  let people = [], dept = null, data = null, days = [];
+  let mode = 'edit';                          // 'edit' | 'X' | 'Y' | 'E' | 'holiday'
+  let query = '';
+  let built = false, seq = 0, scrollToToday = true;
+  const undoStack = [];
+  const el = {};                              // persistent elements (search keeps focus while the grid redraws)
+
   const statusOf = (uid, day) => data.status.get(key(uid, day)) ?? 'E';
   const otOf = (uid, day) => data.overtime.get(key(uid, day))?.hours ?? 0;
+  const rangeDays = () => (viewMode === 'week'
+    ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+    : Array.from({ length: daysIn(cursor.y, cursor.m) }, (_, i) => ymd(cursor.y, cursor.m, i + 1)));
 
-  async function load() {
-    root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
+  // ---------- loading ----------
+  // quiet = a live/background refetch: no loading overlay, and no redraw when nothing actually changed.
+  async function load({ first = false, quiet = false, withPeople = false } = {}) {
+    const my = ++seq;
+    const rd = rangeDays();
+    if (!quiet) { days = rd; el.wrap?.classList.add('loading'); if (!built) root.replaceChildren(h('p', { class: 'muted center' }, t('loading'))); }
+    let d, p, dep;
     try {
-      [people, data, dept] = await Promise.all([fetchDeptPeople(deptId), fetchMonthData(cursor.y, cursor.m), fetchDepartment(deptId)]);
-    } catch (e) { root.replaceChildren(h('p', { class: 'error' }, explain(e))); return; }
-    draw();
+      const jobs = [fetchRangeData(rd[0], rd[rd.length - 1])];
+      if (first || withPeople || !people.length) jobs.push(fetchDeptPeople(deptId), fetchDepartment(deptId));
+      [d, p, dep] = await Promise.all(jobs);
+      if (my !== seq) return;                 // a newer navigation superseded this one
+    } catch (e) { if (quiet && built) return; if (my === seq) root.replaceChildren(h('p', { class: 'error' }, explain(e))); built = false; return; }
+    if (quiet && built) {
+      const samePeople = !p || JSON.stringify(p.map((x) => [x.id, x.full_name, x.opr, x.level, x.role])) === JSON.stringify(people.map((x) => [x.id, x.full_name, x.opr, x.level, x.role]));
+      if (samePeople && sameData(data, d)) return;
+    }
+    days = rd; data = d; if (p) { people = p; dept = dep; }
+    if (!built) build();
+    renderTop(); drawGrid();
+    el.wrap.classList.remove('loading');
+    fit();
   }
 
-  function totals(uid) {
+  // ---------- live updates ----------
+  let writes = 0, liveTimer = null, livePeople = false;
+  const track = async (fn) => { writes++; try { return await fn(); } finally { writes--; } };   // refetches wait while our own writes are in flight
+  function scheduleLive(people = false) {
+    livePeople ||= people;
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(function run() {
+      if (writes > 0) { liveTimer = setTimeout(run, 500); return; }
+      const wp = livePeople; livePeople = false;
+      load({ quiet: true, withPeople: wp });
+    }, 350);
+  }
+  live.watch([`dept:${deptId}`, `deptpub:${deptId}`], (p) => {
+    if (p.t === 'profiles' || p.t === 'resync') { scheduleLive(true); return; }
+    if (p.t === 'profile') return;
+    if (days.length && (p.to < days[0] || p.from > days[days.length - 1])) return;   // outside the days on screen
+    scheduleLive(false);
+  });
+
+  // ---------- undo ----------
+  function pushUndo(entry) {
+    const last = undoStack[undoStack.length - 1];
+    if (entry.type === 'cells' && entry.stroke && last?.type === 'cells' && last.stroke && Date.now() - last.t < 1500) last.cells.push(...entry.cells);  // one paint stroke = one undo step
+    else undoStack.push({ ...entry, t: Date.now() });
+    if (undoStack.length > 30) undoStack.shift();
+    renderTop();
+  }
+  async function undo() {
+    const e = undoStack.pop();
+    renderTop();
+    if (!e) return;
+    try {
+      if (e.type === 'cells') {
+        await track(() => setStatusRows(e.cells.map((c) => ({ user: c.uid, day: c.day, status: c.prev }))));
+        for (const c of e.cells) setLocal(c.uid, c.day, c.prev);
+        drawGrid();
+      } else if (e.type === 'holiday') {
+        await track(() => setHoliday(e.day, e.wasOn));
+        if (e.wasOn) data.holidays.add(e.day); else data.holidays.delete(e.day);
+        drawGrid();
+      }
+      toast(t('undone'), 'success');
+    } catch (err) { toast(explain(err)); await load(); }
+  }
+
+  function setLocal(uid, day, status) {
+    if (status === 'E') data.status.delete(key(uid, day)); else data.status.set(key(uid, day), status);
+  }
+
+  // ---------- painting / holiday / edit ----------
+  async function brush(uid, day, status) {
+    const prev = statusOf(uid, day);
+    if (prev === status) return;
+    setLocal(uid, day, status); updateRow(uid);
+    pushUndo({ type: 'cells', stroke: true, cells: [{ uid, day, prev, next: status }] });
+    try { await track(() => setStatus(uid, day, status)); }
+    catch (e) { toast(explain(e)); undoStack.pop(); await load(); }
+  }
+
+  async function toggleHoliday(day) {
+    const on = !data.holidays.has(day);
+    if (on) data.holidays.add(day); else data.holidays.delete(day);
+    pushUndo({ type: 'holiday', day, wasOn: !on });
+    drawGrid();
+    try { await track(() => setHoliday(day, on)); }
+    catch (e) { toast(explain(e)); undoStack.pop(); await load(); }
+  }
+
+  function openEditor(uid, day) {
+    const p = people.find((x) => x.id === uid);
+    openDayEditor({
+      person: p, day, status: statusOf(uid, day), overtime: data.overtime.get(key(uid, day)) ?? null, holiday: data.holidays.has(day), run: track,
+      onSaved: ({ status: next, prevStatus, hours, note }) => {
+        if (next !== prevStatus) pushUndo({ type: 'cells', cells: [{ uid, day, prev: prevStatus, next }] });
+        setLocal(uid, day, next);
+        if (hours === 0) data.overtime.delete(key(uid, day)); else data.overtime.set(key(uid, day), { hours, note });
+        updateRow(uid); updateFoot();
+      },
+    });
+  }
+
+  // ---------- bulk fill (with a live "N cells will change" preview) ----------
+  function openBulk() {
+    const cache = new Map();                                   // 'from|to' -> Promise<status map>
+    const statusMap = (from, to) => { const k = `${from}|${to}`; if (!cache.has(k)) cache.set(k, fetchRangeData(from, to).then((d) => d.status)); return cache.get(k); };
+    const all = h('input', { type: 'checkbox', checked: true, id: 'bulk-all' });
+    const boxes = people.map((p) => h('input', { type: 'checkbox', checked: true, value: p.id }));
+    const from = field(t('from'), { type: 'date', value: days[0], required: true });
+    const to = field(t('to'), { type: 'date', value: days[days.length - 1], required: true });
+    const st = h('select', { id: 'bulk-status' }, ['X', 'Y', 'E'].map((s) => h('option', { value: s }, s)));
+    const preview = h('p', { class: 'bulk-preview', 'aria-live': 'polite' });
+
+    const dayList = () => {
+      const out = [];
+      for (let d = new Date(from.input.value + 'T00:00:00'); d <= new Date(to.input.value + 'T00:00:00'); d.setDate(d.getDate() + 1)) out.push(ymd(d.getFullYear(), d.getMonth(), d.getDate()));
+      return out;
+    };
+    // cells whose status would actually change
+    async function plan() {
+      const users = boxes.filter((b) => b.checked).map((b) => b.value), ds = dayList();
+      if (!users.length || !ds.length || ds.length > 366) return { users, ds, rows: [], total: 0, invalid: true };
+      const map = await statusMap(ds[0], ds[ds.length - 1]);
+      const target = st.value, rows = [];
+      for (const u of users) for (const d of ds) { const prev = map.get(key(u, d)) ?? 'E'; if (prev !== target) rows.push({ user: u, day: d, status: target, prev }); }
+      return { users, ds, rows, total: users.length * ds.length };
+    }
+    let timer;
+    const refresh = () => {
+      preview.textContent = '…'; clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const p = await plan();
+        preview.textContent = p.invalid ? t('bulk_empty') : `${p.rows.length} ${t('cells_will_change')} (${p.total} ${t('cells_selected')})`;
+        preview.classList.toggle('warn', p.rows.length > 500);
+      }, 200);
+    };
+    all.addEventListener('change', () => { boxes.forEach((b) => { b.checked = all.checked; }); refresh(); });
+    for (const x of [...boxes, from.input, to.input, st]) x.addEventListener('change', refresh);
+    refresh();
+
+    const content = h('div', { class: 'form' },
+      from.row, to.row, h('div', { class: 'field' }, h('label', { for: 'bulk-status' }, t('status')), st),
+      h('label', { class: 'check strong' }, all, t('select_all')),
+      h('div', { class: 'checklist' }, people.map((p, i) => h('label', { class: 'check' }, boxes[i], p.full_name))),
+      preview);
+    openDialog({
+      title: t('bulk_fill'), content, wide: true,
+      buttons: [{ label: t('cancel') }, { label: t('apply'), kind: 'primary', onClick: async () => {
+        const p = await plan();
+        if (p.invalid) throw Object.assign(new Error(p.ds.length > 366 ? t('bulk_too_big') : t('bulk_empty')), { code: '22023' });
+        if (!p.rows.length) { toast(t('nothing_to_change'), 'success'); return; }
+        await track(() => setStatusRows(p.rows.map(({ user, day, status }) => ({ user, day, status }))));
+        const cells = p.rows.map((r) => ({ uid: r.user, day: r.day, prev: r.prev, next: r.status }));
+        for (const c of cells) setLocal(c.uid, c.day, c.next);
+        pushUndo({ type: 'cells', cells });
+        drawGrid();
+        toast(`${cells.length} ${t('cells_updated')}`, 'success', { action: { label: t('undo'), onClick: undo } });
+      } }],
+    });
+  }
+
+  // ---------- export (explicit month, independent of the week/month view) ----------
+  function openExport() {
+    const def = viewMode === 'week' ? addDays(weekStart, 3) : ymd(cursor.y, cursor.m, 1);
+    const month = field(t('export_month'), { type: 'month', value: def.slice(0, 7), required: true });
+    openDialog({
+      title: t('export_excel'), content: h('div', { class: 'form' }, month.row),
+      buttons: [{ label: t('cancel') }, { label: t('export'), kind: 'primary', onClick: async () => {
+        const [y, m] = month.input.value.split('-').map(Number);
+        if (!y || !m) throw Object.assign(new Error(t('bulk_empty')), { code: '22023' });
+        const [{ exportMonth }, monthData] = await Promise.all([import('../export/engine.js'), fetchMonthData(y, m - 1)]);
+        await exportMonth({ dept, people, data: monthData, year: y, month: m - 1, lang: getLang() });
+      } }],
+    });
+  }
+
+  const openInfo = () => openDialog({ title: t('info_title'), content: h('div', { class: 'form' },
+    h('p', {}, t('team_hint')), h('p', { class: 'muted' }, t('team_hint_views'))), buttons: [{ label: t('close') }] });
+
+  // Size the grid to the space left on screen so the pinned headcount row is always visible (never below the fold).
+  function fit() {
+    if (!el.wrap?.isConnected) return;
+    const top = el.wrap.getBoundingClientRect().top + window.scrollY;
+    const below = el.legend ? el.legend.offsetHeight + 24 : 40;
+    el.wrap.style.maxHeight = `${Math.max(260, Math.floor(window.innerHeight - top - below))}px`;
+  }
+  window.addEventListener('resize', fit);
+
+  // ---------- rendering ----------
+  function totalsOf(uid) {
     const c = { X: 0, Y: 0, XH: 0, YH: 0, ot: 0 };
-    for (let d = 1; d <= nDays(); d++) {
-      const day = dayOf(d);
+    for (const day of days) {
       const s = statusOf(uid, day);
       if (s !== 'E') c[effective(s, data.holidays.has(day))]++;
       c.ot += otOf(uid, day);
     }
     return c;
   }
+  const totalsLine = (uid) => {
+    const c = totalsOf(uid);
+    const bits = [['X', c.X, 'tx'], ['Y', c.Y, 'ty'], ['XH', c.XH, 'tx tH'], ['YH', c.YH, 'ty tH']].filter(([, n]) => n).map(([k, n, cls]) => h('span', { class: 'tp ' + cls }, `${n}${k}`));
+    if (c.ot) bits.push(h('span', { class: 'tp to' }, `${c.ot}${t('hour_abbr')}`));
+    return bits.length ? bits : [h('span', { class: 'muted' }, '–')];
+  };
 
   function buildRow(p) {
     const tr = h('tr', { 'data-u': p.id });
-    tr.append(h('th', { class: 'nm', scope: 'row' }, h('span', {}, p.full_name), h('small', { class: 'muted' }, p.opr ?? '')));
-    for (let d = 1; d <= nDays(); d++) {
-      const day = dayOf(d);
-      const eff = effective(statusOf(p.id, day), data.holidays.has(day));
-      const ot = otOf(p.id, day);
-      tr.append(h('td', { class: `c s-${eff.toLowerCase()}${data.holidays.has(day) ? ' holiday' : ''}${ot ? ' has-ot' : ''}`, 'data-u': p.id, 'data-d': day },
+    tr.append(h('th', { class: 'nm', scope: 'row' },
+      h('span', { class: 'nm-name' }, p.full_name),
+      h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, p.opr ?? ''), h('span', { class: 'tots' }, totalsLine(p.id)))));
+    const t0 = todayStr();
+    for (const day of days) {
+      const hol = data.holidays.has(day), ot = otOf(p.id, day);
+      const eff = effective(statusOf(p.id, day), hol);
+      tr.append(h('td', { class: `c s-${eff.toLowerCase()}${hol ? ' holiday' : ''}${ot ? ' has-ot' : ''}${day === t0 ? ' today' : ''}`, 'data-u': p.id, 'data-d': day },
         eff, ot ? h('sup', {}, ot) : null));
     }
-    const c = totals(p.id);
-    for (const k of ['X', 'Y', 'XH', 'YH', 'ot']) tr.append(h('td', { class: 'tot' }, c[k] || ''));
     return tr;
   }
-
-  const updateRow = (uid) => {
+  const rowEls = new Map();
+  function updateRow(uid) {
     const p = people.find((x) => x.id === uid);
-    if (!p) return;
+    if (!p || !rowEls.has(uid)) return;
     const fresh = buildRow(p);
-    rows.get(uid)?.replaceWith(fresh);
-    rows.set(uid, fresh);
-  };
-  const updateAllRows = () => people.forEach((p) => updateRow(p.id));
-
-  function setLocal(uid, day, status) {
-    if (status === 'E') data.status.delete(key(uid, day)); else data.status.set(key(uid, day), status);
+    rowEls.get(uid).replaceWith(fresh); rowEls.set(uid, fresh);
+    updateFoot();
   }
 
-  async function brush(uid, day, status) {
-    if (statusOf(uid, day) === status) return;
-    setLocal(uid, day, status); updateRow(uid);
-    try { await setStatus(uid, day, status); }
-    catch (e) { toast(explain(e)); await load(); }
-  }
-
-  async function toggleHoliday(day) {
-    const on = !data.holidays.has(day);
-    if (on) data.holidays.add(day); else data.holidays.delete(day);
-    drawBody();
-    try { await setHoliday(day, on); }
-    catch (e) { toast(explain(e)); await load(); }
-  }
-
-  function openEditor(uid, day) {
-    const p = people.find((x) => x.id === uid);
-    const cur = statusOf(uid, day);
-    const ot0 = data.overtime.get(key(uid, day));
-    const radios = ['E', 'X', 'Y'].map((s) => h('label', { class: 'radio' },
-      h('input', { type: 'radio', name: 'st', value: s, checked: s === cur }), h('span', { class: 'chip s-' + s.toLowerCase() }, s)));
-    const hours = field(t('overtime_hours'), { type: 'number', min: 0, max: 24, step: 1, inputmode: 'numeric', value: ot0?.hours ?? 0 });
-    const note = field(t('note'), { type: 'text', maxlength: 200, value: ot0?.note ?? '' });
-    const content = h('div', { class: 'form' },
-      h('p', { class: 'muted' }, `${p.full_name} · ${fmt({ weekday: 'long', day: 'numeric', month: 'long' }, new Date(day + 'T00:00:00'))}${data.holidays.has(day) ? ' · ' + t('holiday') : ''}`),
-      h('div', { class: 'radios' }, radios), hours.row, note.row);
-    openDialog({
-      title: t('edit_day'), content,
-      buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
-        const next = content.querySelector('input[name=st]:checked').value;
-        const h2 = Number(hours.input.value);
-        if (!Number.isInteger(h2) || h2 < 0 || h2 > 24) throw Object.assign(new Error(t('overtime_invalid')), { code: '22023' });
-        const n2 = note.input.value.trim();
-        const jobs = [];
-        if (next !== cur) jobs.push(setStatus(uid, day, next));
-        if (h2 !== (ot0?.hours ?? 0) || (h2 > 0 && n2 !== (ot0?.note ?? ''))) jobs.push(setOvertime(uid, day, h2, n2));
-        await Promise.all(jobs);
-        setLocal(uid, day, next);
-        if (h2 === 0) data.overtime.delete(key(uid, day)); else data.overtime.set(key(uid, day), { hours: h2, note: n2 });
-        updateRow(uid);
-      } }],
-    });
-  }
-
-  function openBulk() {
-    const [first, last] = [dayOf(1), dayOf(nDays())];
-    const all = h('input', { type: 'checkbox', checked: true, id: 'bulk-all' });
-    const boxes = people.map((p) => h('input', { type: 'checkbox', checked: true, value: p.id }));
-    all.addEventListener('change', () => boxes.forEach((b) => { b.checked = all.checked; }));
-    const from = field(t('from'), { type: 'date', value: first, required: true });
-    const to = field(t('to'), { type: 'date', value: last, required: true });
-    const st = h('select', { id: 'bulk-status' }, ['X', 'Y', 'E'].map((s) => h('option', { value: s }, s)));
-    const content = h('div', { class: 'form' },
-      from.row, to.row, h('div', { class: 'field' }, h('label', { for: 'bulk-status' }, t('status')), st),
-      h('label', { class: 'check strong' }, all, t('select_all')),
-      h('div', { class: 'checklist' }, people.map((p, i) => h('label', { class: 'check' }, boxes[i], p.full_name))));
-    openDialog({
-      title: t('bulk_fill'), content,
-      buttons: [{ label: t('cancel') }, { label: t('apply'), kind: 'primary', onClick: async () => {
-        const users = boxes.filter((b) => b.checked).map((b) => b.value);
-        const days = [];
-        for (let d = new Date(from.input.value + 'T00:00:00'); d <= new Date(to.input.value + 'T00:00:00'); d.setDate(d.getDate() + 1)) {
-          days.push(ymd(d.getFullYear(), d.getMonth(), d.getDate()));
-        }
-        if (!users.length || !days.length) throw Object.assign(new Error(t('bulk_empty')), { code: '22023' });
-        if (days.length > 366) throw Object.assign(new Error(t('bulk_too_big')), { code: '22023' });
-        await setStatusBulk(users, days, st.value);
-        await load();
-        toast(t('bulk_done'), 'success');
-      } }],
-    });
-  }
-
-  function onClick(e) {
-    const td = e.target.closest('td.c');
-    if (td) {
-      if (mode === 'edit') openEditor(td.dataset.u, td.dataset.d);
-      else if (mode !== 'holiday') brush(td.dataset.u, td.dataset.d, mode);
-      return;
+  // Daily headcount: how many people are X (incl. XH) / Y (incl. YH) each day, across the whole department.
+  function footRow() {
+    const tr = h('tr', { class: 'foot' }, h('th', { class: 'nm', scope: 'row' }, h('span', { class: 'nm-name' }, t('headcount')), h('small', { class: 'muted' }, 'X / Y')));
+    for (const day of days) {
+      let x = 0, y = 0;
+      for (const p of people) { const s = statusOf(p.id, day); if (s === 'X') x++; else if (s === 'Y') y++; }
+      tr.append(h('td', { class: 'hc' + (data.holidays.has(day) ? ' holiday' : '') + (day === todayStr() ? ' today' : ''), 'aria-label': `X ${x}, Y ${y}` },
+        h('b', { class: 'hx' }, x || '·'), h('i', { class: 'hy' }, y || '·')));
     }
-    const th = e.target.closest('th.dh');
-    if (th && mode === 'holiday') toggleHoliday(th.dataset.d);
+    return tr;
   }
+  function updateFoot() { const old = el.table.querySelector('tfoot'); if (old) old.replaceChildren(footRow()); }
 
-  function drawBody() {
-    rows.clear();
+  function matches(p) { return !query || `${p.full_name} ${p.opr ?? ''} ${p.username}`.toLowerCase().includes(query); }
+
+  function drawGrid() {
+    const t0 = todayStr();
     const head = h('tr', {}, h('th', { class: 'nm' }, t('employee')));
-    for (let d = 1; d <= nDays(); d++) {
-      const day = dayOf(d);
-      head.append(h('th', { class: 'dh' + (data.holidays.has(day) ? ' holiday' : '') + (mode === 'holiday' ? ' pick' : ''), 'data-d': day, scope: 'col' },
-        h('span', {}, d), h('small', {}, fmt({ weekday: 'narrow' }, new Date(cursor.y, cursor.m, d)))));
+    for (const day of days) {
+      const d = dateOf(day);
+      head.append(h('th', { class: 'dh' + (data.holidays.has(day) ? ' holiday' : '') + (day === t0 ? ' today' : '') + (mode === 'holiday' ? ' pick' : ''), 'data-d': day, scope: 'col' },
+        h('span', {}, d.getDate()), h('small', {}, fmt({ weekday: viewMode === 'week' ? 'short' : 'narrow' }, d))));
     }
-    for (const k of ['X', 'Y', 'XH', 'YH']) head.append(h('th', { class: 'tot' }, k));
-    head.append(h('th', { class: 'tot' }, t('overtime_short')));
+    const visible = people.filter(matches);
+    rowEls.clear();
     const body = h('tbody', {});
-    for (const p of people) { const tr = buildRow(p); rows.set(p.id, tr); body.append(tr); }
-    table.replaceChildren(h('thead', {}, head), body);
+    for (const p of visible) { const tr = buildRow(p); rowEls.set(p.id, tr); body.append(tr); }
+    el.table.className = 'tgrid ' + viewMode;
+    el.table.replaceChildren(h('thead', {}, head), body, h('tfoot', {}, footRow()));
+    el.count.textContent = query ? `${visible.length}/${people.length}` : '';
+    el.empty.hidden = visible.length > 0;
+    el.empty.textContent = people.length ? t('no_match') : t('no_people');
+    if (scrollToToday && viewMode === 'month') {
+      const th = el.table.querySelector('th.dh.today');
+      if (th) el.wrap.scrollLeft = Math.max(0, th.offsetLeft - el.wrap.clientWidth / 2 + th.offsetWidth / 2);
+      scrollToToday = false;
+    }
   }
 
-  async function doExport() {
-    try {
-      const { exportMonth } = await import('../export/engine.js');
-      await exportMonth({ dept, people, data, year: cursor.y, month: cursor.m, lang: getLang() });
-    } catch (e) { console.error(e); toast(t('export_failed')); }
-  }
+  const title = () => {
+    if (viewMode === 'month') return fmt({ month: 'long', year: 'numeric' }, new Date(cursor.y, cursor.m, 1));
+    return new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(dateOf(days[0]), dateOf(days[6]));
+  };
 
-  function draw() {
-    table = h('table', { class: 'tgrid' });
-    table.addEventListener('click', onClick);
-    drawBody();
-    const go = (delta) => { shiftMonth(delta); load(); };
+  function renderTop() {
+    const go = (delta) => { if (viewMode === 'week') weekStart = addDays(weekStart, 7 * delta); else shiftMonth(delta); scrollToToday = true; load(); };
+    const now = () => { goToday(); weekStart = weekStartOf(todayStr()); scrollToToday = true; load(); };
+    const switchView = (v) => {
+      if (v === viewMode) return;
+      if (v === 'week') { const first = ymd(cursor.y, cursor.m, 1), t0 = todayStr(); weekStart = weekStartOf(t0.slice(0, 7) === first.slice(0, 7) ? t0 : first); }
+      else { const d = dateOf(addDays(weekStart, 3)); cursor.y = d.getFullYear(); cursor.m = d.getMonth(); }
+      viewMode = v; writePref(v); scrollToToday = true; load();
+    };
+    el.subText.textContent = `${dept?.name ?? ''} · ${people.length} ${t('employees')}`;
+    el.head.replaceChildren(monthHead(title(), { onPrev: () => go(-1), onNext: () => go(1), onToday: now }));
+    el.views.replaceChildren(...[['month', t('view_month')], ['week', t('view_week')]].map(([v, label]) =>
+      h('button', { type: 'button', class: 'btn small' + (viewMode === v ? ' on' : ''), 'aria-pressed': String(viewMode === v), onclick: () => switchView(v) }, label)));
     const modes = [['edit', t('mode_edit')], ['X', 'X'], ['Y', 'Y'], ['E', 'E'], ['holiday', t('holiday')]];
-    root.replaceChildren(
-      monthHead(`${dept?.name ?? ''} · ${fmt({ month: 'long', year: 'numeric' }, new Date(cursor.y, cursor.m, 1))}`, { onPrev: () => go(-1), onNext: () => go(1), onToday: () => { goToday(); load(); } }),
-      h('div', { class: 'toolbar' },
-        h('div', { class: 'seg', role: 'group', 'aria-label': t('tap_mode') },
-          modes.map(([m, label]) => h('button', { class: 'btn small' + (mode === m ? ' on' : ''), type: 'button', 'aria-pressed': String(mode === m),
-            onclick: (ev) => { mode = m; ev.currentTarget.parentElement.querySelectorAll('button').forEach((b) => { const on = b === ev.currentTarget; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); drawBody(); } }, label))),
-        h('button', { class: 'btn small', onclick: openBulk }, t('bulk_fill')),
-        h('button', { class: 'btn small primary', onclick: doExport }, t('export_excel'))),
-      h('p', { class: 'muted' }, t('team_hint')),
-      h('div', { class: 'gridwrap' }, table),
-      ...(people.length ? [] : [h('p', { class: 'muted' }, t('no_people'))]));
+    el.modes.replaceChildren(...modes.map(([m, label]) => h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m),
+      onclick: () => { mode = m; renderTop(); drawGrid(); } }, label)));
+    el.undo.disabled = undoStack.length === 0;
+    el.undo.replaceChildren(icon(UNDO, 16), `${t('undo')}${undoStack.length ? ` (${undoStack.length})` : ''}`);
+    const painting = ['X', 'Y', 'E'].includes(mode);
+    el.banner.hidden = !(painting || mode === 'holiday');
+    el.banner.className = 'banner' + (painting ? ' paint s-' + mode.toLowerCase() : ' hol');
+    el.banner.replaceChildren(h('span', {}, painting ? t('painting').replaceAll('{s}', mode) : t('holiday_mode')),
+      h('button', { type: 'button', class: 'btn small', onclick: () => { mode = 'edit'; renderTop(); drawGrid(); } }, t('done')));
   }
 
-  load();
+  function build() {
+    el.subText = h('span', {});
+    el.live = h('span', { class: 'live-dot', role: 'status' });
+    el.sub = h('p', { class: 'dept-sub muted' }, el.subText, el.live);
+    live.onStatus((st) => { el.live.className = 'live-dot ' + st; el.live.textContent = st === 'live' ? t('live') : st === 'connecting' ? t('connecting') : ''; el.live.title = st === 'live' ? t('live') : ''; });
+    el.head = h('div', { class: 'head-slot' });
+    el.search = h('input', { type: 'search', class: 'team-search', placeholder: t('search_employees'), 'aria-label': t('search_employees'), autocomplete: 'off' });
+    let timer;
+    el.search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { query = el.search.value.trim().toLowerCase(); drawGrid(); }, 120); });
+    el.count = h('span', { class: 'muted team-count' });
+    el.views = h('div', { class: 'seg', role: 'group', 'aria-label': t('view_month') + ' / ' + t('view_week') });
+    el.modes = h('div', { class: 'seg', role: 'group', 'aria-label': t('tap_mode') });
+    el.undo = h('button', { type: 'button', class: 'btn small', onclick: undo });
+    el.banner = h('div', { class: 'banner', role: 'status', hidden: true });
+    el.table = h('table', { class: 'tgrid' });
+    el.table.addEventListener('click', (e) => {
+      const td = e.target.closest('td.c');
+      if (td) { if (mode === 'edit') openEditor(td.dataset.u, td.dataset.d); else if (mode !== 'holiday') brush(td.dataset.u, td.dataset.d, mode); return; }
+      const th = e.target.closest('th.dh');
+      if (th && mode === 'holiday') { toggleHoliday(th.dataset.d); return; }
+      const nm = e.target.closest('tbody th.nm');                  // tap a name (Edit mode) = open that person's timesheet
+      if (nm && mode === 'edit') location.hash = '#/person/' + nm.closest('tr').dataset.u;
+    });
+    el.wrap = h('div', { class: 'gridwrap' }, el.table);
+    // swipe left/right = next/previous week (the week grid fits the screen, so a swipe is never a scroll)
+    let sx = 0, sy = 0;
+    el.wrap.addEventListener('touchstart', (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    el.wrap.addEventListener('touchend', (e) => {
+      if (viewMode !== 'week') return;
+      const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) { weekStart = addDays(weekStart, dx < 0 ? 7 : -7); load(); }
+    }, { passive: true });
+    el.empty = h('p', { class: 'muted', hidden: true });
+    const legend = el.legend = h('div', { class: 'legend-row', 'aria-label': t('legend_label') },
+      h('span', { class: 'chip s-x' }, t('legend_x')), h('span', { class: 'chip s-y' }, t('legend_y')), h('span', { class: 'chip' }, t('legend_e')),
+      h('span', { class: 'chip holiday-chip' }, t('holiday')), h('span', { class: 'chip ot' }, t('overtime')));
+
+    root.replaceChildren(
+      h('div', { class: 'team-top' },
+        el.sub, el.head,
+        h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), el.search, el.count), el.views),
+        h('div', { class: 'team-row tools' }, el.modes,
+          h('button', { type: 'button', class: 'btn small', onclick: openBulk }, t('bulk_fill')), el.undo,
+          h('button', { type: 'button', class: 'btn small icon-only', onclick: () => load({ quiet: false, withPeople: true }), 'aria-label': t('refresh'), title: t('refresh') }, icon(REFRESH, 18)),
+          h('button', { type: 'button', class: 'btn small primary', onclick: openExport }, icon(DOWNLOAD, 16), t('export_excel')),
+          h('button', { type: 'button', class: 'btn small icon-only', onclick: openInfo, 'aria-label': t('info_title'), title: t('info_title') }, icon(INFO, 18))),
+        el.banner),
+      el.wrap, el.empty, legend);
+    built = true;
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(root.querySelector('.team-top'));
+  }
+
+  load({ first: true });
   return root;
 }

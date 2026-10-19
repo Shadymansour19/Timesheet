@@ -1,36 +1,45 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state } from '../auth/session.js';
-import { fetchMonth, fetchEditWindow, setDayStatus, ymd, daysIn, cursor, shiftMonth, goToday } from '../api/timesheet.js';
+import { fetchMonth, fetchEditWindow, setDayStatus, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
 import { WEEK_START } from '../lib/core.js';
+import * as live from '../live.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
+import { openDayEditor } from '../components/day-editor.js';
 
 const NEXT = { E: 'X', X: 'Y', Y: 'E' };
-
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
+const sameMonth = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => b[k] && a[k].status === b[k].status && a[k].eff === b[k].eff && a[k].ot === b[k].ot && (a[k].note ?? '') === (b[k].note ?? '') && a[k].hol === b[k].hol); };
 
-export function calendarView() {
+// Month calendar for ONE person. Default: the signed-in person recording their own days (tap cycles E -> X -> Y).
+// admin + userId: a department admin editing someone's timesheet (tap cycles, or opens the day editor with overtime).
+export function calendarView({ userId, admin = false, person = null } = {}) {
   const me = state.profile.id;
+  const uid = userId ?? me;
+  const dept = state.profile.department_id;
   const root = h('section', { class: 'cal' });
   let data = {};                 // shown values by day (optimistic)
   let editWindow = null;
+  let mode = 'cycle';            // admin only: 'cycle' | 'details'
   const confirmed = {};          // day -> status last confirmed by the server
   const want = {};               // day -> latest status the user asked for
   const busy = new Set();        // days with a request in flight
 
   const todayStr = (() => { const n = new Date(); return ymd(n.getFullYear(), n.getMonth(), n.getDate()); })();
   const earliest = () => {
-    if (editWindow === null) return null;
+    if (admin || editWindow === null) return null;           // admins are not limited by the user edit window
     const n = new Date(); n.setDate(n.getDate() - editWindow);
     return ymd(n.getFullYear(), n.getMonth(), n.getDate());
   };
 
-  async function load() {
-    root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
-    try {
-      [data, editWindow] = await Promise.all([fetchMonth(me, cursor.y, cursor.m), fetchEditWindow()]);
-    } catch { root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
+  async function load({ quiet = false } = {}) {
+    if (!quiet) root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
+    let fresh, win = editWindow;
+    try { [fresh, win] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow()]); }
+    catch { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
+    if (quiet && (busy.size || sameMonth(fresh, data))) return;   // nothing new, or our own write is still in flight
+    data = fresh; editWindow = win;
     for (const [day, v] of Object.entries(data)) if (!busy.has(day)) confirmed[day] = v.status;
     draw();
   }
@@ -50,7 +59,7 @@ export function calendarView() {
       while ((confirmed[day] ?? 'E') !== want[day]) {
         const sending = want[day];
         try {
-          await setDayStatus(me, day, sending);
+          await setDayStatus(uid, day, sending);
           confirmed[day] = sending;
         } catch (e) {
           const back = confirmed[day] ?? 'E';           // roll back to the last server-confirmed value
@@ -63,6 +72,19 @@ export function calendarView() {
     } finally { busy.delete(day); draw(); }
   }
 
+  function openDetails(day) {
+    const v = data[day] ?? { status: 'E', ot: 0, note: '', hol: false };
+    busy.add(day);   // hold live refetches while the dialog is open and saving
+    openDayEditor({
+      person: { id: uid, full_name: person?.full_name ?? state.profile.full_name }, day,
+      status: v.status, overtime: v.ot ? { hours: v.ot, note: v.note } : null, holiday: v.hol,
+      onSaved: () => { busy.delete(day); load({ quiet: false }); },
+    });
+    // release the hold if the dialog is dismissed without saving
+    const dlg = document.querySelector('dialog[open]');
+    dlg?.addEventListener('close', () => { busy.delete(day); });
+  }
+
   function cell(d) {
     const day = ymd(cursor.y, cursor.m, d);
     const v = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
@@ -70,7 +92,7 @@ export function calendarView() {
     const locked = lim !== null && day < lim;
     const cls = ['day', 's-' + v.eff.toLowerCase(), day === todayStr ? 'today' : '', v.hol ? 'holiday' : '', v.ot ? 'has-ot' : ''].join(' ');
     const label = `${fmt({ weekday: 'long', day: 'numeric', month: 'long' }, new Date(cursor.y, cursor.m, d))}: ${v.eff}${v.ot ? `, ${v.ot} ${t('overtime_h')}` : ''}`;
-    return h('button', { class: cls, type: 'button', disabled: locked, 'aria-label': label, onclick: () => change(day) },
+    return h('button', { class: cls, type: 'button', disabled: locked, 'aria-label': label, onclick: () => (admin && mode === 'details' ? openDetails(day) : change(day)) },
       h('span', { class: 'num' }, d),
       h('span', { class: 'st' }, v.eff),
       v.ot ? h('span', { class: 'ot' }, `+${v.ot}${t('hour_abbr')}`) : null);
@@ -89,16 +111,34 @@ export function calendarView() {
     const count = (s) => Object.values(data).filter((v) => v.eff === s).length;
     const ot = Object.values(data).reduce((a, v) => a + (v.ot || 0), 0);
     const go = (delta) => { shiftMonth(delta); load(); };
+    const seg = admin ? h('div', { class: 'seg cal-mode', role: 'group', 'aria-label': t('tap_mode') },
+      [['cycle', t('mode_cycle')], ['details', t('mode_details')]].map(([m, label]) =>
+        h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m), onclick: () => { mode = m; draw(); } }, label))) : null;
 
     root.replaceChildren(
       monthHead(fmt({ month: 'long', year: 'numeric' }, first), { onPrev: () => go(-1), onNext: () => go(1), onToday: () => { goToday(); load(); } }),
+      ...(seg ? [seg] : []),
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         ['X', 'Y', 'XH', 'YH'].map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
         h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`)),
-      h('p', { class: 'muted legend' }, `${t('legend')} ${t('legend_ot')}`),
-      ...(editWindow !== null ? [h('p', { class: 'muted' }, t('edit_window_note').replace('{n}', editWindow))] : []));
+      h('p', { class: 'muted legend' }, `${admin ? t('person_hint') + ' ' : ''}${t('legend')} ${t('legend_ot')}`),
+      ...(editWindow !== null && !admin ? [h('p', { class: 'muted' }, t('edit_window_note').replace('{n}', editWindow))] : []));
   }
+
+  // live: refetch quietly when this person's days (or the department holidays) change somewhere else
+  let timer;
+  const refetch = () => { clearTimeout(timer); timer = setTimeout(() => load({ quiet: true }), 350); };
+  const topics = admin && uid !== me ? [`dept:${dept}`, `deptpub:${dept}`] : [`user:${uid}`, `deptpub:${dept}`];
+  live.watch(topics, (p) => {
+    if (p.t === 'profiles' || p.t === 'profile') return;
+    if (p.t !== 'resync') {
+      if (p.u && !p.u.includes(uid) && p.t !== 'holidays') return;
+      const [a, b] = monthRange(cursor.y, cursor.m);
+      if (p.to < a || p.from > b) return;
+    }
+    refetch();
+  });
 
   load();
   return root;

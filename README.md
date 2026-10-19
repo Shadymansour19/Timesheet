@@ -31,14 +31,19 @@ Put the DB connection string in an untracked `.env.db` (`TS_DB_URL='postgresql:/
 
 | Command | What it checks |
 |---|---|
-| `npm run test:rls` | 160 RLS/RPC checks by impersonating each role (runs in a rolled-back transaction) |
+| `npm run test:rls` | 202 RLS/RPC checks by impersonating each role (runs in a rolled-back transaction) |
 | `npm run test:e2e-users` | Deployed Edge Function: create/reset/delete, permissions, rollback |
 | `npm run test:export` | Builds real .xlsx files, re-reads them and checks cell contents (+ fill-mode template) |
 | `npm run test:i18n` | Every translation key exists in English and Arabic |
 | `npm run test:ui-accounts` | Browser E2E of account switching: add/switch/remove/sign-out, revoked sessions, two tabs, no password in storage |
+| `npm run test:ui-team` | Department grid v2: week/month, swipe, search, totals, headcount, today/holiday columns, painting banner, Undo (exact state), bulk-fill preview, export month |
+| `npm run test:ui-live` | Several sessions at once: live updates (grid, calendar, overtime, users), isolation on the wire between departments, role/deactivation live, reconnect resync, Users tab search/filter/empty states, per-person timesheet editor |
 | `npm run test:ui-overtime` | Browser E2E of the admin Overtime tab: totals, day dialog, edits/notes/removal, validation, filters, other departments untouched, roles, Arabic |
 | `npm run test:ui-polish` | Browser checks: password show/hide, Arabic wording, month arrows in both languages |
 | `npm run test:ui` | Browser E2E of admin + super_admin flows and Excel download (needs `npx vite preview --port 4173`, Playwright Chromium) |
+
+## Live updates
+The database announces changes on private Realtime broadcast channels (migration 8); the app refetches through the normal RLS queries. Realtime must be enabled on the Supabase project (it is by default). Details and security reasoning are in SPEC.md.
 
 ## Export template
 Default layout: `src/export/templates/default.js`. For the official form add a template with `mode: 'fill'` (see `templates/example-fill.js`), put the .xlsx in `public/templates/`, and set `activeTemplate` in `src/export/engine.js`.

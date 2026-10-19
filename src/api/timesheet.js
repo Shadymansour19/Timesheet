@@ -20,10 +20,9 @@ export async function fetchAll(make) {
   }
 }
 
-// Sparse month data visible to the caller (RLS decides whose): missing key = E / no overtime.
+// Sparse data for a date range visible to the caller (RLS decides whose): missing key = E / no overtime.
 // status: Map 'user|day' -> 'X'|'Y'   overtime: Map 'user|day' -> {hours, note}   holidays: Set of days
-export async function fetchMonthData(y, m, { userId } = {}) {
-  const [from, to] = monthRange(y, m);
+export async function fetchRangeData(from, to, { userId } = {}) {
   const q = (table, cols) => () => {
     let b = supabase.from(table).select(cols).gte('day', from).lte('day', to).order('user_id').order('day');
     if (userId) b = b.eq('user_id', userId);
@@ -40,8 +39,9 @@ export async function fetchMonthData(y, m, { userId } = {}) {
     holidays: new Set(hol.map((r) => r.day)),
   };
 }
+export const fetchMonthData = (y, m, opts) => { const [from, to] = monthRange(y, m); return fetchRangeData(from, to, opts); };
 
-// One person's month for the calendar: { [day]: { status, eff, ot, hol } }
+// One person's month for the calendar: { [day]: { status, eff, ot, note, hol } }
 export async function fetchMonth(userId, y, m) {
   const d = await fetchMonthData(y, m, { userId });
   const byDay = {};
@@ -49,7 +49,7 @@ export async function fetchMonth(userId, y, m) {
     const day = ymd(y, m, i);
     const status = d.status.get(`${userId}|${day}`) ?? 'E';
     const hol = d.holidays.has(day);
-    byDay[day] = { status, eff: effective(status, hol), ot: d.overtime.get(`${userId}|${day}`)?.hours ?? 0, hol };
+    byDay[day] = { status, eff: effective(status, hol), ot: d.overtime.get(`${userId}|${day}`)?.hours ?? 0, note: d.overtime.get(`${userId}|${day}`)?.note ?? '', hol };
   }
   return byDay;
 }

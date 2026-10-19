@@ -101,6 +101,7 @@ insert into public.overtime (user_id, day, hours) values
 select t.anon();
 select t.denied('anon cannot read profiles', 'select * from public.profiles');
 select t.denied('anon cannot call set_overtime_bulk', $$select public.set_overtime_bulk(current_date, '[]'::jsonb)$$);
+select t.denied('anon cannot call set_day_status_rows', $$select public.set_day_status_rows('[]'::jsonb)$$);
 select t.denied('anon cannot call set_day_status',
   $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
 
@@ -135,6 +136,7 @@ select t.denied('user direct INSERT overtime',
 select t.denied('user set_overtime on self',
   $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date, 9)$$);
 select t.denied('user bulk overtime', $$select public.set_overtime_bulk(current_date, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":9}]'::jsonb)$$);
+select t.denied('user set_day_status_rows', $$select public.set_day_status_rows('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"2030-01-01","status":"X"}]'::jsonb)$$);
 select t.denied('user set_holiday', $$select public.set_holiday(current_date, true)$$);
 select t.denied('user direct INSERT holidays',
   $$insert into public.holidays (department_id, day) values ('10000000-0000-0000-0000-00000000000a', current_date)$$);
@@ -207,6 +209,29 @@ select t.count('get_timesheet for dept B returns nothing to adminA',
 select t.ok('adminA removes holiday', $$select public.set_holiday(current_date + 40, false)$$);
 select t.eq('...status reverts to Y',
   $$select effective_status from public.get_timesheet(null, current_date + 40, current_date + 40) where user_id = '00000000-0000-0000-0000-0000000000a3'$$, 'Y');
+-- exact-cell status writes (bulk fill / Undo engine)
+select t.ok('adminA set_day_status_rows: X, Y and E in one call',
+  $$select public.set_day_status_rows(('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"' || (current_date + 50) || '","status":"X"},{"user":"00000000-0000-0000-0000-0000000000a3","day":"' || (current_date + 50) || '","status":"Y"},{"user":"00000000-0000-0000-0000-0000000000a1","day":"' || (current_date + 51) || '","status":"X"}]')::jsonb)$$);
+select t.eq('...three rows stored with updated_by adminA',
+  $$select count(*)::text || ':' || bool_and(updated_by = '00000000-0000-0000-0000-0000000000a1')::text from public.day_status where day in (current_date + 50, current_date + 51)$$, '3:true');
+select t.ok('E in a row removes the cell (undo path) and duplicates: last one wins',
+  $$select public.set_day_status_rows(('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"' || (current_date + 50) || '","status":"E"},{"user":"00000000-0000-0000-0000-0000000000a3","day":"' || (current_date + 50) || '","status":"X"},{"user":"00000000-0000-0000-0000-0000000000a3","day":"' || (current_date + 50) || '","status":"Y"}]')::jsonb)$$);
+select t.eq('...ua1 cleared, ua2 stays Y',
+  $$select (select count(*) from public.day_status where user_id = '00000000-0000-0000-0000-0000000000a2' and day = current_date + 50)::text || ':' || (select status from public.day_status where user_id = '00000000-0000-0000-0000-0000000000a3' and day = current_date + 50)$$, '0:Y');
+select t.denied('rows with a dept B person are rejected as a whole (nothing written)',
+  $$select public.set_day_status_rows(('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"' || (current_date + 60) || '","status":"X"},{"user":"00000000-0000-0000-0000-0000000000b2","day":"' || (current_date + 60) || '","status":"X"}]')::jsonb)$$);
+select t.count('...no rows exist for that day', $$select 1 from public.day_status where day = current_date + 60$$, 0);
+select t.denied('rows with an invalid status are rejected (atomic)', $$select public.set_day_status_rows(('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"' || (current_date + 60) || '","status":"X"},{"user":"00000000-0000-0000-0000-0000000000a3","day":"' || (current_date + 60) || '","status":"Z"}]')::jsonb)$$, '22023');
+select t.denied('rows with a malformed date are rejected', $$select public.set_day_status_rows('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"10/10/2030","status":"X"}]'::jsonb)$$, '22023');
+select t.denied('rows must be an array', $$select public.set_day_status_rows('{"user":"00000000-0000-0000-0000-0000000000a2"}'::jsonb)$$, '22023');
+select t.denied('more than 20000 rows is rejected', $$select public.set_day_status_rows((select jsonb_agg(jsonb_build_object('user','00000000-0000-0000-0000-0000000000a2','day','2030-01-01','status','X')) from generate_series(1, 20001)))$$, '22023');
+select t.denied('rows cannot target the super_admin', $$select public.set_day_status_rows('[{"user":"00000000-0000-0000-0000-0000000000a0","day":"2030-01-01","status":"X"}]'::jsonb)$$);
+select t.count('...still nothing for day +60', $$select 1 from public.day_status where day = current_date + 60$$, 0);
+select t.ok('the admin may include himself', $$select public.set_day_status_rows(('[{"user":"00000000-0000-0000-0000-0000000000a1","day":"' || (current_date + 52) || '","status":"Y"}]')::jsonb)$$);
+select t.ok('empty array is a no-op', $$select public.set_day_status_rows('[]'::jsonb)$$);
+select t.eq('audit logs rows-API changes with adminA as actor',
+  $$select (count(*) >= 5)::text from public.audit_log where table_name = 'day_status' and actor = '00000000-0000-0000-0000-0000000000a1' and day in (current_date + 50, current_date + 51, current_date + 52)$$, 'true');
+
 -- bulk overtime for a whole day (atomic, same rules as set_overtime)
 select t.ok('adminA bulk overtime for two people with different hours and notes',
   $$select public.set_overtime_bulk(current_date + 7, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":4,"note":"inventory"},{"user":"00000000-0000-0000-0000-0000000000a3","hours":6,"note":"night shift"}]'::jsonb)$$);
@@ -230,6 +255,74 @@ select t.denied('bulk cannot target the super_admin', $$select public.set_overti
 select t.ok('bulk may include the admin himself', $$select public.set_overtime_bulk(current_date + 8, '[{"user":"00000000-0000-0000-0000-0000000000a1","hours":2}]'::jsonb)$$);
 select t.eq('audit logged the bulk change with adminA as actor',
   $$select count(*)::text from public.audit_log where table_name = 'overtime' and actor = '00000000-0000-0000-0000-0000000000a1' and day = current_date + 7$$, '4');
+
+-- ============================================================ realtime announcements (private broadcast channels)
+select t.su();
+-- the fixture writes above already produced messages; start from a known point
+delete from realtime.messages where topic like 'user:%' or topic like 'dept:%' or topic like 'deptpub:%';
+select t.login('00000000-0000-0000-0000-0000000000a1');
+select t.ok('adminA writes (status, overtime, holiday) trigger announcements',
+  $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 70, 'X'), public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date + 70, 2, 'rt'), public.set_holiday(current_date + 71, true)$$);
+select t.su();
+select t.eq('as owner: an announcement exists for the person (user:ua1), the admin channel (dept A) and the department (deptpub A)',
+  $$select (exists (select 1 from realtime.messages where topic = 'user:00000000-0000-0000-0000-0000000000a2' and payload->>'t' = 'day_status')
+        and exists (select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a' and payload->>'t' = 'overtime')
+        and exists (select 1 from realtime.messages where topic = 'deptpub:10000000-0000-0000-0000-00000000000a' and payload->>'t' = 'holidays'))::text$$, 'true');
+select t.eq('announcements carry only table + range + person ids, never a status/hours/note',
+  $$select (not exists (select 1 from realtime.messages where topic like 'dept:%' and (payload ? 'status' or payload ? 'hours' or payload ? 'note')))::text$$, 'true');
+select t.eq('dept channel payload lists the affected person ids',
+  $$select (payload->'u' ? '00000000-0000-0000-0000-0000000000a2')::text from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a' and payload->>'t' = 'day_status' limit 1$$, 'true');
+-- one summary per statement, not per row
+select t.login('00000000-0000-0000-0000-0000000000a1');
+select t.ok('a 3-row rows call is announced once per department', $$select public.set_day_status_rows(('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"' || (current_date + 80) || '","status":"X"},{"user":"00000000-0000-0000-0000-0000000000a3","day":"' || (current_date + 81) || '","status":"X"},{"user":"00000000-0000-0000-0000-0000000000a1","day":"' || (current_date + 82) || '","status":"Y"}]')::jsonb)$$);
+select t.su();
+select t.eq('...exactly 1 admin-channel message for 3 rows / 3 people (range +80..+82)',
+  $$select count(*)::text || ':' || max(jsonb_array_length(payload->'u')) from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a' and payload->>'t' = 'day_status' and payload->>'from' = (current_date + 80)::text$$, '1:3');
+-- ---- who can receive what (impersonate + join the topic, like the Realtime server does)
+select t.login('00000000-0000-0000-0000-0000000000a2');
+select set_config('realtime.topic', 'user:00000000-0000-0000-0000-0000000000a2', true);
+select t.count('user ua1 joined user:ua1 receives their announcements', $$select 1 from realtime.messages where topic = 'user:00000000-0000-0000-0000-0000000000a2'$$, 3);
+select set_config('realtime.topic', 'user:00000000-0000-0000-0000-0000000000a3', true);
+select t.count('user ua1 cannot join another person''s channel', $$select 1 from realtime.messages where topic = 'user:00000000-0000-0000-0000-0000000000a3'$$, 0);
+select set_config('realtime.topic', 'dept:10000000-0000-0000-0000-00000000000a', true);
+select t.count('plain user cannot join the admin channel of their own department', $$select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a'$$, 0);
+select set_config('realtime.topic', 'deptpub:10000000-0000-0000-0000-00000000000a', true);
+select t.count('plain user receives their department holiday announcements', $$select 1 from realtime.messages where topic = 'deptpub:10000000-0000-0000-0000-00000000000a'$$, 1);
+select t.denied('clients cannot publish into realtime.messages', $$insert into realtime.messages (topic, extension, payload, private) values ('dept:10000000-0000-0000-0000-00000000000a', 'broadcast', '{}', true)$$);
+select t.login('00000000-0000-0000-0000-0000000000b2');
+select set_config('realtime.topic', 'deptpub:10000000-0000-0000-0000-00000000000a', true);
+select t.count('a user of department B cannot join department A public channel', $$select 1 from realtime.messages where topic = 'deptpub:10000000-0000-0000-0000-00000000000a'$$, 0);
+select set_config('realtime.topic', 'user:00000000-0000-0000-0000-0000000000a2', true);
+select t.count('...nor a person channel of department A', $$select 1 from realtime.messages where topic = 'user:00000000-0000-0000-0000-0000000000a2'$$, 0);
+select t.login('00000000-0000-0000-0000-0000000000a1');
+select set_config('realtime.topic', 'dept:10000000-0000-0000-0000-00000000000a', true);
+select t.count('adminA joined dept:A receives the admin announcements', $$select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a'$$, 3);
+select set_config('realtime.topic', 'dept:10000000-0000-0000-0000-00000000000b', true);
+select t.count('adminA cannot join department B admin channel', $$select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000b'$$, 0);
+select set_config('realtime.topic', 'user:00000000-0000-0000-0000-0000000000a2', true);
+select t.count('adminA cannot join a person channel (those are private to the person)', $$select 1 from realtime.messages where topic = 'user:00000000-0000-0000-0000-0000000000a2'$$, 0);
+select t.login('00000000-0000-0000-0000-0000000000b1');
+select set_config('realtime.topic', 'dept:10000000-0000-0000-0000-00000000000a', true);
+select t.count('adminB cannot join department A admin channel', $$select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a'$$, 0);
+select set_config('realtime.topic', 'deptpub:10000000-0000-0000-0000-00000000000a', true);
+select t.count('adminB cannot join department A public channel', $$select 1 from realtime.messages where topic = 'deptpub:10000000-0000-0000-0000-00000000000a'$$, 0);
+select t.login('00000000-0000-0000-0000-0000000000a0');
+select set_config('realtime.topic', 'dept:10000000-0000-0000-0000-00000000000a', true);
+select t.count('super_admin receives no department channel (no timesheet access)', $$select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a'$$, 0);
+select set_config('realtime.topic', 'deptpub:10000000-0000-0000-0000-00000000000a', true);
+select t.count('...nor the public one', $$select 1 from realtime.messages where topic = 'deptpub:10000000-0000-0000-0000-00000000000a'$$, 0);
+select t.anon();
+select t.count('anon sees no realtime messages at all (no policy for anon)', $$select 1 from realtime.messages$$, 0);
+select t.su();
+-- profile changes are announced
+delete from realtime.messages where topic like 'dept:%' or topic like 'user:%';
+update public.profiles set full_name = 'User A1 renamed' where id = '00000000-0000-0000-0000-0000000000a2';
+select t.eq('a profile change is announced to the department admins and to the person',
+  $$select (exists (select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a' and payload->>'t' = 'profiles') and exists (select 1 from realtime.messages where topic = 'user:00000000-0000-0000-0000-0000000000a2' and payload->>'t' = 'profile'))::text$$, 'true');
+select t.eq('...and not to the other department', $$select (not exists (select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000b'))::text$$, 'true');
+select t.login('00000000-0000-0000-0000-0000000000a1');   -- the sections below continue as adminA
+
+
 -- profile edits
 select t.ok('adminA edits ua1 data', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1 Renamed', 'OPR-A2', 7)$$);
 select t.eq('edit persisted', $$select level::text from public.profiles where username = 'ua1'$$, '7');
@@ -276,6 +369,7 @@ select t.count('adminB sees no dept A holidays', 'select 1 from public.holidays'
 select t.count('adminB sees no dept A audit', $$select 1 from public.audit_log where department_id = '10000000-0000-0000-0000-00000000000a'$$, 0);
 select t.denied('adminB set status in dept A', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
 select t.denied('adminB bulk overtime in dept A', $$select public.set_overtime_bulk(current_date, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":9}]'::jsonb)$$);
+select t.denied('adminB set_day_status_rows for dept A', $$select public.set_day_status_rows('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"2030-01-01","status":"X"}]'::jsonb)$$);
 select t.denied('adminB overtime in dept A', $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date, 2)$$);
 select t.denied('adminB edit dept A user', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', 1)$$);
 select t.denied('adminB promote dept A user', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a2', 'admin')$$);
@@ -298,6 +392,7 @@ select t.count('super_admin audit limited to profiles/departments',
 select t.denied('super_admin cannot set status', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
 select t.denied('super_admin cannot set own status', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a0', current_date, 'X')$$);
 select t.denied('super_admin cannot bulk-set overtime', $$select public.set_overtime_bulk(current_date, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":9}]'::jsonb)$$);
+select t.denied('super_admin cannot use set_day_status_rows', $$select public.set_day_status_rows('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"2030-01-01","status":"X"}]'::jsonb)$$);
 select t.denied('super_admin cannot set overtime', $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date, 2)$$);
 select t.denied('super_admin cannot set holiday', $$select public.set_holiday(current_date, true)$$);
 select t.denied('super_admin cannot edit user data', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', 1)$$);
@@ -328,5 +423,6 @@ insert into auth.users (id, email, aud, role) values ('00000000-0000-0000-0000-0
 insert into public.profiles (id, username, full_name, role) values ('00000000-0000-0000-0000-0000000000a9', 'sa2', 'Super 2', 'super_admin');
 select t.ok('with a 2nd super_admin the first can be deactivated', $$update public.profiles set active = false where id = '00000000-0000-0000-0000-0000000000a0'$$);
 select t.denied('...but now the 2nd is the last', $$update public.profiles set active = false where id = '00000000-0000-0000-0000-0000000000a9'$$, 'P0001');
+
 
 do $$ begin raise notice '=== ALL RLS TESTS PASSED ==='; end $$;

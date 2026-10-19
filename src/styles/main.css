@@ -190,3 +190,90 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .ot-hours { text-align: center; padding-inline: 6px; }
 .ot-note { grid-column: 1 / -1; }
 .ot-total { margin: 10px 0 0; font-weight: 600; color: var(--ot-fg); background: var(--ot-bg); padding: 8px 12px; border-radius: 8px; }
+
+/* ---- department tab v2: pinned toolbar, week/month views, today + holiday columns, headcount row ---- */
+.shell:has(.team) { max-width: 1400px; }
+.team-top { position: sticky; inset-block-start: 0; z-index: 25; background: var(--bg); padding-block: 4px 8px; }
+.dept-sub { margin: 0 0 2px; font-size: .85rem; }
+.team-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-block-start: 8px; }
+.team-row.tools { gap: 6px; }
+.search-wrap { position: relative; flex: 1; min-width: 170px; display: flex; align-items: center; }
+.search-wrap > svg { position: absolute; inset-inline-start: 10px; color: var(--muted); pointer-events: none; }
+.team-search { padding: 9px 44px 9px 34px; padding-inline: 34px 44px; min-height: 40px; }
+.team-count { position: absolute; inset-inline-end: 12px; font-size: .75rem; }
+.btn.icon-only { padding-inline: 8px; }
+.btn svg { vertical-align: -3px; margin-inline-end: 4px; }
+.btn.icon-only svg { margin: 0; }
+.btn:disabled svg { opacity: .6; }
+.banner { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-block-start: 8px; padding: 6px 6px 6px 12px; padding-inline: 12px 6px; border-radius: 10px; font-size: .85rem; font-weight: 600; }
+.banner[hidden] { display: none; }
+.banner.paint.s-x { background: var(--s-x-bg); color: var(--s-x-fg); }
+.banner.paint.s-y { background: var(--s-y-bg); color: var(--s-y-fg); }
+.banner.paint.s-e { background: var(--line); color: var(--text); }
+.banner.hol { background: #fde68a; color: #78350f; }
+
+.gridwrap { max-height: calc(100dvh - 230px); min-height: 300px; transition: opacity .15s; }
+.gridwrap.loading { opacity: .55; pointer-events: none; }
+.tgrid.month .nm { min-width: 170px; max-width: 210px; }
+.tgrid.month .dh, .tgrid.month td.c, .tgrid.month td.hc { min-width: 30px; }
+.tgrid.week { width: 100%; min-width: 0; table-layout: fixed; }
+.tgrid.week .nm { width: 36%; min-width: 0; max-width: none; }
+.tgrid .nm { white-space: normal; }
+.nm-name { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nm-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-block-start: 1px; }
+.opr { display: none; font-weight: 400; color: var(--muted); }
+@media (min-width: 641px) { .opr { display: inline; } }
+.tots { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.tp { font-size: .66rem; font-weight: 700; padding: 0 5px; border-radius: 999px; line-height: 1.55; }
+.tp.tx { background: var(--s-x-bg); color: var(--s-x-fg); }
+.tp.ty { background: var(--s-y-bg); color: var(--s-y-fg); }
+.tp.tH { box-shadow: inset 0 0 0 1px currentColor; }
+.tp.to { background: var(--ot-bg); color: var(--ot-fg); }
+
+/* today column + holiday columns (instead of weekend shading) */
+.tgrid th.dh.today { background: var(--brand); color: #fff; }
+.tgrid th.dh.today small { color: rgba(255, 255, 255, .85); }
+.tgrid td.today { box-shadow: inset 2px 0 0 var(--brand), inset -2px 0 0 var(--brand); }
+.tgrid td.has-ot.today { box-shadow: inset 2px 0 0 var(--brand), inset -2px 0 0 var(--brand), inset 0 -4px 0 var(--ot-bar); }
+.tgrid td.holiday { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(245, 158, 11, .38) 5px 7px); }
+.tgrid td.holiday.s-e, .tgrid td.hc.holiday { background-color: color-mix(in srgb, #fde68a 38%, var(--card)); }
+.tgrid th.dh.holiday { background: #fde68a; color: #78350f; }
+.tgrid th.dh.holiday small { color: #92400e; }
+
+/* headcount row pinned to the bottom of the grid */
+.tgrid tfoot th, .tgrid tfoot td { position: sticky; inset-block-end: 0; z-index: 2; background: var(--card); border-block-start: 2px solid var(--line); padding-block: 2px; }
+.tgrid tfoot th.nm { z-index: 3; }
+.tgrid tfoot td.hc.today { box-shadow: inset 2px 0 0 var(--brand), inset -2px 0 0 var(--brand); }
+.hc b, .hc i { display: block; font-size: .72rem; line-height: 1.25; font-style: normal; }
+.hc .hx { color: var(--s-x-fg); }
+.hc .hy { color: var(--s-y-fg); font-weight: 600; }
+.legend-row { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 10px 4px; }
+.chip.holiday-chip { background: #fde68a; color: #78350f; border-color: transparent; background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(245, 158, 11, .38) 5px 7px); }
+.bulk-preview { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--bg); font-weight: 600; }
+.bulk-preview.warn { background: var(--ot-bg); color: var(--ot-fg); }
+.toast { pointer-events: auto; display: flex; align-items: center; }
+.toast-action { margin-inline-start: 14px; background: none; border: 1px solid currentColor; color: inherit; border-radius: 6px; padding: 3px 12px; font: inherit; font-weight: 700; cursor: pointer; }
+
+/* name-cell internals must not inherit the older "every span is a block" rule */
+.tgrid .nm .nm-sub { display: flex; }
+.tgrid .nm .tots { display: inline-flex; overflow: visible; }
+.tgrid .nm .tp { display: inline-block; overflow: visible; }
+.tgrid .nm .opr { overflow: visible; }
+.gridwrap { max-height: none; }   /* real height is set by fit() in views/team.js so the headcount row is always on screen */
+
+/* ---- live indicator, person page, users empty state ---- */
+.live-dot { margin-inline-start: 8px; font-size: .75rem; font-weight: 600; }
+.live-dot::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 5px; background: #9aa5b1; vertical-align: 0; }
+.live-dot.live { color: var(--ok); }
+.live-dot.live::before { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+.live-dot.connecting { color: var(--muted); }
+.live-dot.idle { display: none; }
+.person-view { max-width: 560px; margin: 0 auto; }
+.person-head { display: flex; align-items: center; gap: 12px; margin: 8px 0; padding: 12px 14px; max-width: none; }
+.cal-mode { margin-block-end: 10px; }
+.empty { text-align: center; max-width: none; margin-block: 12px; display: grid; gap: 8px; justify-items: center; }
+.empty[hidden] { display: none; }
+
+/* links styled as buttons (e.g. "Timesheet") */
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+a.btn.primary { color: #fff; }
