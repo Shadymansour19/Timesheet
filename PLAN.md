@@ -19,4 +19,5 @@ Each phase ends with local commits (never pushed) and a hand-off of push + Supab
 - [x] **Light / dark theme choice**: DONE (Light / Dark / System in the account menu, per device).
 - [ ] Offline write queue (deferred earlier).
 - [ ] Waiting on the company: the official Excel form (phase 9) and the weekend/week-start confirmation.
+- [ ] **Compact user calendar** (NOT started, later): on the plain user's calendar page, use a compact layout - move the help text (legend, tap instructions, edit-window note) behind an "i" help button, like the department grid does.
 
