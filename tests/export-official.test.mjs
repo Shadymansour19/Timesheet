@@ -17,12 +17,12 @@ const loadAsset = async (url) => readFileSync(new URL('../public' + url, import.
 
 // ---------- synthetic department: October 2028 (31 days), awkward names, work in the neighbouring months
 const people = [
-  { id: 'e1', full_name: 'Mohamed Salah Rashed', username: 'e1', opr: 'EMC-444', level: 3, job_title: 'First Engineer', contract_no: '033/2019', residence: 'outside', work_location: null },
-  { id: 'e2', full_name: 'Mohamed Abdelaziz Ismail Abdelkawy Mahmoud', username: 'e2', opr: 'EMC-459', level: 2, job_title: 'Engineer', contract_no: '033/2019', residence: 'inside', work_location: 'Abu Qir Site' },
-  { id: 'e3', full_name: "Ahmed O'Brien / Hassan [Jr]: *x*", username: 'e3', opr: 'EMC-457', level: 2, job_title: 'Engineer', contract_no: null, residence: null },
-  { id: 'e4', full_name: 'Mohamed Abdelaziz Ismail Abdelkawy Mahmoud', username: 'e4', opr: 'EMC-460', level: 1, job_title: 'Technician', contract_no: '033/2019', residence: 'inside' },
-  { id: 'e5', full_name: 'Hamdy Mahmoud Abdelnabi', username: 'e5', opr: 'EMC-102', level: 4, job_title: 'Supervisor', contract_no: '', residence: 'outside' },
-  { id: 'e6', full_name: 'Khaled Orabi Ali', username: 'e6', opr: 'EMC-074', level: 5, job_title: null, contract_no: '033/2019', residence: 'inside' },
+  { id: 'e1', position: 'Engineer', full_name: 'Mohamed Salah Rashed', username: 'e1', opr: 'EMC-444', level: 3, job_title: 'First Engineer', contract_no: '033/2019', residence: 'outside', work_location: null },
+  { id: 'e2', position: 'Engineer', full_name: 'Mohamed Abdelaziz Ismail Abdelkawy Mahmoud', username: 'e2', opr: 'EMC-459', level: 2, job_title: 'Engineer', contract_no: '033/2019', residence: 'inside', work_location: 'Abu Qir Site' },
+  { id: 'e3', position: 'engineer lead', full_name: "Ahmed O'Brien / Hassan [Jr]: *x*", username: 'e3', opr: 'EMC-457', level: 2, job_title: 'Engineer', contract_no: null, residence: null },
+  { id: 'e4', position: 'Tech', full_name: 'Mohamed Abdelaziz Ismail Abdelkawy Mahmoud', username: 'e4', opr: 'EMC-460', level: 1, job_title: 'Technician', contract_no: '033/2019', residence: 'inside' },
+  { id: 'e5', position: 'Technician', full_name: 'Hamdy Mahmoud Abdelnabi', username: 'e5', opr: 'EMC-102', level: 4, job_title: 'Supervisor', contract_no: '', residence: 'outside' },
+  { id: 'e6', position: 'Rigger Foreman', full_name: 'Khaled Orabi Ali', username: 'e6', opr: 'EMC-074', level: 5, job_title: null, contract_no: '033/2019', residence: 'inside' },
 ];
 const status = new Map([
   ['e1|2028-09-30', 'X'], ['e1|2028-10-01', 'X'], ['e1|2028-10-02', 'X'], ['e1|2028-10-03', 'Y'], ['e1|2028-10-31', 'X'], ['e1|2028-11-01', 'X'],   // work continues from September and into November
@@ -34,7 +34,7 @@ const overtime = new Map([
   ['e1|2028-10-01', { hours: 2, note: 'inventory' }], ['e1|2028-10-03', { hours: 6, note: 'night shift' }], ['e1|2028-10-31', { hours: 24, note: 'max' }],
   ['e2|2028-10-02', { hours: 4, note: '' }], ['e3|2028-10-17', { hours: 1, note: 'on call' }], ['e5|2028-10-06', { hours: 3, note: 'x'.repeat(40) }],
 ]);
-const dept = { name: 'Turbo-Machinery', code: '19', sector: 'Maintenance Sector', field: 'Operations [Fields]', report: { dept_print_name: 'TURBO (MAINT.)', location: 'IDKU Site' } };
+const dept = { name: 'Turbo-Machinery', code: '19', approved_engineer: 264, approved_tech: 295, sector: 'Maintenance Sector', field: 'Operations [Fields]', report: { dept_print_name: 'TURBO (MAINT.)', location: 'IDKU Site' } };
 const model = buildModel({ dept, people, data: { status, overtime, holidays: new Set(['2028-10-02', '2028-10-03', '2028-10-04']) }, year: 2028, month: 9 });
 const N = 31, nEmp = people.length;
 
@@ -132,8 +132,9 @@ people.forEach((p, i) => { const r = 9 + i, x = exp[i], got = [res(rv.getCell(r,
 ok('review: (X)DAYS, (Y) DAYS, Total, O/T, EXT, IN for every employee equal the independent calculation', badRv.length === 0, badRv.join(' ; '));
 ok('review: "Total Days" is a formula adding the two day columns', f(rv.getCell('H9')) === 'F9+G9');
 const T = 9 + nEmp - 1 + 3;
-const engDays = exp.filter((x) => /engineer/i.test(x.p.job_title ?? '')).reduce((a, x) => a + x.x + x.y, 0), allDays = exp.reduce((a, x) => a + x.x + x.y, 0);
-ok('review: "Total Engineer Days" = SUMIF on the job title; "Total Technition Days" = everybody else (all minus engineers)', rv.getCell(T, 2).value === 'Total Engineer Days' && f(rv.getCell(T, 4)).startsWith('SUMIF($C$9:$C$14,"*Engineer*"') && res(rv.getCell(T, 4)) === engDays && rv.getCell(T + 2, 2).value === 'Total Technition Days' && f(rv.getCell(T + 2, 4)).startsWith('SUM(') && res(rv.getCell(T + 2, 4)) === allDays - engDays, `${res(rv.getCell(T, 4))}/${engDays} ${res(rv.getCell(T + 2, 4))}/${allDays - engDays}`);
+const engDays = exp.filter((x) => /engineer/i.test(x.p.position ?? '')).reduce((a, x) => a + x.x + x.y, 0), techDays = exp.filter((x) => /tech/i.test(x.p.position ?? '')).reduce((a, x) => a + x.x + x.y, 0);
+ok('review: Total Engineer / Technition Days = SUMIF on the POSITION (hidden column M); other positions in neither', rv.getCell(T, 2).value === 'Total Engineer Days' && f(rv.getCell(T, 4)).startsWith('SUMIF($M$9:$M$14,"*engineer*"') && res(rv.getCell(T, 4)) === engDays && rv.getCell(T + 2, 2).value === 'Total Technition Days' && f(rv.getCell(T + 2, 4)).startsWith('SUMIF($M$9:$M$14,"*tech*"') && res(rv.getCell(T + 2, 4)) === techDays && rv.getColumn(13).hidden === true && rv.getCell('M9').value === 'Engineer', `${res(rv.getCell(T, 4))}/${engDays} ${res(rv.getCell(T + 2, 4))}/${techDays}`);
+ok('review: Total Approved values come from the department data (264 / 295)', rv.getCell(T, 12).value === 264 && rv.getCell(T + 2, 12).value === 295);
 ok('review: "Total Approved" labels and sign-offs', rv.getCell(T, 5).value === 'Total Approved (Engineer)' && rv.getCell(T + 2, 5).value === 'Total Approved (Tech)' && [...Array(8)].some((_, i) => rv.getCell(T + 5 + i, 1).value === 'Turbo-Machinery SH/DH') && [...Array(8)].some((_, i) => rv.getCell(T + 5 + i, 9).value === 'Turbo-Machinery AGM'));
 
 // ---------- overtime summary
@@ -186,7 +187,7 @@ else {
   });
   ok(`LibreOffice recalculation: employee totals AND the review sheet are correct for all ${nEmp} employees`, badLo.length === 0, badLo.join(' ; '));
   const rvl = rc.getWorksheet('Review');
-  ok('LibreOffice recalculation: engineer days and technician days', val(rvl, T, 4) === engDays && val(rvl, T + 2, 4) === allDays - engDays, `${val(rvl, T, 4)} ${val(rvl, T + 2, 4)}`);
+  ok('LibreOffice recalculation: engineer days and technician days', val(rvl, T, 4) === engDays && val(rvl, T + 2, 4) === techDays, `${val(rvl, T, 4)} ${val(rvl, T + 2, 4)}`);
   const ovl = rc.getWorksheet('Overtime');
   ok('LibreOffice recalculation: the overtime summary totals', withOt.every((x, k) => val(ovl, 4 + k, totalCol) === x.ot), withOt.map((x, k) => val(ovl, 4 + k, totalCol)).join(','));
   ok('LibreOffice recalculation: no formula anywhere produces an error (#REF!, #N/A, #NAME?, #VALUE!)', await (async () => { let errs = 0; rc.eachSheet((ws) => ws.eachRow((r) => r.eachCell((c) => { const v = c.value && typeof c.value === 'object' && 'result' in c.value ? c.value.result : c.value; if (v && typeof v === 'object' && 'error' in v) errs++; if (typeof v === 'string' && /^#(REF|N\/A|NAME|VALUE|DIV)/.test(v)) errs++; }))); return errs === 0; })());

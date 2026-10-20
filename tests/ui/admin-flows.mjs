@@ -173,9 +173,9 @@ ok('department renamed', db(`select count(*) from public.departments where name=
 const rd = sa.locator('.dept', { hasText: 'UI Renamed Dept' });
 await rd.locator('button:text-is("Department data")').click(); await sa.waitForSelector('dialog[open]');
 await dlg(sa).getByLabel('Department code').fill('77'); await dlg(sa).getByLabel('Sector (printed').fill('UI Sector'); await dlg(sa).getByLabel('Field (printed').fill('UI Field');
-await dlg(sa).getByLabel('Department name as printed').fill('UI PRINT');
+await dlg(sa).getByLabel('Department name as printed').fill('UI PRINT'); await dlg(sa).getByLabel('Total approved (Engineer)').fill('264'); await dlg(sa).getByLabel('Total approved (Tech)').fill('295');
 await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached' });
-ok('super_admin edits department data (code, sector, field, printed name)', await until(() => db(`select code||'|'||sector||'|'||field||'|'||(report->>'dept_print_name') from public.departments where name='UI Renamed Dept'`) === '77|UI Sector|UI Field|UI PRINT'));
+ok('super_admin edits department data (code, sector, field, printed name)', await until(() => db(`select code||'|'||sector||'|'||field||'|'||(report->>'dept_print_name') from public.departments where name='UI Renamed Dept'`) === '77|UI Sector|UI Field|UI PRINT' && db(`select approved_engineer||'|'||approved_tech from public.departments where name='UI Renamed Dept'`) === '264|295'));
 await rd.locator('button:text-is("Add admin")').click(); await sa.waitForSelector('dialog[open]');
 await dlg(sa).getByLabel('Username').fill('uinewadm'); const apw = await dlg(sa).getByLabel('Temporary password').inputValue();
 await dlg(sa).getByLabel('Full name').fill('UI New Admin'); await dlg(sa).getByLabel('OPR').fill('OPR-NA'); await dlg(sa).locator('button.primary').click();
@@ -185,7 +185,7 @@ const ctx2 = await b.newContext({ viewport: { width: 390, height: 800 } }); cons
 await np.goto('http://localhost:4173/'); await np.fill('#username', 'uinewadm'); await np.fill('#password', apw); await np.click('button[type=submit]'); await np.waitForSelector('.tgrid');
 ok('new admin logs in and lands on an (empty-but-for-self) team grid', np.url().endsWith('#/team') && (await np.locator('.tgrid tbody tr').count()) === 1);
 // promote / demote across departments (open Dept A)
-const da = sa.locator('.dept', { hasText: 'UI Dept A' }); if (!(await da.getAttribute('open')) !== null) await da.locator('summary').click();
+const da = sa.locator('.dept', { hasText: 'UI Dept A' }); if ((await da.getAttribute('open')) === null) await da.locator('summary').click();
 await da.locator('.person', { hasText: 'UI User Two' }).locator('button:text-is("Make admin")').click(); await sa.locator('dialog[open] button.primary').click(); await settle(sa);
 ok('super_admin promotes user in another department', db(`select role from public.profiles where id='${ID.u2}'`) === 'admin');
 await sa.locator('.dept', { hasText: 'UI Dept A' }).locator('.person', { hasText: 'UI User Two' }).locator('button:text-is("Make user")').click(); await sa.locator('dialog[open] button.primary').click(); await settle(sa);

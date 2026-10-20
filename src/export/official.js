@@ -261,11 +261,12 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   const G0 = N0 + 4, dash = '------------------------------';
   ws.getCell(G0, 1).value = null;
   merge(ws, G0, 1, G0, 8, 'Signature Employee', { bold: true, size: 8, h: 'left', border: false });
-  merge(ws, G0 + 1, 1, G0 + 1, 8, dash, { size: 8, h: 'left', border: false });
+  merge(ws, G0 + 1, 1, G0 + 1, 8, dash, { size: 8, h: 'left', v: 'bottom', border: false });
   merge(ws, G0, 12, G0, 21, 'Approval of Supervisor', { bold: true, size: 8, h: 'left', border: false });
-  merge(ws, G0 + 1, 12, G0 + 1, 21, dash, { size: 8, h: 'left', border: false });
+  merge(ws, G0 + 1, 12, G0 + 1, 21, dash, { size: 8, h: 'left', v: 'bottom', border: false });
   merge(ws, G0 + 3, 12, G0 + 3, 21, 'Approval of Department GM', { bold: true, size: 8, h: 'left', border: false });
-  merge(ws, G0 + 4, 12, G0 + 4, 21, dash, { size: 8, h: 'left', border: false });
+  merge(ws, G0 + 4, 12, G0 + 4, 21, dash, { size: 8, h: 'left', v: 'bottom', border: false });
+  [G0 + 1, G0 + 4].forEach((r) => { ws.getRow(r).height = 40; }); ws.getRow(G0 + 2).height = 24;   // room to sign
   return {
     sheet: ws.name, refs,
     totals: { X: cnt('X'), C: cnt('C'), Q: cnt('Q'), Y: cnt('Y'), O: cnt('O'), otNormal: otOf(NORMAL), otShift: otOf(SHIFT), ex: sumVal(7), in: sumVal(6) },
@@ -273,7 +274,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
 }
 
 // ---------- review sheet ----------
-const V = { first: 9, no: 1, name: 2, title: 3, level: 4, pr: 5, x: 6, y: 7, total: 8, ot: 9, ext: 10, in: 11, sig: 12, cols: 12 };
+const V = { first: 9, no: 1, name: 2, title: 3, level: 4, pr: 5, x: 6, y: 7, total: 8, ot: 9, ext: 10, in: 11, sig: 12, cols: 12, pos: 13 };   // column 13 = the person's position (hidden), used by the totals
 function reviewSheet(wb, model, S, emps, name, logos) {
   const ws = wb.addWorksheet(name);
   page(ws, { landscape: true, height: 0 });
@@ -300,27 +301,29 @@ function reviewSheet(wb, model, S, emps, name, logos) {
     setCell(ws, r, V.ext, fx(`${q}!${x.refs.ex}`, x.totals.ex), b);
     setCell(ws, r, V.in, fx(`${q}!${x.refs.in}`, x.totals.in), b);
     setCell(ws, r, V.sig, null);
+    setCell(ws, r, V.pos, e.position, { border: false });
     ws.getRow(r).height = 18;
   });
-  // totals: engineers by job title; "Technition" = everybody else (supervisors, superintendents, technicians, riggers ...)
+  ws.getColumn(V.pos).hidden = true; setCell(ws, 8, V.pos, 'Position', { border: false });
+  // totals by the person's POSITION (free text): positions containing "engineer" / "tech" (case-insensitive); other positions are in neither
   const T = last + 3;
-  const totalRng = `$H$${V.first}:$H$${last}`, titleRng = `$C$${V.first}:$C$${last}`;
+  const totalRng = `$H$${V.first}:$H$${last}`, posRng = `$M$${V.first}:$M$${last}`;
   const daysOf = (i) => emps[i].totals.X + emps[i].totals.C + emps[i].totals.Q + emps[i].totals.Y + emps[i].totals.O;
-  const engDays = model.employees.reduce((a, e, i) => (/engineer/i.test(e.jobTitle) ? a + daysOf(i) : a), 0);
-  const allDays = model.employees.reduce((a, _, i) => a + daysOf(i), 0);
+  const engDays = model.employees.reduce((a, e, i) => (/engineer/i.test(e.position) ? a + daysOf(i) : a), 0);
+  const techDays = model.employees.reduce((a, e, i) => (/tech/i.test(e.position) ? a + daysOf(i) : a), 0);
   const b9 = { bold: true, size: 9 };
   merge(ws, T, 2, T, 3, 'Total Engineer Days', b9);
-  setCell(ws, T, 4, fx(`SUMIF(${titleRng},"*Engineer*",${totalRng})`, engDays), { ...b9, fill: GREEN });
-  merge(ws, T, 5, T, 9, 'Total Approved (Engineer)', b9); setCell(ws, T, 10, null); setCell(ws, T, 11, null); setCell(ws, T, 12, null, b9);
+  setCell(ws, T, 4, fx(`SUMIF(${posRng},"*engineer*",${totalRng})`, engDays), { ...b9, fill: GREEN });
+  merge(ws, T, 5, T, 9, 'Total Approved (Engineer)', b9); setCell(ws, T, 10, null); setCell(ws, T, 11, null); setCell(ws, T, 12, model.approvedEngineer, b9);
   ws.getRow(T).height = 20;
   merge(ws, T + 2, 2, T + 2, 3, 'Total Technition Days', b9);
-  setCell(ws, T + 2, 4, fx(`SUM(${totalRng})-${addr(4, T)}`, allDays - engDays), { ...b9, fill: GREEN });
-  merge(ws, T + 2, 5, T + 2, 9, 'Total Approved (Tech)', b9); setCell(ws, T + 2, 10, null); setCell(ws, T + 2, 11, null); setCell(ws, T + 2, 12, null, b9);
+  setCell(ws, T + 2, 4, fx(`SUMIF(${posRng},"*tech*",${totalRng})`, techDays), { ...b9, fill: GREEN });
+  merge(ws, T + 2, 5, T + 2, 9, 'Total Approved (Tech)', b9); setCell(ws, T + 2, 10, null); setCell(ws, T + 2, 11, null); setCell(ws, T + 2, 12, model.approvedTech, b9);
   ws.getRow(T + 2).height = 20;
   const sig = T + 5;
   merge(ws, sig, 1, sig, 4, S.signLeft, { bold: true, size: 8, border: false, h: 'left' });
   merge(ws, sig, 9, sig, V.cols, S.signRight, { bold: true, size: 8, border: false, h: 'right' });
-  return { engineerDays: engDays, technicianDays: allDays - engDays };
+  return { engineerDays: engDays, technicianDays: techDays };
 }
 
 // ---------- overtime summary ----------

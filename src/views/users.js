@@ -25,10 +25,12 @@ export function personFields(initial = {}, { withLogin = false, isNew = false } 
     job_title: field(t('job_title'), { maxlength: 100, value: initial.job_title ?? '' }),
     contract_no: field(t('contract_no'), { maxlength: 50, value: initial.contract_no ?? (isNew ? DEFAULT_CONTRACT_NO : '') }),
     work_location: field(t('work_location'), { maxlength: 100, value: initial.work_location ?? '' }),
+    position: field(t('position'), { maxlength: 100, value: initial.position ?? '', list: 'position-list', placeholder: 'Engineer, Tech' }),
   };
   // inside / outside the work-location city: decides whether Arrival / Departure trips count as TRANS/IN or TRANS/EX
   const residence = choice(t('residence'), [{ value: 'inside', label: t('residence_inside') }, { value: 'outside', label: t('residence_outside') }, { value: '', label: t('residence_unset') }], initial.residence ?? (isNew ? 'inside' : ''));
   f.residence = { row: residence.row, input: residence };
+  f.position.row.append(h('datalist', { id: 'position-list' }, h('option', { value: 'Engineer' }), h('option', { value: 'Tech' })));   // suggestions only: the position is free text
   const rows = Object.values(f).filter(Boolean).map((x) => x.row);
   const level = () => (f.level.input.value === '' ? null : Number(f.level.input.value));
   return { f, rows, level };
@@ -84,7 +86,7 @@ export function usersView() {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: me.department_id, role: 'user',
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
-          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value,
+          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value,
         });
         toast(t('user_created'), 'success'); await load();
       } }],
@@ -96,7 +98,7 @@ export function usersView() {
     openDialog({
       title: `${t('edit_data')}: ${person.username}`, content: h('div', { class: 'form' }, p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
-        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value);
+        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value);
         await load();
       } }],
     });
@@ -107,7 +109,7 @@ export function usersView() {
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
         h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${fmtOpr(p.opr) || '-'} · ${t('level')} ${p.level ?? '-'}${p.job_title ? ' · ' + p.job_title : ''}${p.residence ? ' · ' + t('residence_' + p.residence) : ''}`)),
+        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${fmtOpr(p.opr) || '-'} · ${t('level')} ${p.level ?? '-'}${p.job_title ? ' · ' + p.job_title : ''}${p.position ? ' · ' + p.position : ''}${p.residence ? ' · ' + t('residence_' + p.residence) : ''}`)),
       h('div', { class: 'pactions' },
         h('a', { class: 'btn small primary', href: '#/person/' + p.id }, t('timesheet')),
         h('button', { class: 'btn small', onclick: () => editUser(p) }, t('edit_data')),

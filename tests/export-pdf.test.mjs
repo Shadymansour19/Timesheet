@@ -13,11 +13,11 @@ const ok = (label, cond, extra = '') => { if (!cond) fails++; console.log(`${con
 const dir = mkdtempSync(join(tmpdir(), 'pdf-'));
 const png = (f) => { const b = readFileSync(new URL('../public/templates/' + f, import.meta.url)); return { data: 'data:image/png;base64,' + b.toString('base64'), width: b.readUInt32BE(16), height: b.readUInt32BE(20) }; };
 const logos = { left: png('logo-left.png'), right: png('logo-right.png') };
-const mk = (n) => Array.from({ length: n }, (_, i) => ({ id: 'p' + i, full_name: i === 1 ? 'Ahmed محمد Ali' : `Person Number ${i}`, username: 'p' + i, opr: 'OPR-' + (100 + i), level: 2, job_title: i % 2 ? 'Engineer' : 'Technician', contract_no: '033/2019', residence: i % 3 ? 'inside' : 'outside' }));
+const mk = (n) => Array.from({ length: n }, (_, i) => ({ id: 'p' + i, full_name: i === 1 ? 'Ahmed محمد Ali' : `Person Number ${i}`, username: 'p' + i, opr: 'OPR-' + (100 + i), level: 2, job_title: i % 2 ? 'Engineer' : 'Technician', contract_no: '033/2019', residence: i % 3 ? 'inside' : 'outside', position: i % 2 ? 'Engineer' : 'Tech' }));
 const run = (n, extra = {}) => {
   const people = mk(n), status = new Map(), overtime = new Map();
   status.set('p0|2028-10-05', 'X'); status.set('p0|2028-10-06', 'Y'); status.set('p0|2028-10-07', 'X'); overtime.set('p0|2028-10-06', { hours: 3, note: 'night' });
-  const dept = { name: 'Turbo', code: '19', report: { dept_print_name: 'TURBO', location: 'IDKU' } };
+  const dept = { name: 'Turbo', code: '19', approved_engineer: 264, approved_tech: 295, report: { dept_print_name: 'TURBO', location: 'IDKU' } };
   const model = buildModel({ dept, people, data: { status, overtime, holidays: new Set() }, year: 2028, month: 9 });
   const doc = buildOfficialPdf(model, official, { jsPDF, logos, ...extra });
   const f = join(dir, `r${n}-${extra.employeeId ?? 'all'}.pdf`);
@@ -39,6 +39,7 @@ ok('payroll display: integer gets EMC- prefix, existing prefix / text untouched'
 const one = run(6, { employeeId: 'p0' });
 ok('single employee PDF = 1 page with that person only', one.pages === 1 && /OPR-100/.test(one.text) && !/OPR-101/.test(one.text));
 ok('single page: totals X=2 Y=1 OT 3', /Total \(X\) Days:\s+2/.test(one.text) && /Total \(Y\) Days:\s+1/.test(one.text));
+ok('review page shows the approved totals from the department data', /Total Approved \(Engineer\)\s+264/.test(a.text) && /Total Approved \(Tech\)\s+295/.test(a.text), (a.text.match(/Total Approved[^\n]*/g) || []).join(' | '));
 const big = run(40);
 ok('40 people paginate: more pages than 6 people, review still has totals', big.pages > 31 + 40 + 2 && /Total Engineer Days/.test(big.text), big.pages);
 const bigDay = execFileSync('pdftotext', ['-f', '1', '-l', '2', '-layout', big.f, '-']).toString();

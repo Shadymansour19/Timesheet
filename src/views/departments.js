@@ -37,7 +37,7 @@ export function departmentsView() {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: dept.id, role: 'admin',
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
-          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value,
+          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value,
         });
         open.add(dept.id); toast(t('user_created'), 'success'); await load();
       } }],

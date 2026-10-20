@@ -238,7 +238,7 @@ export function teamView() {
       { value: 'pdf', label: t('export_fmt_pdf'), hint: t('export_fmt_pdf_hint') },
       { value: 'simple', label: t('export_fmt_simple'), hint: t('export_fmt_simple_hint') }], 'official');
     // The report prints department data; anything missing there falls back to a default - say so
-    const missing = [[dept?.code, 'rs_code'], [dept?.sector, 'rs_sector'], [dept?.field, 'rs_field'], [dept?.report?.dept_print_name, 'rs_dept_print_name']].filter(([v]) => !v).map(([, k]) => t(k));
+    const missing = [[dept?.code, 'rs_code'], [dept?.sector, 'rs_sector'], [dept?.field, 'rs_field'], [dept?.report?.dept_print_name, 'rs_dept_print_name'], [dept?.approved_engineer, 'rs_approved_engineer'], [dept?.approved_tech, 'rs_approved_tech']].filter(([v]) => v === null || v === undefined || v === '').map(([, k]) => t(k));
     const content = h('div', { class: 'form' }, month.row, format.row,
       missing.length ? h('p', { class: 'notice', role: 'status' }, `${t('export_missing_dept')} ${missing.join(', ')}`) : null,
       );

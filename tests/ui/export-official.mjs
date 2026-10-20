@@ -67,18 +67,20 @@ ok('Add user dialog has Job title and Contract no. fields', (await dlg(p).getByL
 await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name').fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('EMC-999');
 ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'inside');
 await dlg(p).getByLabel('Job title').fill('Certified Rigger'); await dlg(p).getByLabel('Contract no.').fill('202/2024');
-await dlg(p).getByLabel('Work location (site)').fill('Abu Qir Site'); await dlg(p).locator('label.choice-card:has(input[value="outside"])').click();
+await dlg(p).getByLabel('Position').fill('Tech'); await dlg(p).getByLabel('Work location (site)').fill('Abu Qir Site'); await dlg(p).locator('label.choice-card:has(input[value="outside"])').click();
 await dlg(p).locator('button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached', timeout: 60000 });
 ok('the new person is created WITH job title and contract number (Edge Function)', await eventually(() => sql(`select job_title||'|'||contract_no from public.profiles where username='xonew'`) === 'Certified Rigger|202/2024'));
+ok('position is stored (Edge Function)', await eventually(() => sql(`select position from public.profiles where username='xonew'`) === 'Tech'));
 ok('work location and residence are stored (Edge Function)', await eventually(() => sql(`select work_location||'|'||residence from public.profiles where username='xonew'`) === 'Abu Qir Site|outside'));
 ok('the Users list shows the job title', await eventually(async () => (await p.locator('.person', { hasText: 'XO Brand New' }).textContent()).includes('Certified Rigger')));
 await p.locator('.person', { hasText: 'XO Brand New' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
 ok('Edit data shows the stored values', (await dlg(p).getByLabel('Job title').inputValue()) === 'Certified Rigger' && (await dlg(p).getByLabel('Contract no.').inputValue()) === '202/2024');
 ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'outside');
-await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill(''); await dlg(p).locator('label.choice-card:has(input[value="inside"])').click();
+await dlg(p).getByLabel('Position').fill('Engineer'); await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill(''); await dlg(p).locator('label.choice-card:has(input[value="inside"])').click();
 await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('editing saves the new job title and clearing the contract number empties it', await eventually(() => sql(`select job_title||'|'||coalesce(contract_no,'NULL') from public.profiles where username='xonew'`) === 'Senior Rigger|NULL'));
+ok('position edit is saved', await eventually(() => sql(`select position from public.profiles where username='xonew'`) === 'Engineer'));
 ok('residence edit is saved', await eventually(() => sql(`select residence from public.profiles where username='xonew'`) === 'inside'));
 
 // ---- B. report settings
@@ -88,8 +90,9 @@ ok('export dialog: modern radio cards (no native dropdown), official Excel defau
 ok('department data missing -> a notice lists what is missing (defaults are used)', (await dlg(p).locator('.notice').textContent()).includes('Department code'));
 await p.keyboard.press('Escape');
 // the report data comes from the DEPARTMENT record (set here as a super admin would, via the department data dialog / RPC)
-sql(`update public.departments set code='19', sector='Maintenance Sector X', field='Operations [Fields] X', report='{"dept_print_name":"TURBO (MAINT.)"}' where id='${DA}'`);
+sql(`update public.departments set code='19', sector='Maintenance Sector X', field='Operations [Fields] X', approved_engineer=264, approved_tech=295, report='{"dept_print_name":"TURBO (MAINT.)"}' where id='${DA}'`);
 sql(`update public.profiles set work_location='IDKU Site' where opr='EMC-901'`);
+sql(`update public.profiles set position='Engineer' where opr in ('EMC-901','EMC-902'); update public.profiles set position='Tech' where opr='EMC-903'`);
 await p.reload(); await p.waitForSelector('.tgrid tbody tr');
 await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
 ok('with the department data filled in, the notice is gone', (await dlg(p).locator('.notice').count()) === 0);
@@ -123,7 +126,7 @@ for (let i = 0; i < emps.length; i++) {
   if (JSON.stringify(got) !== JSON.stringify([t.x, t.y, t.x + t.y, t.ot])) { rvOk = false; rvMsg += `${emps[i].name}: ${got} vs ${[t.x, t.y, t.x + t.y, t.ot]}; `; }
 }
 ok('review sheet: X days, Y days, total and overtime for every employee equal the database', rvOk, rvMsg);
-ok('review sheet: engineer days (SUMIF by title) = 3 + 1 = 4... computed from the data', res(rv.getCell(9 + emps.length + 2, 4)) === 4, String(res(rv.getCell(9 + emps.length + 2, 4))));
+ok('review sheet: engineer days (SUMIF by position) = 3 + 1 = 4', res(rv.getCell(9 + emps.length + 2, 4)) === 4, String(res(rv.getCell(9 + emps.length + 2, 4))));
 
 // ---- C2. arrival / departure / transport in the downloaded file (xou3 works alone on day 5 -> both marks, residence unset = IN)
 { const d5 = wb.getWorksheet(String(Number(sql("select extract(day from date_trunc('month',current_date)::date+4)")))); let row = null;

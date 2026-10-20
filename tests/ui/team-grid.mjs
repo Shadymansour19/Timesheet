@@ -156,7 +156,7 @@ const todayCells = Number(db(`select count(*) from public.day_status where statu
 await p.click('button:text-is("Bulk fill")'); await p.waitForSelector('dialog[open]');
 await p.locator('dialog[open] input[type=date]').nth(0).fill(T); await p.locator('dialog[open] input[type=date]').nth(1).fill(db(`select to_char(current_date+3,'YYYY-MM-DD')`));
 await p.locator('dialog[open] label.choice-card:has(input[value=\"X\"])').click();
-await p.waitForFunction(() => /cells will change/.test(document.querySelector('dialog[open] .bulk-preview')?.textContent ?? ''));
+await p.waitForFunction(() => /\(104 selected\)/.test(document.querySelector('dialog[open] .bulk-preview')?.textContent ?? ''), null, { timeout: 15000 });
 const expectChange = 26 * 4 - Number(db(`select count(*) from public.day_status where status='X' and day between '${T}' and (current_date+3) and user_id::text like '80000000%' and user_id <> '${OTHER}'`));
 ok(`preview says exactly how many cells change (${expectChange} of 104)`, (await p.locator('dialog[open] .bulk-preview').textContent()).startsWith(`${expectChange} cells will change (104 selected)`), await p.locator('dialog[open] .bulk-preview').textContent());
 await p.locator('dialog[open] label.check.strong input').uncheck();

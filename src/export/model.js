@@ -44,12 +44,13 @@ export function buildModel({ dept, people, data, year, month, departureRule = DE
     for (const c of cells) { totals[c.eff]++; totals.ot += c.ot; totals.tin += c.tin; totals.tex += c.tex; }
     return {
       id: p.id, fullName: p.full_name, username: p.username, opr: fmtOpr(p.opr), level: p.level ?? '', cells, totals,
-      jobTitle: p.job_title ?? '', contractNo: p.contract_no ?? '', workLocation: p.work_location ?? '', residence: p.residence ?? '',
+      jobTitle: p.job_title ?? '', contractNo: p.contract_no ?? '', workLocation: p.work_location ?? '', residence: p.residence ?? '', position: p.position ?? '',
       levelText: p.level === null || p.level === undefined || p.level === '' ? '' : `Level ${p.level}`,
     };
   });
   return {
     department: dept?.name ?? '', report: dept?.report ?? {}, deptCode: dept?.code ?? '', sector: dept?.sector ?? '', field: dept?.field ?? '',
+    approvedEngineer: dept?.approved_engineer ?? null, approvedTech: dept?.approved_tech ?? null,
     year, month, days, employees,
   };
 }

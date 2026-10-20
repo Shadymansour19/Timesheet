@@ -354,6 +354,16 @@ select t.ok('NULL keeps the columns, only the object is replaced', $$select publ
 select t.eq('...code/sector/field unchanged, location replaced, printed name gone', $$select (report ->> 'location') || '|' || code || '|' || sector || '|' || coalesce(report ->> 'dept_print_name', 'none') from public.departments where id = '10000000-0000-0000-0000-00000000000a'$$, 'Abu Qir|19|Maintenance Sector|none');
 select t.ok('empty text clears a column', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, '', null)$$);
 select t.eq('...sector cleared, code and field kept', $$select coalesce(sector, 'NULL') || '|' || code || '|' || field from public.departments where id = '10000000-0000-0000-0000-00000000000a'$$, 'NULL|19|Operations [Fields]');
+select t.ok('adminA sets a position (9-argument update_profile)', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, 'Engineer')$$);
+select t.eq('...stored, other fields untouched', $$select "position" || '|' || coalesce(work_location, 'NULL') from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'Engineer|IDKU Site');
+select t.ok('position can be any free text and be cleared with empty text', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, 'Rigger Foreman')$$);
+select t.denied('position longer than 100 characters is rejected', format($f$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, '%s')$f$, repeat('x', 101)), '23514');
+select t.denied('adminA cannot set the position of a dept B person', $$select public.update_profile('00000000-0000-0000-0000-0000000000b2', 'x', 'x', 1, null, null, null, null, 'Engineer')$$);
+select t.ok('adminA sets the approved totals of his department', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '264', '295')$$);
+select t.eq('...stored as whole numbers', $$select approved_engineer || '|' || approved_tech from public.departments where id = '10000000-0000-0000-0000-00000000000a'$$, '264|295');
+select t.denied('approved totals must be whole numbers', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '12.5', null)$$, '22023');
+select t.ok('empty text clears an approved total, NULL keeps the other', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '', null)$$);
+select t.eq('...engineer cleared, tech kept', $$select coalesce(approved_engineer::text, 'NULL') || '|' || approved_tech from public.departments where id = '10000000-0000-0000-0000-00000000000a'$$, 'NULL|295');
 select t.denied('code longer than 20 characters is rejected', format($f$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, '%s')$f$, repeat('9', 21)), '23514');
 select t.denied('adminA cannot set the print settings of department B', $$select public.set_department_report('10000000-0000-0000-0000-00000000000b', '{"location":"99"}'::jsonb)$$);
 select t.denied('an unknown setting key is rejected', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{"evil":"x"}'::jsonb)$$, '22023');

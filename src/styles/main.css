@@ -222,8 +222,8 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .gridwrap { max-height: calc(100dvh - 230px); min-height: 300px; transition: opacity .15s; }
 .gridwrap.loading { opacity: .55; pointer-events: none; }
 .tgrid.month .nm { min-width: 170px; max-width: 210px; }
-.tgrid.month { width: max-content; table-layout: fixed; }  /* every column has a fixed width: names and day cells never grow with their content */
-.tgrid.month th.nm { width: 200px; min-width: 200px; max-width: 200px; }
+.tgrid.month { width: 100%; min-width: calc(250px + 32px * 31); table-layout: fixed; }  /* fills the tab; day columns are fixed, the name column takes the rest (never sized by its content) */
+.tgrid.month th.nm { min-width: 250px; max-width: none; }
 .tgrid.month th.dh, .tgrid.month td.c, .tgrid.month td.hc { width: 32px; min-width: 32px; max-width: 32px; }
 .tgrid.month .tot { width: 44px; min-width: 44px; max-width: 44px; }
 .tgrid td.c { position: relative; overflow: hidden; white-space: nowrap; text-overflow: clip; }   /* a cell holds at most 2 characters (X, Y, E, XH, YH); the overtime badge sits in the corner */
@@ -363,3 +363,6 @@ a.btn.primary { color: #fff; }
 .choice.compact .choice-text strong { font-size: 1rem; }
 .choice-card.s-x:has(input:checked) { background: var(--s-x-bg); color: var(--s-x-fg); border-color: var(--s-x-fg); box-shadow: none; }
 .choice-card.s-y:has(input:checked) { background: var(--s-y-bg); color: var(--s-y-fg); border-color: var(--s-y-fg); box-shadow: none; }
+
+.users .team-top, .users > .team-row, .users .toolbar { margin-block-end: 16px; }
+.users .plist { margin-block-start: 16px; }
