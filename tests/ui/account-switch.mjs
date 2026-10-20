@@ -109,8 +109,19 @@ ok('second tab follows the switch (no stale identity)', (await who(p2)) === 'Swi
 await p2.close();
 
 // remove a saved account (inactive one)
-await openMenu(); await p.locator('.acct-row', { hasText: 'Switch User' }).locator('.acct-x').click();
+let nativeDialogs = 0; p.on('dialog', (d) => { nativeDialogs++; d.dismiss(); });   // any browser confirm()/alert() would land here
+await openMenu(); await p.locator('.acct-row', { hasText: 'Switch User' }).locator('.acct-x').click(); await p.waitForSelector('dialog[open]');
+const confirmTitle = (await p.textContent('dialog[open] h3')).trim(), confirmBody = (await p.textContent('dialog[open]'));
+ok('the ✕ asks first, in OUR dialog: names the account and explains the consequence', confirmTitle === 'Remove Switch User from this device?' && confirmBody.includes('enter their password') && confirmBody.includes('Nothing is deleted'), confirmTitle);
+ok('...the account is still there while the question is open', (await stored()).includes('swu1'));
+await p.locator('dialog[open] button:text-is("Cancel")').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
+await openMenu();
+ok('Cancel keeps the account (still listed and still stored)', (await stored()).includes('swu1') && (await rows()) === 2);
+await p.locator('.acct-row', { hasText: 'Switch User' }).locator('.acct-x').click(); await p.waitForSelector('dialog[open]');
+ok('the confirm button is a red "Remove" button', (await p.locator('dialog[open] button.danger').textContent()) === 'Remove');
+await p.locator('dialog[open] button.danger').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 await p.waitForFunction(() => JSON.parse(localStorage.getItem('ts.accounts') ?? '[]').length === 1 && document.querySelectorAll('.acct-row').length === 1, null, { timeout: 8000 }).catch(() => {});
+ok('no browser dialog (confirm/alert) was ever used', nativeDialogs === 0);
 ok('remove: only the active account remains listed', (await stored()).join() === 'swadm' && (await rows()) === 1);
 ok('...and its session was revoked on the server', db(`select count(*) from auth.sessions where user_id='${ID.u1}'`) === '0', db(`select count(*) from auth.sessions where user_id='${ID.u1}'`));
 

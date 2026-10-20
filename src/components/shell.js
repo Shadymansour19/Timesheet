@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { t, otherLang, setLang } from '../i18n/index.js';
 import { state, signOut, signOutAll, switchTo, addAccount, removeAccount, listAccounts } from '../auth/session.js';
 import { navFor } from '../router.js';
-import { openDialog } from './dialog.js';
+import { openDialog, confirmDialog } from './dialog.js';
 import { icon, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT, SUN, MOON, MONITOR } from './icons.js';
 import { getTheme, setTheme } from '../theme.js';
 import { field } from './form.js';
@@ -52,6 +52,10 @@ function accountMenu() {
       h('span', { class: 'acct-text' }, h('strong', {}, a.full_name), h('small', { class: 'muted' }, `${t('role_' + a.role)} · ${a.username}`)),
       active ? h('span', { class: 'tick', 'aria-label': t('current_account') }, '✓') : null),
       active ? null : h('button', { class: 'acct-x', type: 'button', title: t('remove_account'), 'aria-label': `${t('remove_account')}: ${a.full_name}`, onclick: async () => {
+        // our own dialog (never the browser's): removing an account is easy to hit by accident and means typing the password again
+        const yes = await confirmDialog(t('remove_account_title').replaceAll('{name}', a.full_name),
+          { danger: true, confirmLabel: t('remove'), detail: t('remove_account_detail') });
+        if (!yes) return;
         await removeAccount(a.id);
         const fresh = accountMenu(); fresh.open = true; det.replaceWith(fresh); }
       }, '✕'));

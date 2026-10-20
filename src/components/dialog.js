@@ -25,10 +25,11 @@ export function openDialog({ title, content, buttons, onClose, wide = false, aut
   return dlg;
 }
 
-export const confirmDialog = (message, { danger = false, confirmLabel } = {}) => new Promise((resolve) => {
+export const confirmDialog = (message, { danger = false, confirmLabel, detail } = {}) => new Promise((resolve) => {
   let answer = false;
   openDialog({
     title: message,
+    content: detail ? h('p', { class: 'muted' }, detail) : null,
     buttons: [
       { label: t('cancel') },
       { label: confirmLabel ?? t('confirm'), kind: danger ? 'danger' : 'primary', onClick: () => { answer = true; } },
