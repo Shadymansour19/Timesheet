@@ -156,4 +156,6 @@ export default {
   theme_light: "Light",
   theme_dark: "Dark",
   theme_system: "System",
+  kbd_title: "Keyboard",
+  team_hint_keys: "Tab enters the grid. Arrow keys move between cells (Home / End: first / last day, Ctrl+Home / Ctrl+End: first / last cell, PageUp / PageDown: 10 people). X, Y, E set the status; Delete clears it to E. Enter or Space does what a tap does in the current mode (opens the day editor in Edit mode; on a name it opens that person). H marks or unmarks a holiday on that day. Ctrl+Z undoes.",
 };

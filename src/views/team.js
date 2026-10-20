@@ -38,6 +38,9 @@ export function teamView() {
   let query = '';
   let built = false, seq = 0, scrollToToday = true;
   const undoStack = [];
+  let focusPos = null;                        // keyboard: the active cell { uid, day|null } (null day = the name cell)
+  let dayLabels = new Map();                  // day -> 'Monday 19 October' (for screen readers)
+  const chains = new Map();                   // 'uid|day' -> promise: writes to one cell are sent in order
   const el = {};                              // persistent elements (search keeps focus while the grid redraws)
 
   const statusOf = (uid, day) => data.status.get(key(uid, day)) ?? 'E';
@@ -50,6 +53,7 @@ export function teamView() {
   // quiet = a live/background refetch: no loading overlay, and no redraw when nothing actually changed.
   async function load({ first = false, quiet = false, withPeople = false } = {}) {
     const my = ++seq;
+    const epoch = writeEpoch;
     const rd = rangeDays();
     if (!quiet) { days = rd; el.wrap?.classList.add('loading'); if (!built) root.replaceChildren(h('p', { class: 'muted center' }, t('loading'))); }
     let d, p, dep;
@@ -59,6 +63,9 @@ export function teamView() {
       [d, p, dep] = await Promise.all(jobs);
       if (my !== seq) return;                 // a newer navigation superseded this one
     } catch (e) { if (quiet && built) return; if (my === seq) root.replaceChildren(h('p', { class: 'error' }, explain(e))); built = false; return; }
+    // a background refetch that was already in flight when one of OUR writes started carries stale data: drop it (our own
+    // write's announcement triggers a fresh refetch afterwards)
+    if (quiet && (writes > 0 || writeEpoch !== epoch)) { scheduleLive(false); return; }
     if (quiet && built) {
       const samePeople = !p || JSON.stringify(p.map((x) => [x.id, x.full_name, x.opr, x.level, x.role])) === JSON.stringify(people.map((x) => [x.id, x.full_name, x.opr, x.level, x.role]));
       if (samePeople && sameData(data, d)) return;
@@ -71,8 +78,8 @@ export function teamView() {
   }
 
   // ---------- live updates ----------
-  let writes = 0, liveTimer = null, livePeople = false;
-  const track = async (fn) => { writes++; try { return await fn(); } finally { writes--; } };   // refetches wait while our own writes are in flight
+  let writes = 0, writeEpoch = 0, liveTimer = null, livePeople = false;   // writeEpoch counts every write ever started
+  const track = async (fn) => { writes++; writeEpoch++; try { return await fn(); } finally { writes--; } };   // refetches wait while our own writes are in flight
   function scheduleLive(people = false) {
     livePeople ||= people;
     clearTimeout(liveTimer);
@@ -120,13 +127,20 @@ export function teamView() {
   }
 
   // ---------- painting / holiday / edit ----------
-  async function brush(uid, day, status) {
+  async function brush(uid, day, status, stroke = true) {
     const prev = statusOf(uid, day);
     if (prev === status) return;
     setLocal(uid, day, status); updateRow(uid);
-    pushUndo({ type: 'cells', stroke: true, cells: [{ uid, day, prev, next: status }] });
-    try { await track(() => setStatus(uid, day, status)); }
+    pushUndo({ type: 'cells', stroke, cells: [{ uid, day, prev, next: status }] });
+    announce(`${people.find((x) => x.id === uid)?.full_name}, ${dayLabels.get(day) ?? day}: ${status}`);
+    // writes to the same cell go out one after another, so two quick key presses (X then Y) cannot overtake each other
+    const k = key(uid, day);
+    const run = (chains.get(k) ?? Promise.resolve()).catch(() => {}).then(() => setStatus(uid, day, status));
+    chains.set(k, run);
+    writes++; writeEpoch++;                     // live refetches wait from the moment a write is QUEUED (not only while it runs),
+    try { await run; }                          // otherwise one could slip between two queued writes and redraw stale data
     catch (e) { toast(explain(e)); undoStack.pop(); await load(); }
+    finally { writes--; if (chains.get(k) === run) chains.delete(k); }
   }
 
   async function toggleHoliday(day) {
@@ -142,6 +156,7 @@ export function teamView() {
     const p = people.find((x) => x.id === uid);
     openDayEditor({
       person: p, day, status: statusOf(uid, day), overtime: data.overtime.get(key(uid, day)) ?? null, holiday: data.holidays.has(day), run: track,
+      onClose: () => ensureActive(true),
       onSaved: ({ status: next, prevStatus, hours, note }) => {
         if (next !== prevStatus) pushUndo({ type: 'cells', cells: [{ uid, day, prev: prevStatus, next }] });
         setLocal(uid, day, next);
@@ -226,16 +241,75 @@ export function teamView() {
   }
 
   const openInfo = () => openDialog({ title: t('info_title'), content: h('div', { class: 'form' },
-    h('p', {}, t('team_hint')), h('p', { class: 'muted' }, t('team_hint_views'))), buttons: [{ label: t('close') }] });
+    h('p', {}, t('team_hint')), h('p', { class: 'muted' }, t('team_hint_views')),
+    h('h4', { class: 'kbd-title' }, t('kbd_title')), h('p', { class: 'muted' }, t('team_hint_keys'))), buttons: [{ label: t('close') }] });
 
   // Size the grid to the space left on screen so the pinned headcount row is always visible (never below the fold).
   function fit() {
     if (!el.wrap?.isConnected) return;
     const top = el.wrap.getBoundingClientRect().top + window.scrollY;
-    const below = el.legend ? el.legend.offsetHeight + 24 : 40;
+    const nav = document.querySelector('.shell > .nav'), cs = nav && getComputedStyle(nav);
+    const bar = cs && cs.position === 'fixed' && cs.display !== 'none' ? nav.offsetHeight : 0;    // phone tab bar
+    const below = (el.legend ? el.legend.offsetHeight + 24 : 40) + bar;
     el.wrap.style.maxHeight = `${Math.max(260, Math.floor(window.innerHeight - top - below))}px`;
   }
   window.addEventListener('resize', fit);
+
+  // ---------- keyboard ----------
+  // ARIA grid pattern with a roving tabindex: Tab enters the grid on ONE cell; arrows move; X / Y / E set the status.
+  const rowIds = () => [...rowEls.keys()];
+  const nodeAt = (uid, c) => { const tr = rowEls.get(uid); if (!tr) return null; return c < 0 ? tr.querySelector('th.nm') : tr.querySelector(`td.c[data-d="${days[c]}"]`); };
+  function markActive(node) {
+    el.table.querySelectorAll('tbody [tabindex="0"]').forEach((n) => { n.tabIndex = -1; });
+    node.tabIndex = 0;
+    focusPos = { uid: node.closest('tr').dataset.u, day: node.matches('th.nm') ? null : node.dataset.d };
+  }
+  // after any (re)draw: keep the same logical cell if it still exists, otherwise today's cell of the first row
+  function ensureActive(refocus) {
+    let node = null;
+    if (focusPos && rowEls.has(focusPos.uid)) { const c = focusPos.day === null ? -1 : days.indexOf(focusPos.day); if (focusPos.day === null || c >= 0) node = nodeAt(focusPos.uid, c); }
+    if (!node) { const first = rowIds()[0]; if (!first) { focusPos = null; return; } const ti = days.indexOf(todayStr()); node = nodeAt(first, ti >= 0 ? ti : 0); }
+    if (node) { markActive(node); if (refocus) node.focus({ preventScroll: true }); }
+  }
+  function announce(text) { if (!el.announce) return; el.announce.textContent = ''; setTimeout(() => { el.announce.textContent = text; }, 30); }
+
+  // Enter / Space on a cell does what a tap does in the current mode (holiday mode: toggle that day)
+  function activate(uid, day) { if (mode === 'edit') openEditor(uid, day); else if (mode === 'holiday') toggleHoliday(day); else brush(uid, day, mode); }
+
+  function onKey(e) {
+    if (e.altKey || e.defaultPrevented) return;
+    const node = e.target.closest('td.c, tbody th.nm');
+    if (!node || !el.table.contains(node)) return;
+    const uid = node.closest('tr').dataset.u, isName = node.matches('th.nm'), day = isName ? null : node.dataset.d;
+    const ids = rowIds(), r = ids.indexOf(uid), c = isName ? -1 : days.indexOf(day);
+    const rtl = document.documentElement.dir === 'rtl', mod = e.ctrlKey || e.metaKey;
+    let nr = r, nc = c, move = true;
+    switch (e.key) {
+      case 'ArrowRight': nc += rtl ? -1 : 1; break;           // arrows follow what you SEE: in Arabic the days run right-to-left
+      case 'ArrowLeft': nc += rtl ? 1 : -1; break;
+      case 'ArrowDown': nr += 1; break;
+      case 'ArrowUp': nr -= 1; break;
+      case 'PageDown': nr += 10; break;
+      case 'PageUp': nr -= 10; break;
+      case 'Home': nc = -1; if (mod) nr = 0; break;
+      case 'End': nc = days.length - 1; if (mod) nr = ids.length - 1; break;
+      default: move = false;
+    }
+    if (move) {
+      e.preventDefault();
+      nr = Math.max(0, Math.min(ids.length - 1, nr)); nc = Math.max(-1, Math.min(days.length - 1, nc));
+      const target = nodeAt(ids[nr], nc);
+      if (target) { markActive(target); target.focus(); }
+      return;
+    }
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (mod) { if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); } return; }
+    if (isName) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); location.hash = '#/person/' + uid; } return; }
+    if (k === 'x' || k === 'y' || k === 'e') { e.preventDefault(); brush(uid, day, k.toUpperCase(), false); }
+    else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); brush(uid, day, 'E', false); }
+    else if (k === 'h') { e.preventDefault(); toggleHoliday(day); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(uid, day); }
+  }
 
   // ---------- rendering ----------
   function totalsOf(uid) {
@@ -256,14 +330,16 @@ export function teamView() {
 
   function buildRow(p) {
     const tr = h('tr', { 'data-u': p.id });
-    tr.append(h('th', { class: 'nm', scope: 'row' },
+    const mine = focusPos && focusPos.uid === p.id;
+    tr.append(h('th', { class: 'nm', scope: 'row', tabindex: mine && focusPos.day === null ? 0 : -1 },
       h('span', { class: 'nm-name' }, p.full_name),
       h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, p.opr ?? ''), h('span', { class: 'tots' }, totalsLine(p.id)))));
     const t0 = todayStr();
     for (const day of days) {
       const hol = data.holidays.has(day), ot = otOf(p.id, day);
       const eff = effective(statusOf(p.id, day), hol);
-      tr.append(h('td', { class: `c s-${eff.toLowerCase()}${hol ? ' holiday' : ''}${ot ? ' has-ot' : ''}${day === t0 ? ' today' : ''}`, 'data-u': p.id, 'data-d': day },
+      tr.append(h('td', { class: `c s-${eff.toLowerCase()}${hol ? ' holiday' : ''}${ot ? ' has-ot' : ''}${day === t0 ? ' today' : ''}`, 'data-u': p.id, 'data-d': day,
+        tabindex: mine && focusPos.day === day ? 0 : -1, 'aria-label': `${p.full_name}, ${dayLabels.get(day) ?? day}: ${eff}${ot ? `, ${ot} ${t('overtime_h')}` : ''}` },
         eff, ot ? h('sup', {}, ot) : null));
     }
     return tr;
@@ -272,9 +348,11 @@ export function teamView() {
   function updateRow(uid) {
     const p = people.find((x) => x.id === uid);
     if (!p || !rowEls.has(uid)) return;
+    const had = rowEls.get(uid).contains(document.activeElement);
     const fresh = buildRow(p);
     rowEls.get(uid).replaceWith(fresh); rowEls.set(uid, fresh);
     updateFoot();
+    if (had) ensureActive(true);
   }
 
   // Daily headcount: how many people are X (incl. XH) / Y (incl. YH) each day, across the whole department.
@@ -294,6 +372,8 @@ export function teamView() {
 
   function drawGrid() {
     const t0 = todayStr();
+    const hadFocus = el.table.contains(document.activeElement);
+    dayLabels = new Map(days.map((d) => [d, fmt({ weekday: 'long', day: 'numeric', month: 'long' }, dateOf(d))]));
     const head = h('tr', {}, h('th', { class: 'nm' }, t('employee')));
     for (const day of days) {
       const d = dateOf(day);
@@ -306,6 +386,7 @@ export function teamView() {
     for (const p of visible) { const tr = buildRow(p); rowEls.set(p.id, tr); body.append(tr); }
     el.table.className = 'tgrid ' + viewMode;
     el.table.replaceChildren(h('thead', {}, head), body, h('tfoot', {}, footRow()));
+    ensureActive(hadFocus);
     el.count.textContent = query ? `${visible.length}/${people.length}` : '';
     el.empty.hidden = visible.length > 0;
     el.empty.textContent = people.length ? t('no_match') : t('no_people');
@@ -360,7 +441,10 @@ export function teamView() {
     el.modes = h('div', { class: 'seg', role: 'group', 'aria-label': t('tap_mode') });
     el.undo = h('button', { type: 'button', class: 'btn small', onclick: undo });
     el.banner = h('div', { class: 'banner', role: 'status', hidden: true });
-    el.table = h('table', { class: 'tgrid' });
+    el.table = h('table', { class: 'tgrid', role: 'grid', 'aria-label': t('nav_team'), 'aria-keyshortcuts': 'ArrowUp ArrowDown ArrowLeft ArrowRight X Y E Delete H Control+Z' });
+    el.announce = h('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
+    el.table.addEventListener('keydown', onKey);
+    el.table.addEventListener('focusin', (e) => { const n = e.target.closest?.('td.c, tbody th.nm'); if (n && el.table.contains(n)) markActive(n); });   // mouse/touch focus moves the active cell too
     el.table.addEventListener('click', (e) => {
       const td = e.target.closest('td.c');
       if (td) { if (mode === 'edit') openEditor(td.dataset.u, td.dataset.d); else if (mode !== 'holiday') brush(td.dataset.u, td.dataset.d, mode); return; }
@@ -393,7 +477,7 @@ export function teamView() {
           h('button', { type: 'button', class: 'btn small primary', onclick: openExport }, icon(DOWNLOAD, 16), t('export_excel')),
           h('button', { type: 'button', class: 'btn small icon-only', onclick: openInfo, 'aria-label': t('info_title'), title: t('info_title') }, icon(INFO, 18))),
         el.banner),
-      el.wrap, el.empty, legend);
+      el.wrap, el.empty, legend, el.announce);
     built = true;
     if (window.ResizeObserver) new ResizeObserver(fit).observe(root.querySelector('.team-top'));
   }

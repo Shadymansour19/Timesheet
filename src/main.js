@@ -39,6 +39,11 @@ function render() {
 
 applyDir();
 applyTheme();
+// phone: hide the bottom tab bar while a text field has focus, so it does not ride on top of the on-screen keyboard
+const typing = () => { const a = document.activeElement; return !!a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes(a.type))); };
+const syncKeyboard = () => requestAnimationFrame(() => document.body.classList.toggle('kbd', typing() && matchMedia('(max-width: 640px)').matches));
+document.addEventListener('focusin', syncKeyboard);
+document.addEventListener('focusout', syncKeyboard);
 window.addEventListener('hashchange', () => state.profile && render());
 onChange(() => { live.dispose(); watchedFor = null; if (!state.profile) location.hash = ''; render(); });
 

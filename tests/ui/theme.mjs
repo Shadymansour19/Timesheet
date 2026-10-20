@@ -85,12 +85,10 @@ await p.click('text=English');
 // every role has the row
 for (const un of ['thu', 'thsa']) { const r = await open(390, 'light', un); await menu(r); ok(`role ${un}: the Theme row is in the account menu`, (await r.locator('.theme-seg button').count()) === 3); await r.close(); }
 
-// navigation is unchanged by the theme work: plain top tabs on every screen size (the phone bottom bar is backlog)
+// dark theme on a phone and on a desktop: renders without errors
 await p.close();
 for (const w of [390, 1280]) {
   const r = await open(w, 'dark', 'thadm'); await r.waitForSelector('.tgrid');
-  const pos = await r.locator('.shell > .nav').evaluate((e) => getComputedStyle(e).position);
-  ok(`navigation at ${w}px: ordinary top tabs (not a fixed bottom bar), labels only`, pos !== 'fixed' && (await r.locator('.nav svg').count()) === 0 && (await r.locator('.shell > .nav a').allTextContents()).map((x) => x.trim()).join('|') === 'Department|Overtime|Users|My calendar');
   ok(`dark theme at ${w}px: no page errors ${JSON.stringify(r.errs)}`, r.errs.length === 0);
   if (w === 390) await r.screenshot({ path: S + '/th-admin-dark-phone.png' });
   await r.close();

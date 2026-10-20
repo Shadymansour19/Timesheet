@@ -7,17 +7,18 @@ import { overtimeView } from './views/overtime.js';
 import { usersView } from './views/users.js';
 import { departmentsView } from './views/departments.js';
 import { personView } from './views/person.js';
+import { GRID, CLOCK, USERS, CALENDAR, BUILDING } from './components/icons.js';
 
 // Each role gets its own set of routes; the first is the landing page.
 const routes = {
-  user: [{ path: '/calendar', label: 'nav_calendar', view: calendarView }],
+  user: [{ path: '/calendar', label: 'nav_calendar', icon: CALENDAR, view: calendarView }],
   admin: [
-    { path: '/team', label: 'nav_team', view: teamView },
-    { path: '/overtime', label: 'nav_overtime', view: overtimeView },
-    { path: '/users', label: 'nav_users', view: usersView },
-    { path: '/calendar', label: 'nav_calendar', view: calendarView },
+    { path: '/team', label: 'nav_team', icon: GRID, view: teamView },
+    { path: '/overtime', label: 'nav_overtime', icon: CLOCK, view: overtimeView },
+    { path: '/users', label: 'nav_users', icon: USERS, view: usersView },
+    { path: '/calendar', label: 'nav_calendar', icon: CALENDAR, view: calendarView },
   ],
-  super_admin: [{ path: '/departments', label: 'nav_departments', view: departmentsView }],
+  super_admin: [{ path: '/departments', label: 'nav_departments', icon: BUILDING, view: departmentsView }],
 };
 const common = [{ path: '/account', view: accountView }];
 

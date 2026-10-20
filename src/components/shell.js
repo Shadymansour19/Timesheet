@@ -80,8 +80,11 @@ function accountMenu() {
 
 export function shell(content, { onLang }) {
   const here = location.hash.replace(/^#/, '');
-  const nav = h('nav', { class: 'nav' },
-    navFor().map((r) => h('a', { href: '#' + r.path, class: here === r.path ? 'active' : '' }, t(r.label))));
+  // Top tabs on wide screens; on phones the same links become an icon bar fixed to the bottom (hidden when there is only one tab).
+  const items = navFor();
+  const nav = h('nav', { class: 'nav' + (items.length < 2 ? ' solo' : ''), 'aria-label': t('app_name') },
+    items.map((r) => h('a', { href: '#' + r.path, class: here === r.path ? 'active' : '', 'aria-current': here === r.path ? 'page' : false },
+      r.icon ? h('span', { class: 'ico' }, icon(r.icon, 22)) : null, h('span', { class: 'lbl' }, t(r.label)))));
   const home = navFor()[0];
   // sub-pages (change password, one person's timesheet) get a Back link to where they came from
   const sub = here === '/account' || here.startsWith('/person/');

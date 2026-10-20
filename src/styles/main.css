@@ -291,3 +291,30 @@ a.btn.primary { color: #fff; }
 .theme-seg { display: flex; gap: 4px; }
 .theme-seg .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 6px; }
 .theme-seg .btn svg { margin: 0; }
+
+/* ---- grid keyboard use ---- */
+.gridwrap { scroll-padding-inline-start: 190px; scroll-padding-block: 56px 64px; }   /* keep the focused cell clear of the sticky name column, header and headcount row */
+.tgrid td.c:focus-visible, .tgrid tbody th.nm:focus-visible { outline: 3px solid var(--brand); outline-offset: -3px; position: relative; z-index: 3; }
+.tgrid td.c:focus-visible { box-shadow: inset 0 0 0 1px var(--card); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.kbd-title { margin: 14px 0 4px; font-size: .9rem; }
+
+/* ---- navigation: top tabs on wide screens, bottom icon bar on phones ---- */
+:root { --bar-h: 0px; }
+.nav .ico { display: none; }
+@media (max-width: 640px) {
+  :root { --bar-h: calc(64px + env(safe-area-inset-bottom)); }
+  .nav { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; overflow: visible;
+    background: var(--card); border-block-end: 0; border-block-start: 1px solid var(--line); padding-block-end: env(safe-area-inset-bottom); }
+  .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 6px 2px; border: 0; font-size: .68rem; font-weight: 500; min-width: 0; }
+  .nav a.active { border: 0; color: var(--brand); font-weight: 700; }
+  .nav .ico { display: grid; place-items: center; width: 54px; height: 28px; border-radius: 999px; transition: background .15s; }
+  .nav a.active .ico { background: color-mix(in srgb, var(--brand) 20%, transparent); }
+  .nav .lbl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav.solo { display: none; }                       /* one tab only: nothing to navigate */
+  #app:has(.nav:not(.solo)) { padding-block-end: calc(var(--bar-h) + 8px); }
+  body.kbd .nav { display: none; }                   /* on-screen keyboard open */
+  body.kbd #app:has(.nav:not(.solo)) { padding-block-end: 8px; }
+  .toasts { inset-block-end: calc(var(--bar-h) + 12px); }
+  .gridwrap { scroll-padding-block-end: 64px; }
+}
