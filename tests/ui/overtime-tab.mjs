@@ -130,6 +130,15 @@ await p.screenshot({ path: S + '/ot-dialog-ar.png' });
 await p.locator('dialog[open] button:text-is("إلغاء")').click();
 ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 
+// ---- desktop: compact calendars (whole month in one screen, not stretched to the full width)
+{ const d = await newPage('otadm', 1440); await d.goto('http://localhost:4173/#/overtime'); await d.waitForSelector('.ot-view .day');
+  const m = await d.evaluate(() => { const days = [...document.querySelectorAll('.ot-view .day')]; const last = days[days.length - 1].getBoundingClientRect(); return { bottom: last.bottom, vh: innerHeight, w: document.querySelector('.ot-view').getBoundingClientRect().width }; });
+  ok('desktop overtime calendar: every day cell is within one screen (no scrolling) and the calendar is not stretched', m.bottom <= m.vh && m.w <= 561, JSON.stringify(m));
+  await d.goto('http://localhost:4173/#/calendar'); await d.waitForSelector('.cal .day');
+  const m2 = await d.evaluate(() => { const days = [...document.querySelectorAll('.cal .day')]; const last = days[days.length - 1].getBoundingClientRect(); return { bottom: last.bottom, vh: innerHeight, w: document.querySelector('.cal').getBoundingClientRect().width }; });
+  ok('desktop calendar: all days within one screen, width capped', m2.bottom <= m2.vh && m2.w <= 561, JSON.stringify(m2));
+  await d.context().close(); }
+
 // ---- other roles
 const u = await newPage('otu1'); await u.waitForSelector('.day');
 ok('a plain user has no Overtime tab', (await u.locator('.nav a').allTextContents()).join('|') === 'My calendar');

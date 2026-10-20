@@ -47,7 +47,7 @@ async function open(w, extra = {}) {
 }
 const cell = (p, i, d) => p.locator(`td.c[data-u="${uid(i)}"][data-d="${d}"]`);
 const undoBtn = (p) => p.locator('.team-row.tools button:has(svg):has-text("Undo"), .team-row.tools button:has-text("Undo")').first();
-const settle = (p) => p.waitForTimeout(900);
+const settle = (p) => p.waitForTimeout(2200);   // remote DB round trips are ~1-2 s
 const days = (p) => p.locator('th.dh').evaluateAll((els) => els.map((e) => e.dataset.d));
 const title = async (p) => (await p.locator('.cal-head h2').textContent()).trim();
 const plus = (d, n) => db(`select to_char('${d}'::date + ${n},'YYYY-MM-DD')`);
@@ -124,7 +124,7 @@ await p.click('.cal-head button >> nth=2'); await waitFirst(p, first);
 ok('Today returns to the current week', (await days(p))[0] === first && (await p.locator('th.dh.today').count()) === 1);
 
 // click cycles + undo (exact state)
-ok('no mode buttons or banner; the quick hint is visible', (await p.locator('.team-row.tools .seg').count()) === 0 && (await p.locator('.banner').count()) === 0 && (await p.locator('.hint-line').textContent()).includes('Click a day'));
+ok('no mode buttons, banner or hint line under the grid; the hint is in the help dialog', (await p.locator('.team-row.tools .seg').count()) === 0 && (await p.locator('.banner').count()) === 0 && (await p.locator('.hint-line').count()) === 0 && await (async () => { await p.click('button[aria-label="How this grid works"]'); await p.waitForSelector('dialog[open]'); const x = await p.textContent('dialog[open]'); await p.keyboard.press('Escape'); await p.waitForSelector('dialog[open]', { state: 'detached' }); return x.includes('Click a day') && x.includes('day number'); })());
 ok('day numbers carry a tooltip hint', (await p.locator('th.dh').first().getAttribute('title')) === 'Click to mark / unmark a holiday');
 const before = snapshot();
 ok('Undo is disabled when there is nothing to undo', await undoBtn(p).isDisabled());
@@ -132,16 +132,16 @@ await cell(p, 20, T).click(); await cell(p, 21, T).click(); await cell(p, 22, T)
 ok('three clicks: E -> X in the database', (await st(20, T)) === 'X' && (await st(21, T)) === 'X' && (await st(22, T)) === 'X');
 ok('each click is one undo step: button says Undo (3)', (await undoBtn(p).textContent()).includes('(3)') && !(await undoBtn(p).isDisabled()));
 for (let i = 0; i < 3; i++) { await undoBtn(p).click(); await settle(p); }
-ok('Undo x3 restores the exact previous state', snapshot() === before && (await st(20, T)) === 'E');
+ok('Undo x3 restores the exact previous state', snapshot() === before && (await st(20, T)) === 'E', JSON.stringify([snapshot() === before, await st(20, T), await st(21, T), await st(22, T), await undoBtn(p).textContent()]));
 ok('...and the grid shows E again', (await cell(p, 20, T).textContent()) === 'E');
 ok('Undo disabled again', await undoBtn(p).isDisabled());
 await cell(p, 1, T).click(); await settle(p); await cell(p, 1, T).click(); await settle(p);
-ok('X -> Y -> E: two more clicks clear the day', (await st(1, T)) === 'E');
+ok('X -> Y -> E: two more clicks clear the day', (await st(1, T)) === 'E', (await st(1, T)) + ' / ' + (await cell(p, 1, T).textContent()));
 await undoBtn(p).click(); await settle(p); await undoBtn(p).click(); await settle(p);
 ok('Undo x2 brings the X back, overtime untouched', (await st(1, T)) === 'X' && db(`select hours from public.overtime where user_id='${uid(1)}' and day='${T}'`) === '3');
 // holiday toggle + undo
 await p.locator(`th.dh[data-d="${T}"]`).click(); await settle(p);
-ok('holiday marked for today', db(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '1' && (await cell(p, 1, T).textContent()).startsWith('XH'));
+ok('holiday marked for today', db(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '1' && (await cell(p, 1, T).textContent()).startsWith('XH'), db(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) + ' / ' + (await cell(p, 1, T).textContent()) + ' / ' + (await p.locator('th.dh.today').count()));
 await undoBtn(p).click(); await settle(p);
 ok('Undo removes the holiday again (XH back to X)', db(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '0' && (await cell(p, 1, T).textContent()).startsWith('X') && !(await cell(p, 1, T).textContent()).startsWith('XH'));
 // edit dialog status change -> undo step
@@ -155,7 +155,7 @@ ok('...and undone exactly', (await st(23, T)) === 'E');
 const todayCells = Number(db(`select count(*) from public.day_status where status='X' and day='${T}' and user_id::text like '80000000%' and user_id <> '${OTHER}'`));   // 10
 await p.click('button:text-is("Bulk fill")'); await p.waitForSelector('dialog[open]');
 await p.locator('dialog[open] input[type=date]').nth(0).fill(T); await p.locator('dialog[open] input[type=date]').nth(1).fill(db(`select to_char(current_date+3,'YYYY-MM-DD')`));
-await p.locator('dialog[open] select').selectOption('X');
+await p.locator('dialog[open] label.choice-card:has(input[value=\"X\"])').click();
 await p.waitForFunction(() => /cells will change/.test(document.querySelector('dialog[open] .bulk-preview')?.textContent ?? ''));
 const expectChange = 26 * 4 - Number(db(`select count(*) from public.day_status where status='X' and day between '${T}' and (current_date+3) and user_id::text like '80000000%' and user_id <> '${OTHER}'`));
 ok(`preview says exactly how many cells change (${expectChange} of 104)`, (await p.locator('dialog[open] .bulk-preview').textContent()).startsWith(`${expectChange} cells will change (104 selected)`), await p.locator('dialog[open] .bulk-preview').textContent());
@@ -175,7 +175,7 @@ ok('Undo from the toast restores the EXACT previous cells (mixed X/Y/E all back)
 // applying a status that is already there
 await p.click('button:text-is("Bulk fill")'); await p.waitForSelector('dialog[open]');
 await p.locator('dialog[open] input[type=date]').nth(0).fill(T); await p.locator('dialog[open] input[type=date]').nth(1).fill(T);
-await p.locator('dialog[open] select').selectOption('E');
+await p.locator('dialog[open] label.choice-card:has(input[value=\"E\"])').click();
 await p.locator('dialog[open] label.check.strong input').uncheck();
 await p.locator('dialog[open] label.check:has-text("TG User 20") input').check();
 await p.waitForFunction(() => /^0 cells will change/.test(document.querySelector('dialog[open] .bulk-preview')?.textContent ?? ''), null, { timeout: 5000 });
@@ -184,15 +184,16 @@ await p.locator('dialog[open] button.primary').click(); await p.waitForSelector(
 ok('applying with 0 changes says "Nothing to change" and writes nothing', (await p.locator('.toast').last().textContent()).includes('Nothing to change') && snapshot() === snapBefore);
 
 // ---- view toggle: month
-await p.locator('.team-row .seg:not(.tools .seg) button:text-is("Month"), .team-row > .seg button:text-is("Month")').first().click(); await p.waitForTimeout(900);
+await p.locator('.team-row .seg:not(.tools .seg) button:text-is("Month"), .team-row > .seg button:text-is("Month")').first().click(); await p.waitForFunction(() => document.querySelectorAll('th.dh').length > 7, null, { timeout: 15000 }); await p.waitForTimeout(300);
 const nM = Number(db("select extract(day from (date_trunc('month',current_date)+interval '1 month - 1 day'))"));
 ok(`Month view: one column per day (${nM}) and it scrolls sideways on a phone`, (await p.locator('th.dh').count()) === nM && await p.locator('.gridwrap').evaluate((e) => e.scrollWidth > e.clientWidth + 50));
 const tb = await p.locator('th.dh.today').boundingBox(), wb = await p.locator('.gridwrap').boundingBox();
+ok('month view: every day cell has the same fixed width whatever it contains (E, X, Y, XH, overtime)', await p.locator('td.c').evaluateAll((els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().width))).size === 1));
 ok('Month view auto-scrolls so today is visible', tb && tb.x >= wb.x && tb.x + tb.width <= wb.x + wb.width + 1, JSON.stringify({ tb, wb }));
 ok('the chosen view is remembered on this device', await p.evaluate(() => localStorage.getItem('ts.teamView')) === 'month');
 await p.reload(); await p.waitForSelector('.tgrid tbody tr');
 ok('after reload the grid opens in Month view', (await p.locator('th.dh').count()) === nM);
-await p.locator('.team-row > .seg button:text-is("Week")').click(); await p.waitForTimeout(900);
+await p.locator('.team-row > .seg button:text-is("Week")').click(); await p.waitForFunction(() => document.querySelectorAll('th.dh').length === 7, null, { timeout: 15000 }).catch(async () => console.log('DIAG week count', await p.locator('th.dh').count(), JSON.stringify(p.errs))); await p.waitForTimeout(300);
 ok('switching back to Week works', (await p.locator('th.dh').count()) === 7);
 
 // ---- export asks for a month, independent of the view
@@ -211,7 +212,7 @@ ok('export for a chosen month (2030-02) names the file accordingly', dl2.suggest
 // ---- Arabic
 await p.click('text=العربية'); await p.waitForSelector('.tgrid');
 ok('Arabic: view toggle, headcount label and search placeholder', (await p.locator('.team-row > .seg').first().textContent()).includes('أسبوع') && (await p.locator('tfoot th').textContent()).includes('العدد') && (await p.getAttribute('.team-search', 'placeholder')) === 'بحث عن موظف');
-ok('Arabic quick hint', (await p.locator('.hint-line').textContent()).includes('انقر'));
+ok('Arabic: no hint line under the grid', (await p.locator('.hint-line').count()) === 0);
 await p.screenshot({ path: S + '/tg-phone-ar.png' });
 ok('phone: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 

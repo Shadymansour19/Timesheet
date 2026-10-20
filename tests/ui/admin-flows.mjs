@@ -97,7 +97,7 @@ ok('holiday unmarked: row gone, XH back to X', db(`select count(*) from public.h
 // bulk fill
 await p.click('button:text-is("Bulk fill")'); await p.waitForSelector('dialog[open]');
 await dlg(p).locator('input[type=date]').nth(0).fill(dstr(10)); await dlg(p).locator('input[type=date]').nth(1).fill(dstr(12));
-await dlg(p).locator('select').selectOption('Y'); await dlg(p).locator('button.primary').click();
+await dlg(p).locator('label.choice-card:has(input[value="Y"])').click(); await dlg(p).locator('button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.waitForSelector('.tgrid tbody tr');
 ok('bulk fill: 3 people x 3 days = 9 rows of Y', db(`select count(*) from public.day_status where status='Y' and day between '${dstr(10)}' and '${dstr(12)}' and user_id in ('${ID.adm}','${ID.u1}','${ID.u2}')`) === '9');
 ok('bulk fill did not touch other department', (await st(ID.ub, 10)) === 'E');
@@ -173,9 +173,9 @@ ok('department renamed', db(`select count(*) from public.departments where name=
 const rd = sa.locator('.dept', { hasText: 'UI Renamed Dept' });
 await rd.locator('button:text-is("Department data")').click(); await sa.waitForSelector('dialog[open]');
 await dlg(sa).getByLabel('Department code').fill('77'); await dlg(sa).getByLabel('Sector (printed').fill('UI Sector'); await dlg(sa).getByLabel('Field (printed').fill('UI Field');
-await dlg(sa).getByLabel('Department name as printed').fill('UI PRINT'); await dlg(sa).getByLabel('Location').fill('UI Site');
+await dlg(sa).getByLabel('Department name as printed').fill('UI PRINT');
 await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached' });
-ok('super_admin edits department data (code, sector, field, printed name, location)', await until(() => db(`select code||'|'||sector||'|'||field||'|'||(report->>'dept_print_name')||'|'||(report->>'location') from public.departments where name='UI Renamed Dept'`) === '77|UI Sector|UI Field|UI PRINT|UI Site'));
+ok('super_admin edits department data (code, sector, field, printed name)', await until(() => db(`select code||'|'||sector||'|'||field||'|'||(report->>'dept_print_name') from public.departments where name='UI Renamed Dept'`) === '77|UI Sector|UI Field|UI PRINT'));
 await rd.locator('button:text-is("Add admin")').click(); await sa.waitForSelector('dialog[open]');
 await dlg(sa).getByLabel('Username').fill('uinewadm'); const apw = await dlg(sa).getByLabel('Temporary password').inputValue();
 await dlg(sa).getByLabel('Full name').fill('UI New Admin'); await dlg(sa).getByLabel('OPR').fill('OPR-NA'); await dlg(sa).locator('button.primary').click();

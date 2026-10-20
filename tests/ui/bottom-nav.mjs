@@ -62,7 +62,7 @@ await ph.locator('.shell > .nav a:has(.lbl:text-is("Department"))').click(); awa
 // toast above the bar: bulk fill with nothing to change
 await ph.click('button:text-is("Bulk fill")'); await ph.waitForSelector('dialog[open]');
 const today = sql("select to_char(current_date,'YYYY-MM-DD')");
-await ph.locator('dialog[open] select').selectOption('X'); await ph.locator('dialog[open] input[type=date]').nth(0).fill(today); await ph.locator('dialog[open] input[type=date]').nth(1).fill(today);
+await ph.locator('dialog[open] label.choice-card:has(input[value=\"X\"])').click(); await ph.locator('dialog[open] input[type=date]').nth(0).fill(today); await ph.locator('dialog[open] input[type=date]').nth(1).fill(today);
 await ph.locator('dialog[open] label.check.strong input').uncheck(); await ph.locator('dialog[open] label.check:has-text("BN User") input').first().check();
 await ph.waitForFunction(() => /^0 cells will change/.test(document.querySelector('dialog[open] .bulk-preview')?.textContent ?? ''), null, { timeout: 8000 });
 await ph.locator('dialog[open] button.primary').click(); await ph.waitForSelector('.toast');

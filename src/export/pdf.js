@@ -104,69 +104,98 @@ function dayPages(model, S, logos, newPage, doc) {
 }
 
 // ---------- employee page ----------
-const EW = [5, 6.5, 2.4, 2.4, 2.4, 3.6, 3.6, 3.6, 6.5, 19];
+// Drawn in the coordinates of the company's printed form (a 920 x 1300 grid) and scaled to the A4 page.
+const K = PW / 920;
 function employeePage(model, S, logos, e, doc) {
-  const W = PW - 2 * M, half = W / 2 - 4, u = half / EW.reduce((a, b) => a + b, 0), cw = EW.map((w) => w * u);
-  const colX = (x0, k) => x0 + cw.slice(0, k).reduce((a, b) => a + b, 0);
-  const X0 = M, X1 = M + W / 2 + 4;
-  let y = 30;
-  banner(doc, S, logos, M, y, W, 60, 120, 120); y += 62;
-  tx(doc, S.captionLeft, M + 4, y + 7, { size: 7.5, ...TIMES });
-  tx(doc, S.captionRight, M + W - 4, y + 7, { size: 7.5, ...TIMES, align: 'right' });
-  y += 20;
-  tx(doc, 'MONTHLY TIME REPORT', M + W / 2, y + 6, { size: 9, ...TIMES, align: 'center', underline: true });
-  y += 22;
-  const RH = 15, lw = 48, vw = half - lw;
-  const row = (x0, r, label, value, lwid = lw) => { cell(doc, x0, y + r * RH, lwid, RH, label, { ...TIMES, size: 7.5, h: 'left' }); cell(doc, x0 + lwid, y + r * RH, half - lwid, RH, value, { size: 8.5, h: 'left' }); };
-  const mon = monthText(model);
-  row(X1, 0, 'Department code:', S.code, 70);
-  row(X0, 1, 'Name:', e.fullName); row(X0, 2, 'Title:', e.jobTitle); row(X0, 3, 'Level:', e.levelText); row(X0, 4, 'Location:', e.workLocation || S.site);
-  row(X1, 1, 'Month:', mon, 70); row(X1, 2, 'Contr. No:', e.contractNo, 70); row(X1, 3, 'Department:', S.printName, 70); row(X1, 4, 'PAYROLL', e.opr, 70);
-  void vw;
-  y += 5 * RH + 8;
-  // table header
-  const hd = (x0) => {
-    const H1 = 12, H2 = 22;
-    cell(doc, colX(x0, 0), y, cw[0], H1 + H2, 'Day', { ...TIMES, size: 7 }); cell(doc, colX(x0, 1), y, cw[1], H1 + H2, 'Work', { ...TIMES, size: 7 });
-    cell(doc, colX(x0, 2), y, cw[2] + cw[3] + cw[4], H1, 'Meal', { ...TIMES, size: 7 });
-    ['B', 'L', 'D'].forEach((m, k) => cell(doc, colX(x0, 2 + k), y + H1, cw[2 + k], H2, m, { ...TIMES, size: 7 }));
-    [['Accomd.', 5], ['Trans/IN', 6], ['Trans/EX', 7]].forEach(([t, k]) => { cell(doc, colX(x0, k), y, cw[k], H1 + H2, '', {}); tx(doc, t, colX(x0, k) + cw[k] / 2 + 2.5, y + (H1 + H2) / 2, { size: 6, ...TIMES, align: 'center', angle: 90, maxW: H1 + H2 - 4 }); });
-    cell(doc, colX(x0, 8), y, cw[8], H1 + H2, 'OVT Hrs', { ...TIMES, size: 6.5 }); cell(doc, colX(x0, 9), y, cw[9], H1 + H2, 'Comment', { ...TIMES, size: 7 });
+  const X = (v) => v * K, Y = (v) => v * K;
+  const line = (x1, y1, x2, y2, w = 0.6) => { doc.setDrawColor(0); doc.setLineWidth(w); doc.line(X(x1), Y(y1), X(x2), Y(y2)); };
+  const box = (x1, y1, x2, y2, w = 0.6) => { doc.setDrawColor(0); doc.setLineWidth(w); doc.rect(X(x1), Y(y1), X(x2 - x1), Y(y2 - y1), 'S'); };
+  const put = (str, x1, y1, x2, y2, o = {}) => {                       // text inside a cell, centred (or left / right)
+    const h = o.h ?? 'center', pad = 3;
+    const x = h === 'left' ? X(x1) + pad : h === 'right' ? X(x2) - pad : X((x1 + x2) / 2);
+    tx(doc, str, x, Y((y1 + y2) / 2) + 0.3, { size: o.size ?? 7.5, bold: o.bold ?? false, font: o.font ?? 'sans', align: h, maxW: X(x2 - x1) - pad * 2, underline: o.underline });
   };
-  hd(X0); hd(X1);
-  y += 34;
-  const n = model.days.length, rows = Math.max(15, n - 15), DR = 15.5;
-  for (let k = 0; k < rows; k++) {
-    [[X0, 1 + k, 15], [X1, 16 + k, n]].forEach(([x0, d, lim]) => {
-      for (let q = 0; q < 10; q++) cell(doc, colX(x0, q), y + k * DR, cw[q], DR, '', {});
-      if (d > lim) return;
-      const c = e.cells[d - 1], b = { size: 8 };
-      cell(doc, colX(x0, 0), y + k * DR, cw[0], DR, String(d), { ...TIMES, size: 8, border: false }); cell(doc, colX(x0, 1), y + k * DR, cw[1], DR, c.status, { ...b, border: false });
-      cell(doc, colX(x0, 6), y + k * DR, cw[6], DR, c.tin ? String(c.tin) : '', { ...b, border: false }); cell(doc, colX(x0, 7), y + k * DR, cw[7], DR, c.tex ? String(c.tex) : '', { ...b, border: false });
-      cell(doc, colX(x0, 8), y + k * DR, cw[8], DR, c.ot ? String(c.ot) : '', { ...b, border: false }); cell(doc, colX(x0, 9), y + k * DR, cw[9], DR, c.comment, { size: 6.5, border: false });
-    });
-  }
-  y += rows * DR + 8;
-  // legend
-  const leg = [['Work Codes', 'X  Work Onshore', 'Y  Day/Night Shift (1.2X)', 'Meal Codes', 'B  Breakfast'], ['', 'C  Work at Cairo', 'Q  Work At Abo Qir', '', 'L  Lunch'], ['', 'O  Work Offshore', 'E  Vacation', '', 'D  Dinner']];
-  leg.forEach((r, k) => { tx(doc, r[0], X0, y + k * 10, { size: 7, ...TIMES, underline: !!r[0] }); tx(doc, r[1], X0 + 60, y + k * 10, { size: 7 }); tx(doc, r[2], X0 + 190, y + k * 10, { size: 7 }); tx(doc, r[3], X1 + 90, y + k * 10, { size: 7, ...TIMES, underline: !!r[3] }); tx(doc, r[4], X1 + 150, y + k * 10, { size: 7 }); });
-  y += 40;
+  const rot = (str, x1, y1, x2, y2, size = 6.5) => {                  // vertical header text, centred both ways in its cell
+    doc.setFont('times', 'bold'); doc.setFontSize(size); doc.setTextColor(0);
+    const w = doc.getTextWidth(latin(str));
+    doc.text(latin(str), X((x1 + x2) / 2) + size * 0.33, Y((y1 + y2) / 2) + w / 2, { angle: 90 });
+  };
+  const T = { font: 'times', bold: true };
+
+  // top: the two logos (no frame), captions under them, form title
+  logo(doc, logos, 'left', X(95), Y(88), X(200), Y(64));
+  logo(doc, logos, 'right', X(722), Y(84), X(70), Y(70));
+  tx(doc, S.captionLeft, X(92), Y(160), { size: 8, ...T });
+  tx(doc, S.captionRight, X(838), Y(160), { size: 8, ...T, align: 'right' });
+  tx(doc, 'MONTHLY TIME REPORT', X(492), Y(180), { size: 8, ...T, align: 'center', underline: true });
+
+  // data block
+  const RH = 13.4, mon = monthText(model);
+  const info = (y0, x1, xl, x2, label, value) => { box(x1, y0, x2, y0 + RH); line(xl, y0, xl, y0 + RH); put(label, x1, y0, xl, y0 + RH, { ...T, h: 'left' }); put(value, xl, y0, x2, y0 + RH, { size: 7.5 }); };
+  box(481, 205, 860, 219); line(652, 205, 652, 219); put('Department code:', 481, 205, 652, 219, T); put(S.code, 652, 205, 860, 219, { size: 7.5 });
+  [['Name:', e.fullName], ['Title:', e.jobTitle], ['Level:', e.levelText], ['Location:', e.workLocation]].forEach(([l, v], i) => info(220 + i * RH, 75, 155, 480, l, v));
+  [['Month:', mon], ['Contr. No:', e.contractNo], ['Department:', S.printName], ['PAYROLL', e.opr]].forEach(([l, v], i) => info(220 + i * RH, 481, 560, 860, l, v));
+
+  // the two day tables
+  const COLS = [32, 48, 20, 20, 20, 19, 19, 19, 49, 146];            // Day, Work, B, L, D, Accomd, Trans/IN, Trans/EX, O.V.T, Comment (px)
+  const rowsN = Math.max(15, model.days.length - 15);
+  const tbl = (x0, d0, count) => {
+    const xs = COLS.reduce((a, w) => (a.push(a[a.length - 1] + w), a), [x0]), xe = xs[xs.length - 1];
+    const top = 288, hdr = 68, rowH = 16, n = rowsN, bot = top + hdr + n * rowH + 2;
+    box(x0, top, xe, bot);
+    line(x0, top + hdr, xe, top + hdr);
+    xs.slice(1, -1).forEach((x, i) => { if (i === 2 || i === 3) line(x, top + 34, x, bot); else line(x, top, x, bot); });   // B | L | D share the "Meal" header
+    line(xs[2], top + 34, xs[5], top + 34);
+    put('Day', xs[0], top, xs[1], top + hdr, T); put('Work', xs[1], top, xs[2], top + hdr, T);
+    put('Meal', xs[2], top, xs[5], top + 34, T); ['B', 'L', 'D'].forEach((m, i) => put(m, xs[2 + i], top + 34, xs[3 + i], top + hdr, T));
+    ['Accomd.', 'Trans/IN', 'Trans/EX'].forEach((m, i) => rot(m, xs[5 + i], top, xs[6 + i], top + hdr));
+    put('O.V.T', xs[8], top + 18, xs[9], top + 38, { ...T, size: 7.5 }); put('Hrs', xs[8], top + 32, xs[9], top + 52, { ...T, size: 7.5 });
+    put('Comment', xs[9], top, xs[10], top + hdr, T);
+    for (let k = 0; k < count; k++) {
+      const d = d0 + k, c = e.cells[d - 1], y1 = top + hdr + 2 + k * rowH, y2 = y1 + rowH;
+      put(String(d), xs[0], y1, xs[1], y2, { ...T, size: 7.5 }); put(c.status, xs[1], y1, xs[2], y2, { size: 7.5 });
+      put('0', xs[5], y1, xs[6], y2, { size: 7.5 }); put(String(c.tin), xs[6], y1, xs[7], y2, { size: 7.5 }); put(String(c.tex), xs[7], y1, xs[8], y2, { size: 7.5 });
+      put(String(c.ot), xs[8], y1, xs[9], y2, { size: 7.5 }); put(c.comment, xs[9], y1, xs[10], y2, { size: 7.5 });
+    }
+    return bot;
+  };
+  const nDays = model.days.length;
+  tbl(75, 1, 15); tbl(481, 16, nDays - 15);
+
+  // legend: three bordered blocks
+  const leg = (x1, xc, x2, rows, head) => rows.forEach(([code, text], i) => {
+    const y1 = 628 + i * 16; box(xc, y1, x2, y1 + 16); line(xc + (x2 - xc > 150 ? 23 : x1 === 380 ? 85 : 46), y1, xc + (x2 - xc > 150 ? 23 : x1 === 380 ? 85 : 46), y1 + 16);
+    const cx = xc + (x2 - xc > 150 ? 23 : x1 === 380 ? 85 : 46);
+    put(code, xc, y1, cx, y1 + 16, T); put(text, cx, y1, x2, y1 + 16, { size: 7.5 });
+  });
+  box(75, 628, 155, 660); put('Work Codes', 75, 628, 155, 660, { ...T, underline: true, size: 7.5 }); box(75, 660, 155, 676); put('Meal Codes', 75, 660, 155, 676, { ...T, underline: true, size: 7.5 });
+  leg(75, 155, 320, [['X', 'Work Onshore'], ['C', 'Work at Cairo'], ['B', 'Breakfast']]);
+  leg(380, 380, 582, [['Y', 'Day/Night Shift(1.2X)'], ['Q', 'Work At Abo Qir'], ['L', 'Lunch']]);
+  leg(669, 669, 860, [['O', 'Work Offshore'], ['E', 'Vacation'], ['D', 'Dinner']]);
+
   // totals
   const t = e.cells.reduce((a, c) => { a[c.status] = (a[c.status] || 0) + 1; if (NORMAL.includes(c.status)) a.otN += c.ot; if (SHIFT.includes(c.status)) a.otS += c.ot; a.tin += c.tin; a.tex += c.tex; return a; }, { otN: 0, otS: 0, tin: 0, tex: 0 });
-  const line = (x0, yy, label, v) => { tx(doc, label, x0 + 90, yy, { size: 8, align: 'right' }); cell(doc, x0 + 96, yy - 7, 50, 14, String(v), { size: 8.5 }); };
-  tx(doc, 'Codes of Normal Daily Rates', X0, y, { size: 7.5, ...TIMES, underline: true }); tx(doc, 'Codes of 1.2X Daily Rates', X1, y, { size: 7.5, ...TIMES, underline: true });
-  line(X0, y + 16, 'Total (X) Days:', t.X || 0); line(X0, y + 32, 'Total (C) Days:', t.C || 0); line(X0, y + 48, 'Total (Q) Days:', t.Q || 0); line(X0, y + 64, 'Total Overtime Hours', t.otN);
-  line(X1, y + 16, 'Total (Y) Days:', t.Y || 0); line(X1, y + 32, 'Total (O) Days:', t.O || 0); line(X1, y + 48, 'Total Overtime Hours', t.otS);
-  tx(doc, 'Total Meals  B 0  L 0  D 0', X1, y + 66, { size: 7.5, ...TIMES });
-  tx(doc, `Accomd 0   Transportation  EX ${t.tex}   IN ${t.tin}`, X1, y + 78, { size: 7.5, ...TIMES });
-  y += 92;
-  doc.setDrawColor(0); doc.setLineWidth(0.5); doc.rect(M, y, W, 28, 'S');
-  tx(doc, 'Notes (Penalty):-', M + 4, y + 8, { size: 8, ...TIMES });
-  y += 46;
-  tx(doc, 'Signature Employee', X0, y, { size: 8, ...TIMES }); tx(doc, 'Approval of Supervisor', X1, y, { size: 8, ...TIMES });
-  tx(doc, '.....................................', X0, y + 12, { size: 8 }); tx(doc, '.....................................', X1, y + 12, { size: 8 });
-  tx(doc, 'Approval of Department GM', X1, y + 34, { size: 8, ...TIMES }); tx(doc, '.....................................', X1, y + 46, { size: 8 });
-  return { t };
+  const tot = (x1, xm, x2, y1, label, v, small) => { box(x1, y1, xm, y1 + 16); box(xm, y1, x2, y1 + 16); put(label, x1, y1, xm, y1 + 16, { h: 'right', size: small ? 6 : 7.5 }); put(String(v), xm, y1, x2, y1 + 16, { size: 7.5 }); };
+  box(75, 690, 320, 706); put('Codes of Normal Daily Rates', 75, 690, 320, 706, { ...T, underline: true });
+  tot(75, 210, 320, 706, 'Total (X) Days:', t.X || 0); tot(75, 210, 320, 722, 'Total (C) Days:', t.C || 0); tot(75, 210, 320, 738, 'Total (Q) Days:', t.Q || 0); tot(75, 210, 320, 754, 'Total Overtime Hours', t.otN, true);
+  box(481, 690, 715, 706); put('Codes of 1.2X Daily Rates', 481, 690, 715, 706, { ...T, underline: true });
+  tot(481, 600, 715, 706, 'Total (Y) Days:', t.Y || 0); tot(481, 600, 715, 722, 'Total (O) Days:', t.O || 0); tot(481, 600, 715, 738, 'Total Overtime Hours', t.otS, true);
+  // meals / accommodation / transportation
+  const my = 754;
+  box(481, my, 668, my + 16); put('Total Meals', 481, my, 668, my + 16, { ...T, underline: true, size: 7 });
+  box(668, my, 773, my + 16); put('Transportation', 668, my, 773, my + 16, { ...T, underline: true, size: 7 });
+  box(481, my + 16, 600, my + 50); line(481, my + 32, 600, my + 32);
+  [['B', 481, 521], ['L', 521, 561], ['D', 561, 600]].forEach(([m, a, b]) => { line(b, my + 16, b, my + 50); put(m, a, my + 16, b, my + 32, { ...T, size: 7 }); put('0', a, my + 32, b, my + 50, { size: 7 }); });
+  box(600, my + 16, 668, my + 50); put('Accomd', 600, my + 16, 668, my + 32, { ...T, underline: true, size: 7 }); put('0', 600, my + 32, 668, my + 50, { size: 7 });
+  box(668, my + 16, 773, my + 50); line(720, my + 16, 720, my + 50); line(668, my + 32, 773, my + 32);
+  put('EX', 668, my + 16, 720, my + 32, { size: 7 }); put('IN', 720, my + 16, 773, my + 32, { size: 7 }); put(String(t.tex), 668, my + 32, 720, my + 50, { size: 7 }); put(String(t.tin), 720, my + 32, 773, my + 50, { size: 7 });
+
+  // notes + signatures (more room to sign than on the form)
+  box(75, 830, 860, 873); tx(doc, 'Notes (Penalty):-', X(78), Y(840), { size: 8, ...T });
+  const dash = '------------------------------------';
+  tx(doc, 'Signature Employee', X(77), Y(908), { size: 7.5, ...T }); tx(doc, dash, X(77), Y(956), { size: 7.5 });
+  tx(doc, 'Approval of Supervisor', X(563), Y(908), { size: 7.5, ...T }); tx(doc, dash, X(563), Y(956), { size: 7.5 });
+  tx(doc, 'Approval of Department GM', X(563), Y(1010), { size: 7.5, ...T }); tx(doc, dash, X(563), Y(1058), { size: 7.5 });
 }
 
 // ---------- review page(s) ----------

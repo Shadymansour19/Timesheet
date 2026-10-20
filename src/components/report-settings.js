@@ -14,14 +14,12 @@ export function openReportSettings({ dept, onSaved }) {
   const sector = field(t('rs_sector'), { maxlength: 100, value: dept.sector ?? '', placeholder: 'Maintenance Sector' });
   const fieldIn = field(t('rs_field'), { maxlength: 100, value: dept.field ?? '', placeholder: 'Operations [Fields]' });
   const printName = field(t('rs_dept_print_name'), { maxlength: 200, value: cur.dept_print_name ?? '', placeholder: dept.name.toUpperCase() });
-  const location = field(t('rs_location'), { maxlength: 200, value: cur.location ?? '', placeholder: 'IDKU Site' });
   openDialog({
     title: t('report_settings'), autofocus: false,
-    content: h('div', { class: 'form' }, h('p', { class: 'muted' }, t('report_settings_hint')), code.row, sector.row, fieldIn.row, printName.row, location.row),
+    content: h('div', { class: 'form' }, h('p', { class: 'muted' }, t('report_settings_hint')), code.row, sector.row, fieldIn.row, printName.row),
     buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
       const report = {};
       if (printName.input.value.trim()) report.dept_print_name = printName.input.value.trim();
-      if (location.input.value.trim()) report.location = location.input.value.trim();
       const cols = { code: code.input.value.trim(), sector: sector.input.value.trim(), field: fieldIn.input.value.trim() };
       await setDepartmentReport(dept.id, report, cols);
       Object.assign(dept, cols, { report, code: cols.code || null, sector: cols.sector || null, field: cols.field || null });

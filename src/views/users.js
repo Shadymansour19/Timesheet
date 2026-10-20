@@ -1,3 +1,4 @@
+import { choice } from '../components/choice.js';
 import { fmtOpr } from '../lib/core.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
@@ -26,10 +27,8 @@ export function personFields(initial = {}, { withLogin = false, isNew = false } 
     work_location: field(t('work_location'), { maxlength: 100, value: initial.work_location ?? '' }),
   };
   // inside / outside the work-location city: decides whether Arrival / Departure trips count as TRANS/IN or TRANS/EX
-  const residence = h('select', { id: 'residence-' + Math.random().toString(36).slice(2, 8) },
-    h('option', { value: '' }, '—'), h('option', { value: 'inside' }, t('residence_inside')), h('option', { value: 'outside' }, t('residence_outside')));
-  residence.value = initial.residence ?? (isNew ? 'inside' : '');
-  f.residence = { row: h('div', { class: 'field' }, h('label', { for: residence.id }, t('residence')), residence), input: residence };
+  const residence = choice(t('residence'), [{ value: 'inside', label: t('residence_inside') }, { value: 'outside', label: t('residence_outside') }, { value: '', label: t('residence_unset') }], initial.residence ?? (isNew ? 'inside' : ''));
+  f.residence = { row: residence.row, input: residence };
   const rows = Object.values(f).filter(Boolean).map((x) => x.row);
   const level = () => (f.level.input.value === '' ? null : Number(f.level.input.value));
   return { f, rows, level };

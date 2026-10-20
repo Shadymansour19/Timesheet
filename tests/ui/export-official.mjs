@@ -65,9 +65,9 @@ await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
 await p.click('button:text-is("Add user")'); await p.waitForSelector('dialog[open]');
 ok('Add user dialog has Job title and Contract no. fields', (await dlg(p).getByLabel('Job title').count()) === 1 && (await dlg(p).getByLabel('Contract no.').count()) === 1);
 await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name').fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('EMC-999');
-ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).getByLabel('Lives in the work-location city?').inputValue()) === 'inside');
+ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'inside');
 await dlg(p).getByLabel('Job title').fill('Certified Rigger'); await dlg(p).getByLabel('Contract no.').fill('202/2024');
-await dlg(p).getByLabel('Work location (site)').fill('Abu Qir Site'); await dlg(p).getByLabel('Lives in the work-location city?').selectOption('outside');
+await dlg(p).getByLabel('Work location (site)').fill('Abu Qir Site'); await dlg(p).locator('label.choice-card:has(input[value="outside"])').click();
 await dlg(p).locator('button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached', timeout: 60000 });
 ok('the new person is created WITH job title and contract number (Edge Function)', await eventually(() => sql(`select job_title||'|'||contract_no from public.profiles where username='xonew'`) === 'Certified Rigger|202/2024'));
@@ -75,8 +75,8 @@ ok('work location and residence are stored (Edge Function)', await eventually(()
 ok('the Users list shows the job title', await eventually(async () => (await p.locator('.person', { hasText: 'XO Brand New' }).textContent()).includes('Certified Rigger')));
 await p.locator('.person', { hasText: 'XO Brand New' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
 ok('Edit data shows the stored values', (await dlg(p).getByLabel('Job title').inputValue()) === 'Certified Rigger' && (await dlg(p).getByLabel('Contract no.').inputValue()) === '202/2024');
-ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).getByLabel('Lives in the work-location city?').inputValue()) === 'outside');
-await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill(''); await dlg(p).getByLabel('Lives in the work-location city?').selectOption('inside');
+ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'outside');
+await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill(''); await dlg(p).locator('label.choice-card:has(input[value="inside"])').click();
 await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('editing saves the new job title and clearing the contract number empties it', await eventually(() => sql(`select job_title||'|'||coalesce(contract_no,'NULL') from public.profiles where username='xonew'`) === 'Senior Rigger|NULL'));
 ok('residence edit is saved', await eventually(() => sql(`select residence from public.profiles where username='xonew'`) === 'inside'));
@@ -85,10 +85,11 @@ ok('residence edit is saved', await eventually(() => sql(`select residence from 
 await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr');
 await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
 ok('export dialog: modern radio cards (no native dropdown), official Excel default, PDF and simple grid alternatives, no Report settings button', (await dlg(p).locator('select').count()) === 0 && (await dlg(p).locator('input[type=radio]:checked').getAttribute('value')) === 'official' && (await dlg(p).locator('input[type=radio]').count()) === 3 && (await dlg(p).locator('button:text-is("Report settings")').count()) === 0);
-ok('department data missing -> a notice lists what is missing (defaults are used)', (await dlg(p).locator('.notice').textContent()).includes('Department code') && (await dlg(p).locator('.notice').textContent()).includes('Location'));
+ok('department data missing -> a notice lists what is missing (defaults are used)', (await dlg(p).locator('.notice').textContent()).includes('Department code'));
 await p.keyboard.press('Escape');
 // the report data comes from the DEPARTMENT record (set here as a super admin would, via the department data dialog / RPC)
-sql(`update public.departments set code='19', sector='Maintenance Sector X', field='Operations [Fields] X', report='{"dept_print_name":"TURBO (MAINT.)","location":"IDKU Site"}' where id='${DA}'`);
+sql(`update public.departments set code='19', sector='Maintenance Sector X', field='Operations [Fields] X', report='{"dept_print_name":"TURBO (MAINT.)"}' where id='${DA}'`);
+sql(`update public.profiles set work_location='IDKU Site' where opr='EMC-901'`);
 await p.reload(); await p.waitForSelector('.tgrid tbody tr');
 await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
 ok('with the department data filled in, the notice is gone', (await dlg(p).locator('.notice').count()) === 0);

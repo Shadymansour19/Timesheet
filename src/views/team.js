@@ -75,6 +75,7 @@ export function teamView() {
     renderTop(); drawGrid();
     el.wrap.classList.remove('loading');
     fit();
+    if (first) ensureActive(true);              // page (re)load: keyboard focus starts on today's cell of the first employee
   }
 
   // ---------- live updates ----------
@@ -177,7 +178,7 @@ export function teamView() {
     const boxes = people.map((p) => h('input', { type: 'checkbox', checked: true, value: p.id }));
     const from = field(t('from'), { type: 'date', value: days[0], required: true });
     const to = field(t('to'), { type: 'date', value: days[days.length - 1], required: true });
-    const st = h('select', { id: 'bulk-status' }, ['X', 'Y', 'E'].map((s) => h('option', { value: s }, s)));
+    const st = choice(t('status'), ['X', 'Y', 'E'].map((s) => ({ value: s, label: s, cls: 's-' + s.toLowerCase() })), 'X', { compact: true });
     const preview = h('p', { class: 'bulk-preview', 'aria-live': 'polite' });
 
     const dayList = () => {
@@ -208,7 +209,7 @@ export function teamView() {
     refresh();
 
     const content = h('div', { class: 'form' },
-      from.row, to.row, h('div', { class: 'field' }, h('label', { for: 'bulk-status' }, t('status')), st),
+      from.row, to.row, st.row,
       h('label', { class: 'check strong' }, all, t('select_all')),
       h('div', { class: 'checklist' }, people.map((p, i) => h('label', { class: 'check' }, boxes[i], p.full_name))),
       preview);
@@ -237,10 +238,10 @@ export function teamView() {
       { value: 'pdf', label: t('export_fmt_pdf'), hint: t('export_fmt_pdf_hint') },
       { value: 'simple', label: t('export_fmt_simple'), hint: t('export_fmt_simple_hint') }], 'official');
     // The report prints department data; anything missing there falls back to a default - say so
-    const missing = [[dept?.code, 'rs_code'], [dept?.sector, 'rs_sector'], [dept?.field, 'rs_field'], [dept?.report?.dept_print_name, 'rs_dept_print_name'], [dept?.report?.location, 'rs_location']].filter(([v]) => !v).map(([, k]) => t(k));
+    const missing = [[dept?.code, 'rs_code'], [dept?.sector, 'rs_sector'], [dept?.field, 'rs_field'], [dept?.report?.dept_print_name, 'rs_dept_print_name']].filter(([v]) => !v).map(([, k]) => t(k));
     const content = h('div', { class: 'form' }, month.row, format.row,
       missing.length ? h('p', { class: 'notice', role: 'status' }, `${t('export_missing_dept')} ${missing.join(', ')}`) : null,
-      h('p', { class: 'muted' }, t('export_official_hint')));
+      );
     openDialog({
       title: t('export_title'), content,
       buttons: [{ label: t('cancel') }, { label: t('export'), kind: 'primary', onClick: async () => {
@@ -467,8 +468,7 @@ export function teamView() {
     el.empty = h('p', { class: 'muted', hidden: true });
     const legend = el.legend = h('div', { class: 'legend-row', 'aria-label': t('legend_label') },
       h('span', { class: 'chip s-x' }, t('legend_x')), h('span', { class: 'chip s-y' }, t('legend_y')), h('span', { class: 'chip' }, t('legend_e')),
-      h('span', { class: 'chip holiday-chip' }, t('holiday')), h('span', { class: 'chip ot' }, t('overtime')),
-      h('p', { class: 'hint-line' }, t('team_quick_hint')));
+      h('span', { class: 'chip holiday-chip' }, t('holiday')), h('span', { class: 'chip ot' }, t('overtime')));
 
     root.replaceChildren(
       h('div', { class: 'team-top' },

@@ -46,7 +46,7 @@ export function reportSettings(model, tpl) {
   const name = model.department;
   return {
     deptName: name, deptTitle: `${name} Dept.`, code: model.deptCode ?? '',
-    printName: pick(r.dept_print_name, name.toUpperCase()), site: pick(r.location, ''),
+    printName: pick(r.dept_print_name, name.toUpperCase()),
     manpower: c.manpower, banner: [c.banner1, pick(model.field, c.defaultField), pick(model.sector, c.defaultSector)],
     captionLeft: c.captionLeft, captionRight: c.captionRight,
     signLeft: `${name} SH/DH`, signRight: `${name} AGM`,
@@ -159,7 +159,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   lab(E.name, 1, 2, 'Name:'); val(E.name, 3, 10, e.fullName);
   lab(E.name + 1, 1, 2, 'Title:'); val(E.name + 1, 3, 10, e.jobTitle);
   lab(E.name + 2, 1, 2, 'Level:'); val(E.name + 2, 3, 10, e.levelText);
-  lab(E.name + 3, 1, 2, 'Location:'); val(E.name + 3, 3, 10, e.workLocation || S.site);
+  lab(E.name + 3, 1, 2, 'Location:'); val(E.name + 3, 3, 10, e.workLocation);
   lab(E.name, 12, 15, 'Month:'); val(E.name, 16, 21, monthDate, { numFmt: 'mmm-yy' });
   lab(E.name + 1, 12, 15, 'Contr. No:'); val(E.name + 1, 16, 21, e.contractNo);
   lab(E.name + 2, 12, 15, 'Department:'); val(E.name + 2, 16, 21, S.printName);

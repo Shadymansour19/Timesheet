@@ -56,6 +56,7 @@ ok('grid exposes role="grid" and keyboard-shortcut hints for assistive tech', (a
 ok('exactly ONE cell is in the tab order (roving tabindex)', (await p.locator('tbody [tabindex="0"]').count()) === 1);
 const first = await p.locator('tbody [tabindex="0"]').evaluate((e) => ({ u: e.closest('tr').dataset.u, d: e.dataset.d }));
 ok("...and it is today's cell of the first row", first.u === uid(0) && first.d === T, JSON.stringify(first));
+ok('...and it HAS keyboard focus right after the page loads (shortcuts work immediately)', await at(p, 0, T), JSON.stringify(await active(p)));
 ok('cells have descriptive labels (name, weekday, date, status)', /KB Admin, \w+ \d+ \w+: E/.test(await cell(p, 0).getAttribute('aria-label')) || /KB Admin, .*: E/.test(await cell(p, 0).getAttribute('aria-label')), await cell(p, 0).getAttribute('aria-label'));
 // Tab enters the grid on that single cell and leaves after it
 await p.locator('button[aria-label="How this grid works"]').focus(); await key(p, 'Tab');
