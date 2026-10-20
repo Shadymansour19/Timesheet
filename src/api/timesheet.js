@@ -64,3 +64,7 @@ export async function setDayStatus(userId, day, status) {
   const { error } = await supabase.rpc('set_day_status', { p_user: userId, p_day: day, p_status: status });
   if (error) throw error;
 }
+
+// Month plus the day before and the day after (the report marks Arrival / Departure from the neighbouring days).
+export const fetchPaddedMonthData = (y, m, opts) => fetchRangeData(shiftDay(y, m, 1, -1), shiftDay(y, m, daysIn(y, m), 1), opts);
+function shiftDay(y, m, d, delta) { const n = new Date(y, m, d + delta); return ymd(n.getFullYear(), n.getMonth(), n.getDate()); }

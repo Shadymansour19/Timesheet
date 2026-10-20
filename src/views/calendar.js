@@ -1,7 +1,11 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state } from '../auth/session.js';
-import { fetchMonth, fetchEditWindow, setDayStatus, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
+import { fetchMonth, fetchEditWindow, setDayStatus, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
+import { fetchDepartment } from '../api/admin.js';
+import { openDialog } from '../components/dialog.js';
+import { field } from '../components/form.js';
+import { icon, INFO, DOWNLOAD } from '../components/icons.js';
 import { WEEK_START } from '../lib/core.js';
 import * as live from '../live.js';
 import { toast } from '../components/toast.js';
@@ -72,6 +76,26 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     } finally { busy.delete(day); draw(); }
   }
 
+  // Help text lives behind the "i" button (keeps the calendar compact)
+  const openHelp = () => openDialog({ title: t('help'), content: h('div', { class: 'form' },
+    ...(admin ? [h('p', {}, t('person_hint'))] : []), h('p', {}, `${t('legend')} ${t('legend_ot')}`),
+    ...(editWindow !== null && !admin ? [h('p', { class: 'muted' }, t('edit_window_note').replace('{n}', editWindow))] : [])), buttons: [{ label: t('close') }] });
+
+  // Download THIS person's Monthly Time Report for the shown month (Excel or PDF)
+  function openExport() {
+    const format = h('select', { id: 'cal-export-format' }, h('option', { value: 'xlsx' }, 'Excel (.xlsx)'), h('option', { value: 'pdf' }, 'PDF'));
+    openDialog({ title: t('cal_export'), content: h('div', { class: 'form' }, h('div', { class: 'field' }, h('label', { for: 'cal-export-format' }, t('export_format')), format)),
+      buttons: [{ label: t('cancel') }, { label: t('export'), kind: 'primary', onClick: async () => {
+        const [{ exportMonth }, d, deptRow] = await Promise.all([import('../export/engine.js'), fetchPaddedMonthData(cursor.y, cursor.m, { userId: uid }), fetchDepartment(dept)]);
+        const ppl = personRow();
+        await exportMonth({ dept: deptRow ?? { name: '' }, people: [ppl], data: d, year: cursor.y, month: cursor.m, lang: getLang(), format: format.value, employeeId: uid });
+      } }] });
+  }
+  function personRow() {
+    if (uid === me) return state.profile;
+    return person;                     // the person view loaded the full row
+  }
+
   function openDetails(day) {
     const v = data[day] ?? { status: 'E', ot: 0, note: '', hol: false };
     busy.add(day);   // hold live refetches while the dialog is open and saving
@@ -115,15 +139,17 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
       [['cycle', t('mode_cycle')], ['details', t('mode_details')]].map(([m, label]) =>
         h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m), onclick: () => { mode = m; draw(); } }, label))) : null;
 
+    const tools = h('div', { class: 'cal-tools' },
+      h('button', { type: 'button', class: 'btn small', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
+      h('button', { type: 'button', class: 'btn small icon-only', onclick: openHelp, 'aria-label': t('help'), title: t('help') }, icon(INFO, 18)));
     root.replaceChildren(
       monthHead(fmt({ month: 'long', year: 'numeric' }, first), { onPrev: () => go(-1), onNext: () => go(1), onToday: () => { goToday(); load(); } }),
+      tools,
       ...(seg ? [seg] : []),
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         ['X', 'Y', 'XH', 'YH'].map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
-        h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`)),
-      h('p', { class: 'muted legend' }, `${admin ? t('person_hint') + ' ' : ''}${t('legend')} ${t('legend_ot')}`),
-      ...(editWindow !== null && !admin ? [h('p', { class: 'muted' }, t('edit_window_note').replace('{n}', editWindow))] : []));
+        h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`)));
   }
 
   // live: refetch quietly when this person's days (or the department holidays) change somewhere else

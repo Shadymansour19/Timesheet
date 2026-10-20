@@ -5,34 +5,26 @@ import { field } from './form.js';
 import { setDepartmentReport } from '../api/admin.js';
 import { toast } from './toast.js';
 
-// Department print settings for the official monthly report. Empty fields fall back to defaults when exporting.
-const FIELDS = [
-  ['dept_title', 'rs_dept_title', (d) => `${d.name} Dept.`],
-  ['dept_code', 'rs_dept_code', () => '19'],
-  ['dept_print_name', 'rs_dept_print_name', (d) => d.name.toUpperCase()],
-  ['location', 'rs_location', () => 'IDKU Site'],
-  ['manpower', 'rs_manpower', () => 'EMC MANPOWER'],
-  ['banner_1', 'rs_banner_1', () => 'Rashid Petroleum & BURULLUS Gas Company'],
-  ['banner_2', 'rs_banner_2', () => 'Operations [Fields]'],
-  ['banner_3', 'rs_banner_3', () => 'Maintenance Sector'],
-  ['company_left', 'rs_company_left', () => 'Egyptian Maintenance Company'],
-  ['company_right', 'rs_company_right', () => 'Burullus Gas Company'],
-  ['signoff_left', 'rs_signoff_left', (d) => `${d.name} SH/DH`],
-  ['signoff_right', 'rs_signoff_right', (d) => `${d.name} AGM`],
-];
-
-// dept: { id, name, report }. onSaved(report) is called after a successful save (dept.report is updated too).
+// Department data printed on the official monthly report. The captions, the manpower line, the title wording and the
+// sign-offs are fixed by the form (only the department name changes), so only these fields are editable.
+// dept: { id, name, report, code, sector, field }. Empty fields fall back to defaults when exporting.
 export function openReportSettings({ dept, onSaved }) {
   const cur = dept.report ?? {};
-  const inputs = FIELDS.map(([key, label, placeholder]) => ({ key, f: field(t(label), { maxlength: 200, value: cur[key] ?? '', placeholder: placeholder(dept) }) }));
+  const code = field(t('rs_code'), { maxlength: 20, value: dept.code ?? '', placeholder: '19' });
+  const sector = field(t('rs_sector'), { maxlength: 100, value: dept.sector ?? '', placeholder: 'Maintenance Sector' });
+  const fieldIn = field(t('rs_field'), { maxlength: 100, value: dept.field ?? '', placeholder: 'Operations [Fields]' });
+  const printName = field(t('rs_dept_print_name'), { maxlength: 200, value: cur.dept_print_name ?? '', placeholder: dept.name.toUpperCase() });
+  const location = field(t('rs_location'), { maxlength: 200, value: cur.location ?? '', placeholder: 'IDKU Site' });
   openDialog({
-    title: t('report_settings'), wide: true, autofocus: false,
-    content: h('div', { class: 'form' }, h('p', { class: 'muted' }, t('report_settings_hint')), inputs.map((x) => x.f.row)),
+    title: t('report_settings'), autofocus: false,
+    content: h('div', { class: 'form' }, h('p', { class: 'muted' }, t('report_settings_hint')), code.row, sector.row, fieldIn.row, printName.row, location.row),
     buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
       const report = {};
-      for (const { key, f } of inputs) { const v = f.input.value.trim(); if (v) report[key] = v; }
-      await setDepartmentReport(dept.id, report);
-      dept.report = report;
+      if (printName.input.value.trim()) report.dept_print_name = printName.input.value.trim();
+      if (location.input.value.trim()) report.location = location.input.value.trim();
+      const cols = { code: code.input.value.trim(), sector: sector.input.value.trim(), field: fieldIn.input.value.trim() };
+      await setDepartmentReport(dept.id, report, cols);
+      Object.assign(dept, cols, { report, code: cols.code || null, sector: cols.sector || null, field: cols.field || null });
       onSaved?.(report);
       toast(t('saved'), 'success');
     } }],

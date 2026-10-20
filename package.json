@@ -21,11 +21,13 @@
     "test:ui-keyboard": "node tests/ui/keyboard.mjs",
     "test:ui-bottom-nav": "node tests/ui/bottom-nav.mjs",
     "test:export-official": "node tests/export-official.test.mjs",
+    "test:export-pdf": "node tests/export-pdf.test.mjs",
     "test:ui-export": "node tests/ui/export-official.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "jspdf": "^4.2.1"
   },
   "devDependencies": {
     "playwright": "^1.64.1",

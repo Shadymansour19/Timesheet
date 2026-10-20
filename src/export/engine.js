@@ -1,7 +1,7 @@
 import { buildModel } from './model.js';
 import defaultTemplate from './templates/default.js';
 import officialTemplate from './templates/official.js';
-import { buildOfficialWorkbook } from './official.js';
+import { buildOfficialWorkbook, buildEmployeeWorkbook } from './official.js';
 
 // Selectable formats; the official monthly report is the default.
 export const templates = { official: officialTemplate, simple: defaultTemplate };
@@ -128,20 +128,43 @@ async function fillWorkbook(model, tpl, ExcelJS, loadSource) {
   return wb;
 }
 
-// Browser: fetch data model -> workbook -> file download. exceljs (~1 MB) is loaded only when exporting.
-export async function exportMonth({ dept, people, data, year, month, lang, template = activeTemplate }) {
-  const ExcelJS = (await import('exceljs')).default;
-  const model = buildModel({ dept, people, data, year, month });
-  const wb = await buildWorkbook(model, template, lang, ExcelJS, {
-    loadSource: async (url) => (await fetch(url)).arrayBuffer(),
-    // optional images (logos): the host serves index.html for unknown paths, so only accept real images
-    loadAsset: async (url) => { const r = await fetch(url); return r.ok && (r.headers.get('content-type') || '').startsWith('image/') ? r.arrayBuffer() : null; },
-  });
-  const buf = await wb.xlsx.writeBuffer();
-  const safe = (dept?.name ?? 'department').replace(/[^\p{L}\p{N}_-]+/gu, '_');
+// Browser: data model -> file download. Libraries (exceljs ~1 MB, jsPDF) are loaded only when exporting.
+// format: 'xlsx' | 'pdf'. employeeId: only that person's Monthly Time Report (their own timesheet).
+const loadAsset = async (url) => { const r = await fetch(url); return r.ok && (r.headers.get('content-type') || '').startsWith('image/') ? r.arrayBuffer() : null; };   // the host serves index.html for unknown paths: accept real images only
+async function loadPdfLogos(tpl) {
+  const logos = {};
+  for (const side of ['left', 'right']) {
+    try {
+      const buf = await loadAsset(`${tpl.logoBase}-${side}.png`);
+      if (!buf) continue;
+      const bytes = new Uint8Array(buf), dv = new DataView(buf);
+      let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      logos[side] = { data: 'data:image/png;base64,' + btoa(bin), width: dv.getUint32(16), height: dv.getUint32(20) };
+    } catch { /* no logo */ }
+  }
+  return logos;
+}
+function download(blob, name) {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  a.download = `timesheet_${safe}_${model.year}-${String(model.month + 1).padStart(2, '0')}.xlsx`;
+  a.href = URL.createObjectURL(blob); a.download = name;
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+export async function exportMonth({ dept, people, data, year, month, lang, template = activeTemplate, format = 'xlsx', employeeId = null }) {
+  const model = buildModel({ dept, people: employeeId ? people.filter((p) => p.id === employeeId) : people, data, year, month });
+  const safe = (employeeId ? (model.employees[0]?.fullName ?? 'timesheet') : (dept?.name ?? 'department')).replace(/[^\p{L}\p{N}_-]+/gu, '_');
+  const stamp = `${model.year}-${String(model.month + 1).padStart(2, '0')}`;
+  if (format === 'pdf') {
+    const [{ jsPDF }, { buildOfficialPdf }] = await Promise.all([import('jspdf'), import('./pdf.js')]);
+    const doc = buildOfficialPdf(model, officialTemplate, { jsPDF, logos: await loadPdfLogos(officialTemplate), employeeId });
+    download(doc.output('blob'), `timesheet_${safe}_${stamp}.pdf`);
+    return;
+  }
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = employeeId && template.mode === 'official'
+    ? await buildEmployeeWorkbook(model, template, ExcelJS, { loadAsset, employeeId })
+    : await buildWorkbook(model, template, lang, ExcelJS, { loadSource: async (url) => (await fetch(url)).arrayBuffer(), loadAsset });
+  const buf = await wb.xlsx.writeBuffer();
+  download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `timesheet_${safe}_${stamp}.xlsx`);
 }

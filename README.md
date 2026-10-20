@@ -34,6 +34,7 @@ Put the DB connection string in an untracked `.env.db` (`TS_DB_URL='postgresql:/
 | `npm run test:rls` | 225 RLS/RPC checks by impersonating each role (runs in a rolled-back transaction) |
 | `npm run test:e2e-users` | Deployed Edge Function: create/reset/delete, permissions, rollback |
 | `npm run test:export` | Builds real .xlsx files, re-reads them and checks cell contents (+ fill-mode template) |
+| `npm run test:export-pdf` | The official report as PDF: page counts, text, logos, single-person PDF, 40-person pagination (poppler) |
 | `npm run test:export-official` | The official monthly report workbook: sheet names/order, day/employee/review cells, formulas, and LibreOffice recalculating every formula from scratch |
 | `npm run test:ui-export` | Browser E2E: job title / contract number, Report settings, export dialog (format, month), downloaded workbook vs the database, a 40-person department |
 | `npm run test:i18n` | Every translation key exists in English and Arabic |

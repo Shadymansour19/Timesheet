@@ -27,7 +27,7 @@ export function departmentsView() {
   }
 
   function addAdmin(dept) {
-    const p = personFields({}, { withLogin: true });
+    const p = personFields({}, { withLogin: true, isNew: true });
     openDialog({
       title: `${t('add_admin')} – ${dept.name}`, content: h('div', { class: 'form' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
       buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {
@@ -35,6 +35,7 @@ export function departmentsView() {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: dept.id, role: 'admin',
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
+          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value,
         });
         open.add(dept.id); toast(t('user_created'), 'success'); await load();
       } }],

@@ -1,7 +1,7 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state } from '../auth/session.js';
-import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchMonthData, effective } from '../api/timesheet.js';
+import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective } from '../api/timesheet.js';
 import { WEEK_START, sameData } from '../lib/core.js';
 import * as live from '../live.js';
 import { fetchDeptPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
@@ -230,18 +230,18 @@ export function teamView() {
   function openExport() {
     const def = viewMode === 'week' ? addDays(weekStart, 3) : ymd(cursor.y, cursor.m, 1);
     const month = field(t('export_month'), { type: 'month', value: def.slice(0, 7), required: true });
-    const format = h('select', { id: 'export-format' }, h('option', { value: 'official' }, t('export_official')), h('option', { value: 'simple' }, t('export_simple')));
+    const format = h('select', { id: 'export-format' }, h('option', { value: 'official' }, t('export_official')), h('option', { value: 'pdf' }, t('export_pdf')), h('option', { value: 'simple' }, t('export_simple')));
     const content = h('div', { class: 'form' }, month.row,
       h('div', { class: 'field' }, h('label', { for: 'export-format' }, t('export_format')), format),
       h('button', { type: 'button', class: 'btn small', onclick: () => openReportSettings({ dept }) }, t('report_settings')),
       h('p', { class: 'muted' }, t('export_official_hint')));
     openDialog({
-      title: t('export_excel'), content,
+      title: t('export_title'), content,
       buttons: [{ label: t('cancel') }, { label: t('export'), kind: 'primary', onClick: async () => {
         const [y, m] = month.input.value.split('-').map(Number);
         if (!y || !m) throw Object.assign(new Error(t('bulk_empty')), { code: '22023' });
-        const [{ exportMonth, templates }, monthData] = await Promise.all([import('../export/engine.js'), fetchMonthData(y, m - 1)]);
-        await exportMonth({ dept, people, data: monthData, year: y, month: m - 1, lang: getLang(), template: templates[format.value] });
+        const [{ exportMonth, templates }, monthData] = await Promise.all([import('../export/engine.js'), fetchPaddedMonthData(y, m - 1)]);
+        await exportMonth({ dept, people, data: monthData, year: y, month: m - 1, lang: getLang(), template: templates[format.value === 'pdf' ? 'official' : format.value], format: format.value === 'pdf' ? 'pdf' : 'xlsx' });
       } }],
     });
   }

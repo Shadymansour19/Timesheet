@@ -10,7 +10,10 @@ import { icon, SEARCH } from '../components/icons.js';
 import * as live from '../live.js';
 
 // Shared by the admin (own department) and the super admin (admins of any department).
-export function personFields(initial = {}, { withLogin = false } = {}) {
+// TEMPORARY: new people start with this contract number (a UI default only; the database has no default for it)
+export const DEFAULT_CONTRACT_NO = '033/2019';
+
+export function personFields(initial = {}, { withLogin = false, isNew = false } = {}) {
   const f = {
     username: withLogin ? field(t('username'), { required: true, autocapitalize: 'none', autocomplete: 'off', pattern: '[a-z0-9._\\-]{3,32}', minlength: 3, maxlength: 32 }) : null,
     password: withLogin ? field(t('temp_password'), { type: 'text', required: true, minlength: 8, autocomplete: 'off', value: randomPassword() }) : null,
@@ -18,8 +21,14 @@ export function personFields(initial = {}, { withLogin = false } = {}) {
     opr: field(t('opr'), { required: true, value: initial.opr ?? '' }),
     level: field(t('level'), { type: 'number', min: 0, step: 1, inputmode: 'numeric', value: initial.level ?? '' }),
     job_title: field(t('job_title'), { maxlength: 100, value: initial.job_title ?? '' }),
-    contract_no: field(t('contract_no'), { maxlength: 50, value: initial.contract_no ?? '' }),
+    contract_no: field(t('contract_no'), { maxlength: 50, value: initial.contract_no ?? (isNew ? DEFAULT_CONTRACT_NO : '') }),
+    work_location: field(t('work_location'), { maxlength: 100, value: initial.work_location ?? '' }),
   };
+  // inside / outside the work-location city: decides whether Arrival / Departure trips count as TRANS/IN or TRANS/EX
+  const residence = h('select', { id: 'residence-' + Math.random().toString(36).slice(2, 8) },
+    h('option', { value: '' }, '—'), h('option', { value: 'inside' }, t('residence_inside')), h('option', { value: 'outside' }, t('residence_outside')));
+  residence.value = initial.residence ?? (isNew ? 'inside' : '');
+  f.residence = { row: h('div', { class: 'field' }, h('label', { for: residence.id }, t('residence')), residence), input: residence };
   const rows = Object.values(f).filter(Boolean).map((x) => x.row);
   const level = () => (f.level.input.value === '' ? null : Number(f.level.input.value));
   return { f, rows, level };
@@ -67,7 +76,7 @@ export function usersView() {
   }
 
   function addUser() {
-    const p = personFields({}, { withLogin: true });
+    const p = personFields({}, { withLogin: true, isNew: true });
     openDialog({
       title: t('add_user'), content: h('div', { class: 'form' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
       buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {
@@ -75,6 +84,7 @@ export function usersView() {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: me.department_id, role: 'user',
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
+          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value,
         });
         toast(t('user_created'), 'success'); await load();
       } }],
@@ -86,7 +96,7 @@ export function usersView() {
     openDialog({
       title: `${t('edit_data')}: ${person.username}`, content: h('div', { class: 'form' }, p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
-        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value);
+        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value);
         await load();
       } }],
     });
@@ -97,7 +107,7 @@ export function usersView() {
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
         h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${p.opr ?? '-'} · ${t('level')} ${p.level ?? '-'}${p.job_title ? ' · ' + p.job_title : ''}`)),
+        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${p.opr ?? '-'} · ${t('level')} ${p.level ?? '-'}${p.job_title ? ' · ' + p.job_title : ''}${p.residence ? ' · ' + t('residence_' + p.residence) : ''}`)),
       h('div', { class: 'pactions' },
         h('a', { class: 'btn small primary', href: '#/person/' + p.id }, t('timesheet')),
         h('button', { class: 'btn small', onclick: () => editUser(p) }, t('edit_data')),

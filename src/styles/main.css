@@ -33,7 +33,7 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .floating { position: fixed; inset-block-start: 12px; inset-inline-end: 12px; }
 .error { color: var(--danger); min-height: 1.2em; margin: 4px 0; }
 .success { color: var(--ok); min-height: 1.2em; margin: 4px 0; }
-.shell { max-width: 1100px; margin: 0 auto; }
+.shell { max-width: none; margin: 0 auto; }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-block: 12px; flex-wrap: wrap; }
 .actions { display: flex; gap: 8px; }
 .nav { display: flex; gap: 4px; overflow-x: auto; border-block-end: 1px solid var(--line); }
@@ -51,7 +51,7 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
   :root:not([data-theme="light"]) { --s-x-bg: #064e3b; --s-x-fg: #a7f3d0; --s-y-bg: #1e3a8a; --s-y-fg: #bfdbfe; --ot-bg: #78350f; --ot-fg: #fde68a; --ot-bar: #f59e0b; }
 }
 :root[data-theme="dark"] { --s-x-bg: #064e3b; --s-x-fg: #a7f3d0; --s-y-bg: #1e3a8a; --s-y-fg: #bfdbfe; --ot-bg: #78350f; --ot-fg: #fde68a; --ot-bar: #f59e0b; }
-.cal { max-width: 560px; margin: 8px auto; }
+.cal { max-width: none; margin: 8px auto; }
 .cal-head { display: flex; align-items: center; gap: 8px; margin-block-end: 12px; }
 .cal-head h2 { flex: 1; margin: 0; text-align: center; font-size: 1.15rem; }
 .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
@@ -124,7 +124,7 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .pactions.top { margin-block: 8px; }
 .badge { font-size: .7rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); justify-self: start; }
 .badge.admin { background: var(--s-y-bg); color: var(--s-y-fg); border-color: transparent; }
-.users, .depts { max-width: 760px; margin: 8px auto; }
+.users, .depts { max-width: none; margin: 8px auto; }
 .dept { max-width: none; margin: 12px 0; }
 .dept summary { cursor: pointer; padding-block: 4px; }
 .offline-banner { background: #b45309; color: #fff; text-align: center; padding: 6px 16px; font-size: .85rem; }
@@ -199,7 +199,7 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .ot-total { margin: 10px 0 0; font-weight: 600; color: var(--ot-fg); background: var(--ot-bg); padding: 8px 12px; border-radius: 8px; }
 
 /* ---- department tab v2: pinned toolbar, week/month views, today + holiday columns, headcount row ---- */
-.shell:has(.team) { max-width: 1400px; }
+.shell:has(.team) { max-width: none; }
 .team-top { position: sticky; inset-block-start: 0; z-index: 25; background: var(--bg); padding-block: 4px 8px; }
 .dept-sub { margin: 0 0 2px; font-size: .85rem; }
 .team-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-block-start: 8px; }
@@ -223,6 +223,7 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .gridwrap.loading { opacity: .55; pointer-events: none; }
 .tgrid.month .nm { min-width: 170px; max-width: 210px; }
 .tgrid.month .dh, .tgrid.month td.c, .tgrid.month td.hc { min-width: 30px; }
+.tgrid.month { width: 100%; }
 .tgrid.week { width: 100%; min-width: 0; table-layout: fixed; }
 .tgrid.week .nm { width: 36%; min-width: 0; max-width: none; }
 .tgrid .nm { white-space: normal; }
@@ -278,6 +279,7 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .person-view { max-width: 560px; margin: 0 auto; }
 .person-head { display: flex; align-items: center; gap: 12px; margin: 8px 0; padding: 12px 14px; max-width: none; }
 .cal-mode { margin-block-end: 10px; }
+.cal-tools { display: flex; justify-content: flex-end; gap: 6px; margin-block-end: 8px; }
 .empty { text-align: center; max-width: none; margin-block: 12px; display: grid; gap: 8px; justify-items: center; }
 .empty[hidden] { display: none; }
 

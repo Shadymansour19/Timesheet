@@ -48,7 +48,7 @@ async function login(un, w = 1280) {
   return p;
 }
 async function doExport(p, { format, monthValue } = {}) {
-  await p.click('button:text-is("Export Excel")'); await p.waitForSelector('dialog[open]');
+  await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
   if (format) await dlg(p).locator('#export-format').selectOption(format);
   if (monthValue) await dlg(p).locator('input[type=month]').fill(monthValue);
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
@@ -56,6 +56,7 @@ async function doExport(p, { format, monthValue } = {}) {
   const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(file);
   return { name: dl.suggestedFilename(), wb };
 }
+const tx = (c) => (c.value && c.value.richText ? c.value.richText.map((r) => r.text).join('') : String(c.value ?? ''));
 const res = (c) => (c.value && typeof c.value === 'object' && 'formula' in c.value ? (c.value.result ?? 0) : c.value);
 
 const p = await login('xoadm');
@@ -64,29 +65,34 @@ await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
 await p.click('button:text-is("Add user")'); await p.waitForSelector('dialog[open]');
 ok('Add user dialog has Job title and Contract no. fields', (await dlg(p).getByLabel('Job title').count()) === 1 && (await dlg(p).getByLabel('Contract no.').count()) === 1);
 await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name').fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('EMC-999');
+ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).getByLabel('Lives in the work-location city?').inputValue()) === 'inside');
 await dlg(p).getByLabel('Job title').fill('Certified Rigger'); await dlg(p).getByLabel('Contract no.').fill('202/2024');
+await dlg(p).getByLabel('Work location (site)').fill('Abu Qir Site'); await dlg(p).getByLabel('Lives in the work-location city?').selectOption('outside');
 await dlg(p).locator('button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached', timeout: 60000 });
 ok('the new person is created WITH job title and contract number (Edge Function)', await eventually(() => sql(`select job_title||'|'||contract_no from public.profiles where username='xonew'`) === 'Certified Rigger|202/2024'));
+ok('work location and residence are stored (Edge Function)', await eventually(() => sql(`select work_location||'|'||residence from public.profiles where username='xonew'`) === 'Abu Qir Site|outside'));
 ok('the Users list shows the job title', await eventually(async () => (await p.locator('.person', { hasText: 'XO Brand New' }).textContent()).includes('Certified Rigger')));
 await p.locator('.person', { hasText: 'XO Brand New' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
 ok('Edit data shows the stored values', (await dlg(p).getByLabel('Job title').inputValue()) === 'Certified Rigger' && (await dlg(p).getByLabel('Contract no.').inputValue()) === '202/2024');
-await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill('');
+ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).getByLabel('Lives in the work-location city?').inputValue()) === 'outside');
+await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill(''); await dlg(p).getByLabel('Lives in the work-location city?').selectOption('inside');
 await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('editing saves the new job title and clearing the contract number empties it', await eventually(() => sql(`select job_title||'|'||coalesce(contract_no,'NULL') from public.profiles where username='xonew'`) === 'Senior Rigger|NULL'));
+ok('residence edit is saved', await eventually(() => sql(`select residence from public.profiles where username='xonew'`) === 'inside'));
 
 // ---- B. report settings
 await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr');
-await p.click('button:text-is("Export Excel")'); await p.waitForSelector('dialog[open]');
-ok('export dialog: format defaults to the Official monthly report; Simple grid is the alternative', (await dlg(p).locator('#export-format').inputValue()) === 'official' && (await dlg(p).locator('#export-format option').count()) === 2);
+await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
+ok('export dialog: format defaults to the official report; PDF and Simple grid are the alternatives', (await dlg(p).locator('#export-format').inputValue()) === 'official' && (await dlg(p).locator('#export-format option').count()) === 3);
 await dlg(p).locator('button:text-is("Report settings")').click(); await p.waitForFunction(() => document.querySelectorAll('dialog[open]').length === 2);
 const rs = p.locator('dialog[open]').last();
-ok('Report settings: 12 fields, with the defaults shown as placeholders', (await rs.locator('input').count()) === 12 && (await rs.getByLabel('Department title (e.g. Turbo-Machinery Dept.)').getAttribute('placeholder')) === 'XO Alpha Dept.');
-await rs.getByLabel('Department title (e.g. Turbo-Machinery Dept.)').fill('Turbo-Machinery Dept.'); await rs.getByLabel('Department code').fill('19'); await rs.getByLabel('Department name as printed').fill('TURBO (MAINT.)');
-await rs.getByLabel('Location').fill('IDKU Site'); await rs.getByLabel('Sign-off, left').fill('Turbo-Machinery SH/DH'); await rs.getByLabel('Sign-off, right').fill('Turbo-Machinery AGM');
+ok('Report settings: 5 fields (code, sector, field, printed name, location), defaults as placeholders', (await rs.locator('input').count()) === 5 && (await rs.getByLabel('Department name as printed').getAttribute('placeholder')) === 'XO ALPHA');
+await rs.getByLabel('Department code').fill('19'); await rs.getByLabel('Sector (printed').fill('Maintenance Sector X'); await rs.getByLabel('Field (printed').fill('Operations [Fields] X');
+await rs.getByLabel('Department name as printed').fill('TURBO (MAINT.)'); await rs.getByLabel('Location').fill('IDKU Site');
 await rs.locator('button.primary').click();
-ok('saved settings are stored on the department (only the filled fields)', await eventually(() => { const r = JSON.parse(sql(`select report::text from public.departments where id='${DA}'`)); return r.dept_code === '19' && r.location === 'IDKU Site' && r.dept_title === 'Turbo-Machinery Dept.' && !('banner_1' in r); }));
-ok('the other department is unaffected', sql(`select report::text from public.departments where name='XO Beta'`) === '{}');
+ok('saved: code / sector / field are department columns, printed name and location in report', await eventually(() => { const r = JSON.parse(sql(`select report::text from public.departments where id='${DA}'`)); return sql(`select code||'|'||sector||'|'||field from public.departments where id='${DA}'`) === '19|Maintenance Sector X|Operations [Fields] X' && r.location === 'IDKU Site' && r.dept_print_name === 'TURBO (MAINT.)' && Object.keys(r).length === 2; }));
+ok('the other department is unaffected', sql(`select report::text||code::text from public.departments where name='XO Beta'`) === '{}' || sql(`select report::text from public.departments where name='XO Beta'`) === '{}');
 await p.locator('dialog[open]').last().waitFor({ state: 'visible' });
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 
@@ -95,21 +101,21 @@ const off = await doExport(p, {});
 const wb = off.wb, names = wb.worksheets.map((w) => w.name);
 const emps = JSON.parse(sql(`select coalesce(json_agg(json_build_object('id', id, 'name', full_name, 'opr', opr, 'title', job_title, 'contract', contract_no, 'level', level) order by full_name),'[]') from public.profiles where department_id='${DA}' and active`));
 ok(`download is named for the department and month`, off.name === `timesheet_XO_Alpha_${month}.xlsx`, off.name);
-ok(`sheets: ${nDays} day sheets (1..${nDays}), ${emps.length} employee sheets, then Review`, names.length === nDays + emps.length + 1 && names.slice(0, nDays).every((n, i) => n === String(i + 1)) && names[names.length - 1] === 'Review', names.slice(0, 3).join(',') + '...' + names.slice(-3).join(','));
+ok(`sheets: ${nDays} day sheets (1..${nDays}), ${emps.length} employee sheets, Review, Overtime`, names.length === nDays + emps.length + 2 && names.slice(0, nDays).every((n, i) => n === String(i + 1)) && names[names.length - 2] === 'Review', names.slice(0, 3).join(',') + '...' + names.slice(-3).join(','));
 ok('employee sheets are named "<name> <OPR>" in alphabetical order', names.slice(nDays, nDays + emps.length).every((n, i) => n === `${emps[i].name} ${emps[i].opr}`.slice(0, 31) || n.endsWith(emps[i].opr)), names.slice(nDays, nDays + emps.length).join(' | '));
 const d1 = wb.getWorksheet('1');
-ok('settings are applied: title line and sign-offs on a day sheet', d1.getCell('A4').value === 'Turbo-Machinery Dept. Daily Attendance Sheet' && [...Array(10)].some((_, i) => d1.getCell(9 + emps.length + 2 + i, 1).value === 'Turbo-Machinery SH/DH'));
+ok('settings are applied: title line and sign-offs on a day sheet', d1.getCell('A4').value === 'XO Alpha Dept. Daily Attendance Sheet' && tx(d1.getCell('C1')).includes('Maintenance Sector X') && tx(d1.getCell('C1')).includes('Operations [Fields] X') && d1.getCell(9 + emps.length + 1, 1).value === 'XO Alpha SH/DH' && d1.getCell(9 + emps.length + 1, 8).value === 'XO Alpha AGM', '');
 // every cell of every day sheet equals the database
 const dbRows = sql(`select p.opr, extract(day from d.day)::int, coalesce(s.status,'E'), coalesce(o.hours::text,''), coalesce(o.note,'') from public.profiles p cross join generate_series(date_trunc('month',current_date)::date, (date_trunc('month',current_date)+interval '1 month - 1 day')::date, '1 day') d(day) left join public.day_status s on s.user_id=p.id and s.day=d.day left join public.overtime o on o.user_id=p.id and o.day=d.day where p.department_id='${DA}' and p.active`).split('\n').map((l) => l.split('|'));
 let mism = 0; for (const [opr, day, status, hours, note] of dbRows) {
   const ws = wb.getWorksheet(String(Number(day))); let found = false;
-  for (let r = 9; r < 9 + emps.length; r++) if (ws.getCell(r, 5).value === opr) { found = true; if (ws.getCell(r, 6).value !== status || String(ws.getCell(r, 10).value ?? '') !== hours || String(ws.getCell(r, 11).value ?? '') !== note) mism++; }
+  for (let r = 9; r < 9 + emps.length; r++) if (ws.getCell(r, 5).value === opr) { found = true; if (ws.getCell(r, 6).value !== status || String(ws.getCell(r, 10).value ?? '') !== hours || !String(ws.getCell(r, 11).value ?? '').includes(note)) mism++; }
   if (!found) mism++;
 }
 ok(`all ${dbRows.length} day-sheet rows (status, overtime hours, note) equal the database`, mism === 0, `${mism} mismatches`);
 const e1 = wb.worksheets[nDays + emps.findIndex((e) => e.opr === 'EMC-901')];
-ok('employee sheet: name, title, level, location, contract number, department, code, payroll', e1.getCell('C6').value === 'XO Engineer One' && e1.getCell('C7').value === 'Engineer' && e1.getCell('C8').value === 'Level 3' && e1.getCell('C9').value === 'IDKU Site' && e1.getCell('P7').value === '033/2019' && e1.getCell('P8').value === 'TURBO (MAINT.)' && e1.getCell('P5').value === '19' && e1.getCell('P9').value === 'EMC-901');
-ok('employee sheet: daily values come from formulas that read the day sheets (day 1 X / 2h / "inventory")', typeof e1.getCell('B13').value === 'object' && e1.getCell('B13').value.formula.includes("'1'!") && res(e1.getCell('B13')) === 'X' && res(e1.getCell('I13')) === 2 && res(e1.getCell('J13')) === 'inventory');
+ok('employee sheet: name, title, level, location, contract number, department, code, payroll', e1.getCell('C8').value === 'XO Engineer One' && e1.getCell('C9').value === 'Engineer' && e1.getCell('C10').value === 'Level 3' && e1.getCell('C11').value === 'IDKU Site' && e1.getCell('P9').value === '033/2019' && e1.getCell('P10').value === 'TURBO (MAINT.)' && e1.getCell('P7').value === '19' && e1.getCell('P11').value === 'EMC-901');
+ok('employee sheet: daily values come from formulas that read the day sheets (day 1 X / 2h / "inventory")', typeof e1.getCell('B15').value === 'object' && e1.getCell('B15').value.formula.includes("'1'!") && res(e1.getCell('B15')) === 'X' && res(e1.getCell('I15')) === 2 && String(res(e1.getCell('J15'))).includes('inventory'));
 const rv = wb.getWorksheet('Review'); let rvOk = true, rvMsg = '';
 for (let i = 0; i < emps.length; i++) {
   const t = JSON.parse(sql(`select json_build_object('x', count(*) filter (where status='X'), 'y', count(*) filter (where status='Y'), 'ot', coalesce((select sum(hours) from public.overtime where user_id='${emps[i].id}' and day >= date_trunc('month',current_date) and day < date_trunc('month',current_date) + interval '1 month'),0)) from public.day_status where user_id='${emps[i].id}' and day >= date_trunc('month',current_date) and day < date_trunc('month',current_date) + interval '1 month'`));
@@ -117,24 +123,40 @@ for (let i = 0; i < emps.length; i++) {
   if (JSON.stringify(got) !== JSON.stringify([t.x, t.y, t.x + t.y, t.ot])) { rvOk = false; rvMsg += `${emps[i].name}: ${got} vs ${[t.x, t.y, t.x + t.y, t.ot]}; `; }
 }
 ok('review sheet: X days, Y days, total and overtime for every employee equal the database', rvOk, rvMsg);
-ok('review sheet: engineer days (SUMIF by title) = 3 + 1 = 4... computed from the data', res(rv.getCell(9 + emps.length + 1, 4)) === 4, String(res(rv.getCell(9 + emps.length + 1, 4))));
+ok('review sheet: engineer days (SUMIF by title) = 3 + 1 = 4... computed from the data', res(rv.getCell(9 + emps.length + 2, 4)) === 4, String(res(rv.getCell(9 + emps.length + 2, 4))));
+
+// ---- C2. arrival / departure / transport in the downloaded file (xou3 works alone on day 5 -> both marks, residence unset = IN)
+{ const d5 = wb.getWorksheet(String(Number(sql("select extract(day from date_trunc('month',current_date)::date+4)")))); let row = null;
+  for (let r = 9; r < 9 + emps.length; r++) if (d5.getCell(r, 5).value === 'EMC-903') row = r;
+  ok('an isolated work day is both Arrival and Departure: 2 trips in TRANS/IN (residence unspecified), comment says so', row && Number(d5.getCell(row, 8).value) === 2 && /Arrival/.test(d5.getCell(row, 11).value) && /Departure/.test(d5.getCell(row, 11).value), row && `${d5.getCell(row, 8).value} ${d5.getCell(row, 11).value}`); }
+
+// ---- C3. PDF
+{ await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
+  await dlg(p).locator('#export-format').selectOption('pdf');
+  const [dlp] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
+  await dlp.saveAs(S + '/xo.pdf');
+  const txt = execSync(`pdftotext -layout "${S}/xo.pdf" -`, { encoding: 'utf8' }), pages = Number(/Pages:\s+(\d+)/.exec(execSync(`pdfinfo "${S}/xo.pdf"`, { encoding: 'utf8' }))[1]);
+  ok('PDF download: named for the department and month, .pdf', dlp.suggestedFilename() === `timesheet_XO_Alpha_${month}.pdf`, dlp.suggestedFilename());
+  ok(`PDF: ${nDays} day pages + ${emps.length} employee pages + review + overtime`, pages === nDays + emps.length + 2, String(pages));
+  ok('PDF text: department title, an employee name, the review title, the printed department name', txt.includes('XO Alpha Dept. Daily Attendance Sheet') && txt.includes('XO Engineer One') && txt.includes('Monthly Attendance Sheet Review') && txt.includes('TURBO (MAINT.)')); }
 
 // ---- D. simple format still available
 const simple = await doExport(p, { format: 'simple' });
 ok('Simple grid format: the original one-grid workbook (grid sheet + overtime sheet)', simple.wb.worksheets.length === 2 && simple.wb.worksheets[1].name === 'Overtime');
+ok('official workbook ends with the Overtime summary sheet', names[names.length - 1] === 'Overtime' || names[names.length - 2] === 'Review' && names[names.length - 1] === 'Overtime', names.slice(-3).join(','));
 
 // ---- E. another month
 const other = await doExport(p, { monthValue: '2030-02' });
-ok('another month (Feb 2030, 28 days): 28 day sheets, the employees, Review; file named for that month', other.wb.worksheets.length === 28 + emps.length + 1 && other.name === 'timesheet_XO_Alpha_2030-02.xlsx' && other.wb.worksheets[27].name === '28');
+ok('another month (Feb 2030, 28 days): 28 day sheets, the employees, Review; file named for that month', other.wb.worksheets.length === 28 + emps.length + 2 && other.name === 'timesheet_XO_Alpha_2030-02.xlsx' && other.wb.worksheets[27].name === '28');
 
 // ---- F. Arabic UI, English workbook
 await p.click('text=العربية'); await p.waitForSelector('.tgrid tbody tr');
-await p.click('button:has-text("تصدير Excel")'); await p.waitForSelector('dialog[open]');
+await p.click('button:text-is("تصدير")'); await p.waitForSelector('dialog[open]');
 ok('Arabic UI: the export dialog is in Arabic', (await dlg(p).textContent()).includes('إعدادات التقرير') && (await dlg(p).textContent()).includes('التقرير الشهري الرسمي'));
 await p.screenshot({ path: S + '/xo-dialog-ar.png' });
 const [dla] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
 await dla.saveAs(S + '/xo-ar.xlsx'); const wba = new ExcelJS.Workbook(); await wba.xlsx.readFile(S + '/xo-ar.xlsx');
-ok('...the workbook itself stays the English company form', wba.getWorksheet('1').getCell('A4').value === 'Turbo-Machinery Dept. Daily Attendance Sheet' && wba.getWorksheet('Review').getCell('H8').value === 'Total Days');
+ok('...the workbook itself stays the English company form', wba.getWorksheet('1').getCell('A4').value === 'XO Alpha Dept. Daily Attendance Sheet' && wba.getWorksheet('Review').getCell('H8').value === 'Total Days');
 ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 await p.context().close();
 
@@ -146,12 +168,34 @@ sql(`insert into public.day_status (user_id, day, status) select p.id, d::date, 
 const big = await login('xoladm');
 await big.goto(BASE + '/#/team'); await big.waitForSelector('.tgrid tbody tr');
 const t0 = Date.now(); const bigOut = await doExport(big, {}); const secs = (Date.now() - t0) / 1000;
-ok(`40 employees: ${nDays + 40 + 1} sheets generated and downloaded in ${secs.toFixed(1)} s (limit 90 s)`, bigOut.wb.worksheets.length === nDays + 40 + 1 && secs < 90, `${bigOut.wb.worksheets.length} sheets, ${secs}s`);
+ok(`40 employees: ${nDays + 40 + 2} sheets generated and downloaded in ${secs.toFixed(1)} s (limit 90 s)`, bigOut.wb.worksheets.length === nDays + 40 + 2 && secs < 90, `${bigOut.wb.worksheets.length} sheets, ${secs}s`);
 const names2 = bigOut.wb.worksheets.map((w) => w.name);
 ok('...every sheet name valid (<=31 chars, unique, no forbidden characters) despite long names', names2.every((n) => n.length <= 31 && !/[\\/?*[\]:']/.test(n)) && new Set(names2.map((n) => n.toLowerCase())).size === names2.length);
 ok('...day sheets list all 40 employees', bigOut.wb.getWorksheet('3').getCell(9 + 39, 5).value?.toString().startsWith('EMC-') && !bigOut.wb.getWorksheet('3').getCell(9 + 40, 5).value);
 ok('big: no page errors ' + JSON.stringify(big.errs), big.errs.length === 0);
 await big.context().close();
+
+// ---- G. a plain user's compact calendar: help behind "i", own export (Excel + PDF)
+{ const u = await login('xou1', 420);
+  await u.goto(BASE + '/#/calendar'); await u.waitForSelector('.cal .grid .day');
+  ok('compact calendar: no inline help text (legend / hints)', (await u.locator('.cal .legend').count()) === 0 && (await u.locator('.cal p.muted').count()) === 0);
+  await u.click('.cal-tools button[aria-label="Help"]'); await u.waitForSelector('dialog[open]');
+  ok('the i button opens the help (legend + overtime note)', (await dlg(u).textContent()).length > 40);
+  await u.keyboard.press('Escape'); await u.waitForSelector('dialog[open]', { state: 'detached' });
+  await u.click('.cal-tools button:has-text("Export")'); await u.waitForSelector('dialog[open]');
+  const [dx] = await Promise.all([u.waitForEvent('download', { timeout: 60000 }), dlg(u).locator('button.primary').click()]);
+  await dx.saveAs(S + '/xo-user.xlsx'); const wu = new ExcelJS.Workbook(); await wu.xlsx.readFile(S + '/xo-user.xlsx');
+  const sh = wu.worksheets[0];
+  ok('user export: ONE sheet, only that person (their name, OPR, contract no.)', wu.worksheets.length === 1 && sh.getCell('C8').value === 'XO Engineer One' && sh.getCell('P11').value === 'EMC-901' && sh.getCell('P9').value === '033/2019' && dx.suggestedFilename().startsWith('timesheet_XO_Engineer_One_'), dx.suggestedFilename());
+  ok('user export: first day X with 2h overtime "inventory"; day 3 Y', sh.getCell('B15').value === 'X' && sh.getCell('I15').value === 2 && String(sh.getCell('J15').value).includes('inventory') && sh.getCell('B17').value === 'Y');
+  await u.click('.cal-tools button:has-text("Export")'); await u.waitForSelector('dialog[open]');
+  await dlg(u).locator('select').selectOption('pdf');
+  const [dpdf] = await Promise.all([u.waitForEvent('download', { timeout: 60000 }), dlg(u).locator('button.primary').click()]);
+  await dpdf.saveAs(S + '/xo-user.pdf');
+  const ut = execSync(`pdftotext -layout "${S}/xo-user.pdf" -`, { encoding: 'utf8' });
+  ok('user PDF: one page, own data only', /Pages:\s+1\b/.test(execSync(`pdfinfo "${S}/xo-user.pdf"`, { encoding: 'utf8' })) && ut.includes('XO Engineer One') && !ut.includes('XO Engineer Two'));
+  ok('user: no page errors ' + JSON.stringify(u.errs), u.errs.length === 0);
+  await u.context().close(); }
 
 cleanup();
 ok('cleanup removed every test row (real data untouched)', sql("select count(*) from auth.users where email ~ '^xo'") === '0' && sql("select count(*) from public.departments where name ~ '^XO '") === '0');
