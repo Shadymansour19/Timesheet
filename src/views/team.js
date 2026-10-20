@@ -13,7 +13,7 @@ import { choice } from '../components/choice.js';
 import { openReportSettings } from '../components/report-settings.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
-import { icon, SEARCH, INFO, UNDO, DOWNLOAD, REFRESH } from '../components/icons.js';
+import { icon, SEARCH, INFO, UNDO, DOWNLOAD, REFRESH, PRINT } from '../components/icons.js';
 
 const locale = () => (getLang() === 'ar' ? 'ar-u-nu-latn' : 'en');
 const fmt = (opts, date) => new Intl.DateTimeFormat(locale(), opts).format(date);
@@ -69,7 +69,8 @@ export function teamView() {
     if (quiet && (writes > 0 || writeEpoch !== epoch)) { scheduleLive(false); return; }
     if (quiet && built) {
       const samePeople = !p || JSON.stringify(p.map((x) => [x.id, x.full_name, x.opr, x.level, x.role])) === JSON.stringify(people.map((x) => [x.id, x.full_name, x.opr, x.level, x.role]));
-      if (samePeople && sameData(data, d)) return;
+      const sameRange = days.length === rd.length && days[0] === rd[0];   // a view / month change must always redraw
+      if (sameRange && samePeople && sameData(data, d)) return;
     }
     days = rd; data = d; if (p) { people = p; dept = dep; }
     if (!built) build();
@@ -112,7 +113,11 @@ export function teamView() {
     if (!e) return;
     try {
       if (e.type === 'cells') {
-        await track(() => setStatusRows(e.cells.map((c) => ({ user: c.uid, day: c.day, status: c.prev }))));
+        // the undo write queues behind any write still in flight for the same cells (otherwise it could land first and be overwritten)
+        const ks = e.cells.map((c) => key(c.uid, c.day));
+        const run = Promise.all(ks.map((k) => (chains.get(k) ?? Promise.resolve()).catch(() => {}))).then(() => setStatusRows(e.cells.map((c) => ({ user: c.uid, day: c.day, status: c.prev }))));
+        ks.forEach((k) => chains.set(k, run));
+        try { await track(() => run); } finally { ks.forEach((k) => { if (chains.get(k) === run) chains.delete(k); }); }
         for (const c of e.cells) setLocal(c.uid, c.day, c.prev);
         drawGrid();
       } else if (e.type === 'holiday') {
@@ -252,6 +257,16 @@ export function teamView() {
         await exportMonth({ dept, people, data: monthData, year: y, month: m - 1, lang: getLang(), template: templates[format.value === 'pdf' ? 'official' : format.value], format: format.value === 'pdf' ? 'pdf' : 'xlsx' });
       } }],
     });
+  }
+
+  // Print the month shown (department grid, one A4 landscape page) straight away; Excel if printing fails
+  async function printGrid() {
+    const y = viewMode === 'week' ? dateOf(addDays(weekStart, 3)).getFullYear() : cursor.y, m = viewMode === 'week' ? dateOf(addDays(weekStart, 3)).getMonth() : cursor.m;
+    try {
+      const [{ printMonth }, monthData] = await Promise.all([import('../export/engine.js'), fetchPaddedMonthData(y, m)]);
+      const how = await printMonth({ dept, people, data: monthData, year: y, month: m, lang: getLang() });
+      if (how === 'excel') toast(t('print_fallback'));
+    } catch (e) { toast(explain(e)); }
   }
 
   const openInfo = () => openDialog({ title: t('info_title'), content: h('div', { class: 'form' },
@@ -478,6 +493,7 @@ export function teamView() {
         h('div', { class: 'team-row tools' },
           h('button', { type: 'button', class: 'btn small', onclick: openBulk }, t('bulk_fill')), el.undo,
           h('button', { type: 'button', class: 'btn small icon-only', onclick: () => load({ quiet: false, withPeople: true }), 'aria-label': t('refresh'), title: t('refresh') }, icon(REFRESH, 18)),
+          h('button', { type: 'button', class: 'btn small', onclick: printGrid }, icon(PRINT, 16), t('print')),
           h('button', { type: 'button', class: 'btn small primary', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
           h('button', { type: 'button', class: 'btn small', onclick: () => openReportSettings({ dept, onSaved: () => renderTop() }) }, t('report_settings')),
           h('button', { type: 'button', class: 'btn small icon-only', onclick: openInfo, 'aria-label': t('info_title'), title: t('info_title') }, icon(INFO, 18)))),

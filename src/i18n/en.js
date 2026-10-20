@@ -183,6 +183,8 @@ export default {
   position: "Position (e.g. Engineer, Tech)",
   rs_approved_engineer: "Total approved (Engineer)",
   rs_approved_tech: "Total approved (Tech)",
+  print: "Print",
+  print_fallback: "Printing was not possible here, so the Excel file was downloaded instead.",
   export_format: "Format",
   export_official: "Official monthly report (day sheets, one sheet per employee, review)",
   export_simple: "Simple grid (one sheet)",

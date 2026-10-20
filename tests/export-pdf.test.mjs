@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { jsPDF } from 'jspdf';
 import { buildModel } from '../src/export/model.js';
-import { buildOfficialPdf } from '../src/export/pdf.js';
+import { buildOfficialPdf, buildGridPdf } from '../src/export/pdf.js';
 import official from '../src/export/templates/official.js';
 
 let fails = 0;
@@ -44,5 +44,12 @@ const big = run(40);
 ok('40 people paginate: more pages than 6 people, review still has totals', big.pages > 31 + 40 + 2 && /Total Engineer Days/.test(big.text), big.pages);
 const bigDay = execFileSync('pdftotext', ['-f', '1', '-l', '2', '-layout', big.f, '-']).toString();
 ok('40-person day continues on a second page with header repeated', (bigDay.match(/TRANS\/IN/g) || []).length === 2, (bigDay.match(/TRANS\/IN/g) || []).length);
+// ---- print sheet: the department month grid on ONE landscape A4 page
+const gridOf = (n) => { const r = run(2).model; const people = mk(n); const model = buildModel({ dept: { name: 'Turbo', code: '19' }, people, data: { status: new Map([['p0|2028-10-05', 'X'], ['p0|2028-10-06', 'Y']]), overtime: new Map(), holidays: new Set(['2028-10-02']) }, year: 2028, month: 9 }); const doc = buildGridPdf(model, official, { jsPDF, logos }); const f = join(dir, `grid${n}.pdf`); writeFileSync(f, Buffer.from(doc.output('arraybuffer'))); const info = execFileSync('pdfinfo', [f]).toString(); return { f, pages: +/Pages:\s+(\d+)/.exec(info)[1], size: /Page size:\s+([\d.]+) x ([\d.]+)/.exec(info), text: execFileSync('pdftotext', ['-layout', f, '-']).toString() }; };
+const g = gridOf(28);
+ok('print grid: 28 people on ONE page, landscape A4', g.pages === 1 && Math.round(+g.size[1]) === 842 && Math.round(+g.size[2]) === 595, JSON.stringify([g.pages, g.size?.[0]]));
+ok('print grid: title, month, names, totals and legend', /Turbo Dept\. - Monthly Timesheet/.test(g.text) && /Oct-28/.test(g.text) && /Person Number 27/.test(g.text) && /XH \/ YH/.test(g.text));
+ok('print grid: 60 people still ONE page (rows shrink)', gridOf(60).pages === 1);
+ok('print grid: an extreme headcount (200) continues on more pages instead of unreadable rows', gridOf(200).pages > 1);
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
 process.exit(fails ? 1 : 0);

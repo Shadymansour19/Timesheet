@@ -182,6 +182,26 @@ ok('...day sheets list all 40 employees', bigOut.wb.getWorksheet('3').getCell(9 
 ok('big: no page errors ' + JSON.stringify(big.errs), big.errs.length === 0);
 await big.context().close();
 
+// ---- H. Print: PDF into a hidden frame + print(); a failure falls back to the Excel download
+{ const stub = async (ctx, mode) => ctx.addInitScript((m) => {
+    Object.defineProperty(HTMLIFrameElement.prototype, 'src', { get() { return this.__s || ''; }, set(v) { this.__s = v; setTimeout(() => this.onload && this.onload(), 30); } });   // headless Chromium has no PDF viewer: pretend the frame loaded
+    Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', { get() { if (m === 'fail') throw new Error('no print here'); return { focus() {}, print: () => { window.__printed = (window.__printed || 0) + 1; window.__printedSrc = document.querySelector('iframe')?.__s; } }; } });
+  }, mode);
+  const mkCtx = async (mode, w = 1280) => { const ctx = await b.newContext({ viewport: { width: w, height: 900 }, acceptDownloads: true }); await stub(ctx, mode); const pg = await ctx.newPage(); pg.errs = []; pg.on('pageerror', (e) => pg.errs.push(e.message)); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); return pg; };
+  const pr = await mkCtx('ok'); await pr.goto(BASE + '/#/team'); await pr.waitForSelector('.tgrid tbody tr');
+  await pr.click('button:text-is("Print")');
+  ok('department Print: the PDF is sent to print() from a hidden frame (blob), no download', await eventually(async () => (await pr.evaluate(() => window.__printed || 0)) === 1) && (await pr.evaluate(() => window.__printedSrc || '')).startsWith('blob:'));
+  await pr.context().close();
+  const pf = await mkCtx('fail'); await pf.goto(BASE + '/#/team'); await pf.waitForSelector('.tgrid tbody tr');
+  const [dlf] = await Promise.all([pf.waitForEvent('download', { timeout: 60000 }), pf.click('button:text-is("Print")')]);
+  ok('department Print: when printing fails the Excel file is downloaded instead', dlf.suggestedFilename().endsWith('.xlsx'), dlf.suggestedFilename());
+  await pf.context().close();
+  const pu = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); await stub(pu, 'ok'); const up = await pu.newPage();
+  await up.goto(BASE + '/'); await up.fill('#username', 'xou1'); await up.fill('#password', PW); await up.click('button[type=submit]'); await up.waitForSelector('.cal .day');
+  await up.click('.cal-tools button:has-text("Print")');
+  ok('calendar Print: the person\'s own report page goes to print()', await eventually(async () => (await up.evaluate(() => window.__printed || 0)) === 1));
+  await pu.close(); }
+
 // ---- G. a plain user's compact calendar: help behind "i", own export (Excel + PDF)
 { const u = await login('xou1', 420);
   await u.goto(BASE + '/#/calendar'); await u.waitForSelector('.cal .grid .day');

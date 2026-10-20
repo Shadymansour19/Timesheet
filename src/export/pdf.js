@@ -287,3 +287,45 @@ export function buildOfficialPdf(model, tpl, { jsPDF, logos = {}, employeeId = n
   overtimePage(model, S, newPage, doc, sums);
   return doc;
 }
+
+// One landscape A4 page with the whole month grid of the department (names x days), for printing. Row height shrinks to fit
+// everyone on ONE page; only an extreme headcount (rows below 8 pt) continues on further pages.
+export function buildGridPdf(model, tpl, { jsPDF, logos = {} } = {}) {
+  const S = reportSettings(model, tpl);
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape', compress: true });
+  const W = 841.89 - 2 * 24, H = 595.28 - 2 * 24, nd = model.days.length, emps = model.employees;
+  const wNo = 20, wName = 130, wTot = 24, wDay = (W - wNo - wName - 3 * wTot) / nd;
+  const HEAD = 30, TOP = 44, LEG = 18, MIN = 6.5, MAXR = 18;
+  const avail = H - TOP - HEAD - LEG;
+  const perPage = Math.max(1, Math.floor(avail / MIN));
+  const pages = Math.max(1, Math.ceil(emps.length / perPage));
+  const per = Math.ceil(Math.max(emps.length, 1) / pages);
+  const rowH = Math.min(MAXR, avail / per), fs = Math.max(4, Math.min(8, rowH * 0.62));
+  const fillOf = { X: [198, 239, 206], XH: [198, 239, 206], Y: [255, 235, 156], YH: [255, 235, 156] };
+  for (let pg = 0; pg < pages; pg++) {
+    if (pg) doc.addPage('a4', 'landscape');
+    const x0 = 24, y0 = 24;
+    logo(doc, logos, 'left', x0, y0, 60, 34); logo(doc, logos, 'right', x0 + W - 40, y0, 34, 34);
+    tx(doc, `${S.deptTitle} - Monthly Timesheet`, x0 + W / 2, y0 + 12, { size: 12, bold: true, align: 'center' });
+    tx(doc, `${S.manpower}  |  ${monthText(model)}${pages > 1 ? `  |  ${pg + 1}/${pages}` : ''}`, x0 + W / 2, y0 + 28, { size: 8.5, align: 'center' });
+    let y = y0 + TOP;
+    const xs = [x0, x0 + wNo, x0 + wNo + wName];
+    cell(doc, xs[0], y, wNo, HEAD, 'No.', { bold: true, size: 6.5, fill: GREY }); cell(doc, xs[1], y, wName, HEAD, 'Name', { bold: true, size: 7, fill: GREY });
+    model.days.forEach((d, i) => {
+      const x = xs[2] + i * wDay, hol = d.holiday;
+      cell(doc, x, y, wDay, HEAD / 2, String(d.day), { bold: true, size: 6.5, fill: hol ? [253, 230, 138] : GREY });
+      cell(doc, x, y + HEAD / 2, wDay, HEAD / 2, ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.weekday], { size: 5.5, fill: hol ? [253, 230, 138] : GREY });
+    });
+    ['X', 'Y', 'OT'].forEach((h, i) => cell(doc, xs[2] + nd * wDay + i * wTot, y, wTot, HEAD, h, { bold: true, size: 6.5, fill: GREY }));
+    y += HEAD;
+    emps.slice(pg * per, (pg + 1) * per).forEach((e, k) => {
+      const r = y + k * rowH, b = { size: fs };
+      cell(doc, xs[0], r, wNo, rowH, String(pg * per + k + 1), b); cell(doc, xs[1], r, wName, rowH, e.fullName, { ...b, h: 'left' });
+      e.cells.forEach((c, i) => cell(doc, xs[2] + i * wDay, r, wDay, rowH, c.status === 'E' ? '' : c.eff, { size: Math.min(fs, wDay * 0.45), bold: true, fill: fillOf[c.eff] }));
+      const tx0 = xs[2] + nd * wDay;
+      cell(doc, tx0, r, wTot, rowH, String(e.totals.X + e.totals.XH), b); cell(doc, tx0 + wTot, r, wTot, rowH, String(e.totals.Y + e.totals.YH), b); cell(doc, tx0 + 2 * wTot, r, wTot, rowH, e.totals.ot ? String(e.totals.ot) : '', b);
+    });
+    tx(doc, 'X = work   Y = day/night shift (1.2X)   E = rest   XH / YH = worked on a department holiday   OT = overtime hours', x0, 595.28 - 24 - 4, { size: 6.5 });
+  }
+  return doc;
+}

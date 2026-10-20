@@ -5,7 +5,7 @@ import { fetchMonth, fetchEditWindow, setDayStatus, fetchPaddedMonthData, ymd, d
 import { fetchDepartment } from '../api/admin.js';
 import { openDialog } from '../components/dialog.js';
 import { choice } from '../components/choice.js';
-import { icon, INFO, DOWNLOAD } from '../components/icons.js';
+import { icon, INFO, DOWNLOAD, PRINT } from '../components/icons.js';
 import { WEEK_START } from '../lib/core.js';
 import * as live from '../live.js';
 import { toast } from '../components/toast.js';
@@ -93,6 +93,13 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
         await exportMonth({ dept: deptRow ?? { name: '' }, people: [ppl], data: d, year: cursor.y, month: cursor.m, lang: getLang(), format: format.value, employeeId: uid });
       } }] });
   }
+  async function printMine() {
+    try {
+      const [{ printMonth }, d, deptRow] = await Promise.all([import('../export/engine.js'), fetchPaddedMonthData(cursor.y, cursor.m, { userId: uid }), fetchDepartment(dept)]);
+      const how = await printMonth({ dept: deptRow ?? { name: '' }, people: [personRow()], data: d, year: cursor.y, month: cursor.m, lang: getLang(), employeeId: uid });
+      if (how === 'excel') toast(t('print_fallback'));
+    } catch { toast(t('save_failed')); }
+  }
   function personRow() {
     if (uid === me) return state.profile;
     return person;                     // the person view loaded the full row
@@ -142,6 +149,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
         h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m), onclick: () => { mode = m; draw(); } }, label))) : null;
 
     const tools = h('div', { class: 'cal-tools' },
+      h('button', { type: 'button', class: 'btn small', onclick: printMine }, icon(PRINT, 16), t('print')),
       h('button', { type: 'button', class: 'btn small', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
       h('button', { type: 'button', class: 'btn small icon-only', onclick: openHelp, 'aria-label': t('help'), title: t('help') }, icon(INFO, 18)));
     root.replaceChildren(

@@ -168,3 +168,33 @@ export async function exportMonth({ dept, people, data, year, month, lang, templ
   const buf = await wb.xlsx.writeBuffer();
   download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `timesheet_${safe}_${stamp}.xlsx`);
 }
+
+// Print directly: the PDF goes into a hidden frame and the browser's print dialog opens (A4 pages; the department grid is ONE
+// landscape page, a person's report is one portrait page). Any failure falls back to downloading the Excel file instead.
+// kind: 'grid' (whole department) | 'employee' (employeeId). Returns 'print' or 'excel'.
+export async function printMonth({ dept, people, data, year, month, lang, employeeId = null }) {
+  try {
+    const model = buildModel({ dept, people: employeeId ? people.filter((p) => p.id === employeeId) : people, data, year, month });
+    const [{ jsPDF }, pdf] = await Promise.all([import('jspdf'), import('./pdf.js')]);
+    const logos = await loadPdfLogos(officialTemplate);
+    const doc = employeeId ? pdf.buildOfficialPdf(model, officialTemplate, { jsPDF, logos, employeeId }) : pdf.buildGridPdf(model, officialTemplate, { jsPDF, logos });
+    const url = URL.createObjectURL(doc.output('blob'));
+    await new Promise((resolve, reject) => {
+      const f = document.createElement('iframe');
+      f.style.cssText = 'position:fixed;inset-inline-end:0;inset-block-end:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
+      f.onload = () => {
+        try { f.contentWindow.focus(); f.contentWindow.print(); resolve(); } catch (e) { reject(e); }
+        setTimeout(() => { f.remove(); URL.revokeObjectURL(url); }, 120000);
+      };
+      f.onerror = () => reject(new Error('print frame failed'));
+      setTimeout(() => reject(new Error('print frame did not load')), 15000);   // reject after a resolve is a no-op
+      f.src = url;
+      document.body.append(f);
+    });
+    return 'print';
+  } catch (e) {
+    console.warn('print failed, falling back to Excel', e);
+    await exportMonth({ dept, people, data, year, month, lang, format: 'xlsx', employeeId, template: employeeId ? officialTemplate : templates.simple });
+    return 'excel';
+  }
+}

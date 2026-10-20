@@ -183,6 +183,8 @@ export default {
   position: "الوظيفة (مثل مهندس، فني)",
   rs_approved_engineer: "إجمالي المعتمد (مهندسين)",
   rs_approved_tech: "إجمالي المعتمد (فنيين)",
+  print: "طباعة",
+  print_fallback: "تعذرت الطباعة هنا، لذلك تم تنزيل ملف Excel بدلاً منها.",
   export_format: "الصيغة",
   export_official: "التقرير الشهري الرسمي (ورقة لكل يوم، وورقة لكل موظف، ومراجعة)",
   export_simple: "شبكة بسيطة (ورقة واحدة)",
