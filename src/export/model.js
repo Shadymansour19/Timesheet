@@ -12,11 +12,15 @@ export function buildModel({ dept, people, data, year, month }) {
   const employees = people.map((p) => {
     const cells = days.map((dy) => {
       const status = data.status.get(`${p.id}|${dy.date}`) ?? 'E';
-      return { status, eff: effective(status, dy.holiday), ot: data.overtime.get(`${p.id}|${dy.date}`)?.hours ?? 0 };
+      const ov = data.overtime.get(`${p.id}|${dy.date}`);
+      return { status, eff: effective(status, dy.holiday), ot: ov?.hours ?? 0, note: ov?.note ?? '' };
     });
     const totals = { X: 0, Y: 0, XH: 0, YH: 0, E: 0, ot: 0 };
     for (const c of cells) { totals[c.eff]++; totals.ot += c.ot; }
-    return { id: p.id, fullName: p.full_name, username: p.username, opr: p.opr ?? '', level: p.level ?? '', cells, totals };
+    return {
+      id: p.id, fullName: p.full_name, username: p.username, opr: p.opr ?? '', level: p.level ?? '', cells, totals,
+      jobTitle: p.job_title ?? '', contractNo: p.contract_no ?? '', levelText: p.level === null || p.level === undefined || p.level === '' ? '' : `Level ${p.level}`,
+    };
   });
-  return { department: dept?.name ?? '', year, month, days, employees };
+  return { department: dept?.name ?? '', report: dept?.report ?? {}, year, month, days, employees };
 }

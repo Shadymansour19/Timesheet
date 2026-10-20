@@ -35,7 +35,7 @@ const dlgErr = async () => { await p.waitForFunction(() => document.querySelecto
 
 const p = await newPage('otadm');
 ok('admin tabs: Department | Overtime | Users | My calendar', (await p.locator('.nav a').allTextContents()).join('|') === 'Department|Overtime|Users|My calendar');
-await p.click('.nav a:text-is("Overtime")'); await p.waitForSelector('.ot-day');
+await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day');
 ok('month grid has one cell per day', (await p.locator('.ot-day').count()) === Number(db("select extract(day from (date_trunc('month',current_date)+interval '1 month - 1 day'))")));
 ok('day 4 shows the department total 7h (2+5) from 2 people, not the other department', (await cell(p, 4).locator('.st').textContent()) === '7h' && (await cell(p, 4).locator('.ot').textContent()) === '2 people');
 ok('day 10 shows 1h / 1 people; empty day shows a dash and no strip', (await cell(p, 10).locator('.st').textContent()) === '1h' && (await cell(p, 5).locator('.st').textContent()) === '–' && (await cell(p, 5).locator('.ot').count()) === 0);

@@ -19,7 +19,9 @@
     "test:ui-live": "node tests/ui/live-users-person.mjs",
     "test:ui-theme": "node tests/ui/theme.mjs",
     "test:ui-keyboard": "node tests/ui/keyboard.mjs",
-    "test:ui-bottom-nav": "node tests/ui/bottom-nav.mjs"
+    "test:ui-bottom-nav": "node tests/ui/bottom-nav.mjs",
+    "test:export-official": "node tests/export-official.test.mjs",
+    "test:ui-export": "node tests/ui/export-official.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

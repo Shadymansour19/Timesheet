@@ -17,6 +17,8 @@ export function personFields(initial = {}, { withLogin = false } = {}) {
     full_name: field(t('full_name'), { required: true, value: initial.full_name ?? '' }),
     opr: field(t('opr'), { required: true, value: initial.opr ?? '' }),
     level: field(t('level'), { type: 'number', min: 0, step: 1, inputmode: 'numeric', value: initial.level ?? '' }),
+    job_title: field(t('job_title'), { maxlength: 100, value: initial.job_title ?? '' }),
+    contract_no: field(t('contract_no'), { maxlength: 50, value: initial.contract_no ?? '' }),
   };
   const rows = Object.values(f).filter(Boolean).map((x) => x.row);
   const level = () => (f.level.input.value === '' ? null : Number(f.level.input.value));
@@ -72,6 +74,7 @@ export function usersView() {
         await callFn('create_user', {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: me.department_id, role: 'user',
+          job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
         });
         toast(t('user_created'), 'success'); await load();
       } }],
@@ -83,7 +86,7 @@ export function usersView() {
     openDialog({
       title: `${t('edit_data')}: ${person.username}`, content: h('div', { class: 'form' }, p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
-        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level());
+        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value);
         await load();
       } }],
     });
@@ -94,7 +97,7 @@ export function usersView() {
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
         h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${p.opr ?? '-'} · ${t('level')} ${p.level ?? '-'}`)),
+        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${p.opr ?? '-'} · ${t('level')} ${p.level ?? '-'}${p.job_title ? ' · ' + p.job_title : ''}`)),
       h('div', { class: 'pactions' },
         h('a', { class: 'btn small primary', href: '#/person/' + p.id }, t('timesheet')),
         h('button', { class: 'btn small', onclick: () => editUser(p) }, t('edit_data')),

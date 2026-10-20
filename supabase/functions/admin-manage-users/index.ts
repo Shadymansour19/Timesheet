@@ -89,6 +89,13 @@ Deno.serve(async (req) => {
         const opr = str(body.opr, "opr", 50);
         const level = body.level === null || body.level === undefined ? null : Number(body.level);
         if (level !== null && (!Number.isInteger(level) || level < 0)) throw new HttpError(400, "invalid level");
+        const optional = (v: unknown, name: string, max: number) => {   // optional free text, '' / missing = none
+          if (v === null || v === undefined || v === "") return null;
+          if (typeof v !== "string" || v.length > max) throw new HttpError(400, `invalid ${name}`);
+          return v.trim() || null;
+        };
+        const jobTitle = optional(body.job_title, "job_title", 100);
+        const contractNo = optional(body.contract_no, "contract_no", 50);
         const deptId = uuid(body.department_id, "department_id");
         const role = str(body.role ?? "user", "role", 20);
 
@@ -116,6 +123,8 @@ Deno.serve(async (req) => {
           level,
           department_id: deptId,
           role,
+          job_title: jobTitle,
+          contract_no: contractNo,
         });
         if (profErr) {
           await admin.auth.admin.deleteUser(created.user.id); // roll back the auth user

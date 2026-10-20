@@ -52,6 +52,8 @@ const tryLogin = async (un, pw) => { const ctx = await b.newContext(); const p =
 const cell = (p, uid, d) => p.locator(`td.c[data-u="${uid}"][data-d="${dstr(d)}"]`);
 const dlg = (p) => p.locator('dialog[open]');
 const settle = (p) => p.waitForTimeout(900);
+// poll until a condition holds (writes and Edge Function calls take a variable time; fixed waits are flaky)
+const until = async (fn, ms = 20000) => { const end = Date.now() + ms; while (Date.now() < end) { try { if (await fn()) return true; } catch { /* retry */ } await new Promise((r) => setTimeout(r, 300)); } return false; };
 
 // ================= department admin =================
 let p = await session('uiadm');
@@ -78,7 +80,7 @@ ok('cell shows X with overtime 4', (await cell(p, ID.u1, 5).textContent()) === '
 // brush mode
 await p.click('.seg button:text-is("X")');
 await cell(p, ID.u2, 6).click(); await cell(p, ID.u2, 7).click(); await settle(p);
-ok('brush X writes two days', (await st(ID.u2, 6)) === 'X' && (await st(ID.u2, 7)) === 'X');
+ok('brush X writes two days', await until(async () => (await st(ID.u2, 6)) === 'X' && (await st(ID.u2, 7)) === 'X'));
 await p.click('.seg button:text-is("E")'); await cell(p, ID.u2, 6).click(); await settle(p);
 ok('brush E clears the day (row deleted)', (await st(ID.u2, 6)) === 'E');
 
@@ -122,7 +124,7 @@ let mism = 0; for (const [name, day, status, hol] of rows) { const exp = status 
 ok(`all ${rows.length} exported cells equal the database`, mism === 0, `${mism} mismatches`);
 
 // ---- user management
-await p.click('.nav a:text-is("Users")'); await p.waitForSelector('.person');
+await p.click('.nav a:has(.lbl:text-is("Users"))'); await p.waitForSelector('.person');
 ok('users list shows own department only (3)', (await p.locator('.person').count()) === 3);
 const self = p.locator('.person', { hasText: 'UI Admin A' });
 ok('no delete/reset/demote buttons on own row', (await self.locator('button').allTextContents()).join('|') === 'Edit data');
@@ -146,12 +148,12 @@ ok('promote: role admin', db(`select role from public.profiles where username='u
 await p.locator('.person', { hasText: 'UI New Person' }).locator('button:text-is("Make user")').click(); await p.locator('dialog[open] button.primary').click(); await settle(p);
 ok('demote: role user', db(`select role from public.profiles where username='uinew'`) === 'user');
 await p.locator('.person', { hasText: 'UI New Person' }).locator('button:text-is("Delete")').click(); await p.locator('dialog[open] button.danger').click(); await settle(p);
-ok('delete: inactive and cannot log in', db(`select active from public.profiles where username='uinew'`) === 'f' && !(await tryLogin('uinew', 'Reset-Pass-123')));
+ok('delete: inactive and cannot log in', await until(() => db(`select active from public.profiles where username='uinew'`) === 'f') && await until(async () => !(await tryLogin('uinew', 'Reset-Pass-123'))));
 ok('deleted person disappears from list', (await p.locator('.person:has-text("UI New Person")').count()) === 0);
 ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 
 // admin's own calendar tab still works and shows own data
-await p.click('.nav a:text-is("My calendar")'); await p.waitForSelector('.day');
+await p.click('.nav a:has(.lbl:text-is("My calendar"))'); await p.waitForSelector('.day');
 ok('admin own calendar: Y on days 10-12', (await p.locator('.day').nth(9).locator('.st').textContent()) === 'Y');
 
 // ================= super admin =================
@@ -188,7 +190,7 @@ const rr = sa.locator('.dept', { hasText: 'UI Renamed Dept' }).locator('.person'
 await rr.locator('button:text-is("Reset password")').click(); await sa.waitForSelector('dialog[open]'); await dlg(sa).getByLabel('New password').fill('Admin-Reset-123'); await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached' });
 ok('super_admin resets an admin password', await tryLogin('uinewadm', 'Admin-Reset-123'));
 await sa.locator('.dept', { hasText: 'UI Renamed Dept' }).locator('.person', { hasText: 'UI New Admin' }).locator('button:text-is("Delete")').click(); await sa.locator('dialog[open] button.danger').click(); await settle(sa);
-ok('super_admin deletes an admin', db(`select active from public.profiles where username='uinewadm'`) === 'f' && !(await tryLogin('uinewadm', 'Admin-Reset-123')));
+ok('super_admin deletes an admin (inactive, then banned: cannot log in)', await until(() => db(`select active from public.profiles where username='uinewadm'`) === 'f') && await until(async () => !(await tryLogin('uinewadm', 'Admin-Reset-123'))));
 await sa.screenshot({ path: S + '/depts.png' });
 ok('super_admin: no page errors ' + JSON.stringify(sa.errs), sa.errs.length === 0);
 

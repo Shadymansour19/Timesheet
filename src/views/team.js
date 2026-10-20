@@ -9,6 +9,7 @@ import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { field } from '../components/form.js';
 import { openDayEditor } from '../components/day-editor.js';
+import { openReportSettings } from '../components/report-settings.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
 import { icon, SEARCH, INFO, UNDO, DOWNLOAD, REFRESH } from '../components/icons.js';
@@ -229,13 +230,18 @@ export function teamView() {
   function openExport() {
     const def = viewMode === 'week' ? addDays(weekStart, 3) : ymd(cursor.y, cursor.m, 1);
     const month = field(t('export_month'), { type: 'month', value: def.slice(0, 7), required: true });
+    const format = h('select', { id: 'export-format' }, h('option', { value: 'official' }, t('export_official')), h('option', { value: 'simple' }, t('export_simple')));
+    const content = h('div', { class: 'form' }, month.row,
+      h('div', { class: 'field' }, h('label', { for: 'export-format' }, t('export_format')), format),
+      h('button', { type: 'button', class: 'btn small', onclick: () => openReportSettings({ dept }) }, t('report_settings')),
+      h('p', { class: 'muted' }, t('export_official_hint')));
     openDialog({
-      title: t('export_excel'), content: h('div', { class: 'form' }, month.row),
+      title: t('export_excel'), content,
       buttons: [{ label: t('cancel') }, { label: t('export'), kind: 'primary', onClick: async () => {
         const [y, m] = month.input.value.split('-').map(Number);
         if (!y || !m) throw Object.assign(new Error(t('bulk_empty')), { code: '22023' });
-        const [{ exportMonth }, monthData] = await Promise.all([import('../export/engine.js'), fetchMonthData(y, m - 1)]);
-        await exportMonth({ dept, people, data: monthData, year: y, month: m - 1, lang: getLang() });
+        const [{ exportMonth, templates }, monthData] = await Promise.all([import('../export/engine.js'), fetchMonthData(y, m - 1)]);
+        await exportMonth({ dept, people, data: monthData, year: y, month: m - 1, lang: getLang(), template: templates[format.value] });
       } }],
     });
   }

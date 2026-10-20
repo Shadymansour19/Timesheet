@@ -1,8 +1,11 @@
 import { buildModel } from './model.js';
 import defaultTemplate from './templates/default.js';
+import officialTemplate from './templates/official.js';
+import { buildOfficialWorkbook } from './official.js';
 
-// The template currently in use. Swap here when the official form is available.
-export const activeTemplate = defaultTemplate;
+// Selectable formats; the official monthly report is the default.
+export const templates = { official: officialTemplate, simple: defaultTemplate };
+export const activeTemplate = officialTemplate;
 
 const colIndex = (letters) => letters.toUpperCase().split('').reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
 const colLetter = (n) => { let s = ''; for (; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s; return s; };
@@ -14,7 +17,8 @@ const thin = { style: 'thin', color: { argb: 'FFB0B7BF' } };
 const border = { top: thin, left: thin, bottom: thin, right: thin };
 
 // Pure: builds an ExcelJS workbook from the model. `ExcelJS` is injected so Node tests can call it too.
-export async function buildWorkbook(model, template, lang, ExcelJS, { loadSource } = {}) {
+export async function buildWorkbook(model, template, lang, ExcelJS, { loadSource, loadAsset } = {}) {
+  if (template.mode === 'official') return buildOfficialWorkbook(model, template, ExcelJS, { loadAsset });
   return template.mode === 'fill'
     ? fillWorkbook(model, template, ExcelJS, loadSource)
     : generateWorkbook(model, template, lang, ExcelJS);
@@ -130,6 +134,8 @@ export async function exportMonth({ dept, people, data, year, month, lang, templ
   const model = buildModel({ dept, people, data, year, month });
   const wb = await buildWorkbook(model, template, lang, ExcelJS, {
     loadSource: async (url) => (await fetch(url)).arrayBuffer(),
+    // optional images (logos): the host serves index.html for unknown paths, so only accept real images
+    loadAsset: async (url) => { const r = await fetch(url); return r.ok && (r.headers.get('content-type') || '').startsWith('image/') ? r.arrayBuffer() : null; },
   });
   const buf = await wb.xlsx.writeBuffer();
   const safe = (dept?.name ?? 'department').replace(/[^\p{L}\p{N}_-]+/gu, '_');

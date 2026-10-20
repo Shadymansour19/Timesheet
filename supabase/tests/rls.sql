@@ -101,6 +101,7 @@ insert into public.overtime (user_id, day, hours) values
 select t.anon();
 select t.denied('anon cannot read profiles', 'select * from public.profiles');
 select t.denied('anon cannot call set_overtime_bulk', $$select public.set_overtime_bulk(current_date, '[]'::jsonb)$$);
+select t.denied('anon cannot call set_department_report', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb)$$);
 select t.denied('anon cannot call set_day_status_rows', $$select public.set_day_status_rows('[]'::jsonb)$$);
 select t.denied('anon cannot call set_day_status',
   $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
@@ -137,6 +138,8 @@ select t.denied('user set_overtime on self',
   $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date, 9)$$);
 select t.denied('user bulk overtime', $$select public.set_overtime_bulk(current_date, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":9}]'::jsonb)$$);
 select t.denied('user set_day_status_rows', $$select public.set_day_status_rows('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"2030-01-01","status":"X"}]'::jsonb)$$);
+select t.denied('user set_department_report', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{"dept_code":"1"}'::jsonb)$$);
+select t.denied('user update_profile with job title', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', 1, 'Boss', null)$$);
 select t.denied('user set_holiday', $$select public.set_holiday(current_date, true)$$);
 select t.denied('user direct INSERT holidays',
   $$insert into public.holidays (department_id, day) values ('10000000-0000-0000-0000-00000000000a', current_date)$$);
@@ -329,6 +332,24 @@ select t.eq('edit persisted', $$select level::text from public.profiles where us
 select t.denied('adminA edits dept B user', $$select public.update_profile('00000000-0000-0000-0000-0000000000b2', 'x', 'OPR-B2', 1)$$);
 select t.denied('adminA edits super_admin', $$select public.update_profile('00000000-0000-0000-0000-0000000000a0', 'x', 'x', 1)$$);
 select t.denied('duplicate OPR rejected', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-B2', 1)$$, '23505');
+-- report fields: job title / contract number on people, print settings on departments
+select t.ok('adminA sets job title and contract number (6-argument update_profile)', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, 'Engineer', '033/2019')$$);
+select t.eq('...stored', $$select job_title || '|' || contract_no from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'Engineer|033/2019');
+select t.ok('the old 4-argument call still works and leaves them unchanged', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7)$$);
+select t.eq('...job title / contract number kept', $$select job_title || '|' || contract_no from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'Engineer|033/2019');
+select t.ok('empty text clears a field', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, '', null)$$);
+select t.eq('...job title cleared, contract number kept', $$select coalesce(job_title, 'NULL') || '|' || contract_no from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'NULL|033/2019');
+select t.denied('job title longer than 100 characters is rejected', format($f$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, '%s', null)$f$, repeat('x', 101)), '23514');
+select t.denied('adminA cannot set job title of a dept B person', $$select public.update_profile('00000000-0000-0000-0000-0000000000b2', 'x', 'OPR-B2', 1, 'Engineer', null)$$);
+select t.ok('adminA saves the print settings of his OWN department', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{"dept_title":"Turbo-Machinery Dept.","dept_code":"19","location":"IDKU Site","signoff_left":"Turbo-Machinery SH/DH"}'::jsonb)$$);
+select t.eq('...stored', $$select (report ->> 'dept_code') || '|' || (report ->> 'location') from public.departments where id = '10000000-0000-0000-0000-00000000000a'$$, '19|IDKU Site');
+select t.denied('adminA cannot set the print settings of department B', $$select public.set_department_report('10000000-0000-0000-0000-00000000000b', '{"dept_code":"99"}'::jsonb)$$);
+select t.denied('an unknown setting key is rejected', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{"evil":"x"}'::jsonb)$$, '22023');
+select t.denied('a non-text value is rejected', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{"dept_code":19}'::jsonb)$$, '22023');
+select t.denied('a value over 200 characters is rejected', format($f$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{"location":"%s"}'::jsonb)$f$, repeat('x', 201)), '22023');
+select t.denied('settings must be an object', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '["x"]'::jsonb)$$, '22023');
+select t.denied('direct UPDATE of departments.report is impossible', $$update public.departments set report = '{}'::jsonb$$);
+select t.eq('the report change was audited with adminA as actor', $$select count(*)::text from public.audit_log where table_name = 'departments' and field = 'report' and actor = '00000000-0000-0000-0000-0000000000a1' and department_id = '10000000-0000-0000-0000-00000000000a'$$, '1');
 select t.denied('adminA direct UPDATE profiles', $$update public.profiles set level = 1$$);
 select t.ok('adminA promotes ua2 to admin', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a3', 'admin')$$);
 select t.ok('adminA demotes ua2 back', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a3', 'user')$$);
@@ -370,6 +391,7 @@ select t.count('adminB sees no dept A audit', $$select 1 from public.audit_log w
 select t.denied('adminB set status in dept A', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
 select t.denied('adminB bulk overtime in dept A', $$select public.set_overtime_bulk(current_date, '[{"user":"00000000-0000-0000-0000-0000000000a2","hours":9}]'::jsonb)$$);
 select t.denied('adminB set_day_status_rows for dept A', $$select public.set_day_status_rows('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"2030-01-01","status":"X"}]'::jsonb)$$);
+select t.denied('adminB set_department_report for dept A', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{"dept_code":"1"}'::jsonb)$$);
 select t.denied('adminB overtime in dept A', $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date, 2)$$);
 select t.denied('adminB edit dept A user', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', 1)$$);
 select t.denied('adminB promote dept A user', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a2', 'admin')$$);
@@ -398,6 +420,8 @@ select t.denied('super_admin cannot set holiday', $$select public.set_holiday(cu
 select t.denied('super_admin cannot edit user data', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', 1)$$);
 select t.denied('super_admin cannot delete a plain user', $$select public.soft_delete_user('00000000-0000-0000-0000-0000000000a2')$$);
 select t.ok('super_admin creates department', $$select public.create_department('Dept C')$$);
+select t.ok('super_admin may set the print settings of any department', $$select public.set_department_report('10000000-0000-0000-0000-00000000000b', '{"dept_code":"20","location":"Abu Qir"}'::jsonb)$$);
+select t.denied('super_admin still cannot edit people data (job title)', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', 1, 'Boss', null)$$);
 select t.ok('super_admin renames department', $$select public.rename_department('10000000-0000-0000-0000-00000000000b', 'Dept B2')$$);
 select t.denied('duplicate department name rejected', $$select public.create_department('Dept A')$$, '23505');
 select t.ok('super_admin promotes user across depts', $$select public.set_user_role('00000000-0000-0000-0000-0000000000b2', 'admin')$$);
