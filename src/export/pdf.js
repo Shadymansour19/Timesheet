@@ -232,9 +232,9 @@ function reviewPages(model, S, logos, newPage, doc, sums) {
       let eng = 0, tech = 0; model.employees.forEach((e, k) => { if (/engineer/i.test(e.position)) eng += days(k); if (/tech/i.test(e.position)) tech += days(k); });
       y += 12;
       const b9 = { ...TIMES, size: 8.5 };
-      cell(doc, xs[1], y, cw[1] + cw[2], 18, 'Total Engineer Days', b9); cell(doc, xs[3], y, cw[3], 18, String(eng), { ...b9, fill: GREEN }); cell(doc, xs[4], y, cw[4] + cw[5] + cw[6] + cw[7] + cw[8], 18, 'Total Approved (Engineer)', b9); cell(doc, xs[11], y, cw[11], 18, model.approvedEngineer === null ? '' : String(model.approvedEngineer), b9);
+      cell(doc, xs[1], y, cw[1] + cw[2], 18, 'Total Engineer Days', b9); cell(doc, xs[3], y, cw[3], 18, String(eng), { ...b9, fill: GREEN }); cell(doc, xs[4], y, xs[11] - xs[4], 18, 'Total Approved (Engineer)', b9); cell(doc, xs[11], y, cw[11], 18, model.approvedEngineer === null ? '' : String(model.approvedEngineer), b9);
       y += 26;
-      cell(doc, xs[1], y, cw[1] + cw[2], 18, 'Total Technition Days', b9); cell(doc, xs[3], y, cw[3], 18, String(tech), { ...b9, fill: GREEN }); cell(doc, xs[4], y, cw[4] + cw[5] + cw[6] + cw[7] + cw[8], 18, 'Total Approved (Tech)', b9); cell(doc, xs[11], y, cw[11], 18, model.approvedTech === null ? '' : String(model.approvedTech), b9);
+      cell(doc, xs[1], y, cw[1] + cw[2], 18, 'Total Technition Days', b9); cell(doc, xs[3], y, cw[3], 18, String(tech), { ...b9, fill: GREEN }); cell(doc, xs[4], y, xs[11] - xs[4], 18, 'Total Approved (Tech)', b9); cell(doc, xs[11], y, cw[11], 18, model.approvedTech === null ? '' : String(model.approvedTech), b9);
       y += 34;
       tx(doc, S.signLeft, M, y, { size: 8, ...TIMES }); tx(doc, S.signRight, M + W, y, { size: 8, ...TIMES, align: 'right' });
     }

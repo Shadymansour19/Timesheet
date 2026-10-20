@@ -90,7 +90,11 @@ ok('export dialog: modern radio cards (no native dropdown), official Excel defau
 ok('department data missing -> a notice lists what is missing (defaults are used)', (await dlg(p).locator('.notice').textContent()).includes('Department code'));
 await p.keyboard.press('Escape');
 // the report data comes from the DEPARTMENT record (set here as a super admin would, via the department data dialog / RPC)
-sql(`update public.departments set code='19', sector='Maintenance Sector X', field='Operations [Fields] X', approved_engineer=264, approved_tech=295, report='{"dept_print_name":"TURBO (MAINT.)"}' where id='${DA}'`);
+await p.locator('button:text-is("Department data")').click(); await p.waitForSelector('dialog[open]');
+await dlg(p).getByLabel('Department code').fill('19'); await dlg(p).getByLabel('Sector (printed').fill('Maintenance Sector X'); await dlg(p).getByLabel('Field (printed').fill('Operations [Fields] X');
+await dlg(p).getByLabel('Department name as printed').fill('TURBO (MAINT.)'); await dlg(p).getByLabel('Total approved (Engineer)').fill('264'); await dlg(p).getByLabel('Total approved (Tech)').fill('295');
+await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
+ok('a DEPARTMENT ADMIN edits the department data himself (same dialog as the super admin)', await eventually(() => sql(`select code||'|'||sector||'|'||field||'|'||approved_engineer||'|'||approved_tech||'|'||(report->>'dept_print_name') from public.departments where id='${DA}'`) === '19|Maintenance Sector X|Operations [Fields] X|264|295|TURBO (MAINT.)'));
 sql(`update public.profiles set work_location='IDKU Site' where opr='EMC-901'`);
 sql(`update public.profiles set position='Engineer' where opr in ('EMC-901','EMC-902'); update public.profiles set position='Tech' where opr='EMC-903'`);
 await p.reload(); await p.waitForSelector('.tgrid tbody tr');

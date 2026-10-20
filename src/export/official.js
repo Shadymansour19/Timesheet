@@ -314,11 +314,11 @@ function reviewSheet(wb, model, S, emps, name, logos) {
   const b9 = { bold: true, size: 9 };
   merge(ws, T, 2, T, 3, 'Total Engineer Days', b9);
   setCell(ws, T, 4, fx(`SUMIF(${posRng},"*engineer*",${totalRng})`, engDays), { ...b9, fill: GREEN });
-  merge(ws, T, 5, T, 9, 'Total Approved (Engineer)', b9); setCell(ws, T, 10, null); setCell(ws, T, 11, null); setCell(ws, T, 12, model.approvedEngineer, b9);
+  merge(ws, T, 5, T, 11, 'Total Approved (Engineer)', b9); setCell(ws, T, 12, model.approvedEngineer, b9);
   ws.getRow(T).height = 20;
   merge(ws, T + 2, 2, T + 2, 3, 'Total Technition Days', b9);
   setCell(ws, T + 2, 4, fx(`SUMIF(${posRng},"*tech*",${totalRng})`, techDays), { ...b9, fill: GREEN });
-  merge(ws, T + 2, 5, T + 2, 9, 'Total Approved (Tech)', b9); setCell(ws, T + 2, 10, null); setCell(ws, T + 2, 11, null); setCell(ws, T + 2, 12, model.approvedTech, b9);
+  merge(ws, T + 2, 5, T + 2, 11, 'Total Approved (Tech)', b9); setCell(ws, T + 2, 12, model.approvedTech, b9);
   ws.getRow(T + 2).height = 20;
   const sig = T + 5;
   merge(ws, sig, 1, sig, 4, S.signLeft, { bold: true, size: 8, border: false, h: 'left' });

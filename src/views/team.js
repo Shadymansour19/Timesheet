@@ -10,6 +10,7 @@ import { openDialog } from '../components/dialog.js';
 import { field } from '../components/form.js';
 import { openDayEditor } from '../components/day-editor.js';
 import { choice } from '../components/choice.js';
+import { openReportSettings } from '../components/report-settings.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
 import { icon, SEARCH, INFO, UNDO, DOWNLOAD, REFRESH } from '../components/icons.js';
@@ -478,6 +479,7 @@ export function teamView() {
           h('button', { type: 'button', class: 'btn small', onclick: openBulk }, t('bulk_fill')), el.undo,
           h('button', { type: 'button', class: 'btn small icon-only', onclick: () => load({ quiet: false, withPeople: true }), 'aria-label': t('refresh'), title: t('refresh') }, icon(REFRESH, 18)),
           h('button', { type: 'button', class: 'btn small primary', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
+          h('button', { type: 'button', class: 'btn small', onclick: () => openReportSettings({ dept, onSaved: () => renderTop() }) }, t('report_settings')),
           h('button', { type: 'button', class: 'btn small icon-only', onclick: openInfo, 'aria-label': t('info_title'), title: t('info_title') }, icon(INFO, 18)))),
       el.wrap, el.empty, legend, el.announce);
     built = true;
