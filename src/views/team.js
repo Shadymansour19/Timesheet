@@ -259,7 +259,7 @@ export function teamView() {
     });
   }
 
-  // Print the month shown (department grid, one A4 landscape page) straight away; Excel if printing fails
+  // Print the official monthly report (PDF) of the month shown straight away; the official Excel file if printing fails
   async function printGrid() {
     const y = viewMode === 'week' ? dateOf(addDays(weekStart, 3)).getFullYear() : cursor.y, m = viewMode === 'week' ? dateOf(addDays(weekStart, 3)).getMonth() : cursor.m;
     try {

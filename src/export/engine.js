@@ -169,15 +169,14 @@ export async function exportMonth({ dept, people, data, year, month, lang, templ
   download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `timesheet_${safe}_${stamp}.xlsx`);
 }
 
-// Print directly: the PDF goes into a hidden frame and the browser's print dialog opens (A4 pages; the department grid is ONE
-// landscape page, a person's report is one portrait page). Any failure falls back to downloading the Excel file instead.
-// kind: 'grid' (whole department) | 'employee' (employeeId). Returns 'print' or 'excel'.
+// Print directly: the official monthly report as PDF (all A4 pages; with employeeId only that person's page) goes into a hidden
+// frame and the browser's print dialog opens. Any failure falls back to downloading the official Excel file. Returns 'print' or 'excel'.
 export async function printMonth({ dept, people, data, year, month, lang, employeeId = null }) {
   try {
     const model = buildModel({ dept, people: employeeId ? people.filter((p) => p.id === employeeId) : people, data, year, month });
     const [{ jsPDF }, pdf] = await Promise.all([import('jspdf'), import('./pdf.js')]);
     const logos = await loadPdfLogos(officialTemplate);
-    const doc = employeeId ? pdf.buildOfficialPdf(model, officialTemplate, { jsPDF, logos, employeeId }) : pdf.buildGridPdf(model, officialTemplate, { jsPDF, logos });
+    const doc = pdf.buildOfficialPdf(model, officialTemplate, { jsPDF, logos, employeeId });   // the OFFICIAL report (all pages), or one person's page
     const url = URL.createObjectURL(doc.output('blob'));
     await new Promise((resolve, reject) => {
       const f = document.createElement('iframe');
@@ -194,7 +193,7 @@ export async function printMonth({ dept, people, data, year, month, lang, employ
     return 'print';
   } catch (e) {
     console.warn('print failed, falling back to Excel', e);
-    await exportMonth({ dept, people, data, year, month, lang, format: 'xlsx', employeeId, template: employeeId ? officialTemplate : templates.simple });
+    await exportMonth({ dept, people, data, year, month, lang, format: 'xlsx', employeeId, template: officialTemplate });
     return 'excel';
   }
 }
