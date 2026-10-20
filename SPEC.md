@@ -125,3 +125,9 @@ All answered 2026-10-19; see Decision log.
 - Official workbook = day sheets, employee sheets, Review, Overtime summary (date columns hidden). Official PDF (jsPDF, Latin-only text, other characters print as "?") has the same parts; exports fetch the month plus one day either side.
 - User calendar: compact (help behind the "i" button) with an Export button (Excel or PDF of that person only). Export button of the department grid is now "Export" (formats: official Excel, official PDF, simple grid).
 - Desktop: all pages use the full window width; the department grid stretches to fill the tab.
+
+## Decisions 2026-10-20 (grid interaction, export dialog, department data, payroll display)
+- Department grid: no mode buttons. Click / Enter / Space on a day cycles E -> X -> Y -> E (each click = one undo step); click a day number toggles the department holiday; Shift + click (Shift + Enter) opens the day details (overtime, note); click a name opens the person's timesheet. Keys X / Y / E / Delete / H / Ctrl+Z unchanged. Hints: one line under the grid, tooltip on day numbers, the "i" dialog.
+- Export dialog: radio cards instead of a dropdown (Excel official / PDF official / Excel simple). No "Report settings" there: the report reads the DEPARTMENT record (code, sector, field columns; printed name and site location inside departments.report). Missing items are listed as a notice (defaults are used). The data is edited by a super admin in Departments -> "Department data". Live DB at this time: department Turbo has none of the five filled in. OPEN: should department admins edit it too, and should printed name / site location become real columns?
+- Payroll (OPR) is stored as entered and DISPLAYED as EMC-<number> when it is an integer (UI lists, grid, overtime tab, all exports); a value that already has text is shown as is.
+- Phone bottom bar: the active tab is shown by green icon and text only; the green pill background was removed.

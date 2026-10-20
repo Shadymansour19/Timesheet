@@ -34,6 +34,8 @@ ok('review + overtime titles', /Monthly Attendance Sheet Review/.test(a.text) &&
 ok('non-Latin characters replaced, not crashing', /Ahmed \?+ Ali/.test(a.text));
 ok('arrival comment present', /Arrival/.test(a.text) && /Departure/.test(a.text));
 ok('two logos embedded (one image object each, reused)', execFileSync('pdfimages', ['-list', a.f]).toString().split('\n').filter((l) => /\bimage\b/.test(l)).length >= 2);
+import { fmtOpr } from '../src/lib/core.js';
+ok('payroll display: integer gets EMC- prefix, existing prefix / text untouched', fmtOpr('1234') === 'EMC-1234' && fmtOpr(77) === 'EMC-77' && fmtOpr('EMC-5') === 'EMC-5' && fmtOpr(null) === '' && fmtOpr('OPR-1') === 'OPR-1');
 const one = run(6, { employeeId: 'p0' });
 ok('single employee PDF = 1 page with that person only', one.pages === 1 && /OPR-100/.test(one.text) && !/OPR-101/.test(one.text));
 ok('single page: totals X=2 Y=1 OT 3', /Total \(X\) Days:\s+2/.test(one.text) && /Total \(Y\) Days:\s+1/.test(one.text));

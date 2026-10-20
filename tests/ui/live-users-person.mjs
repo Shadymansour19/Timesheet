@@ -62,26 +62,25 @@ const Bp = await login('lbadm'); await gridReady(Bp);
 ok('team grid shows a "Live" indicator once connected', (await txt(A.locator('.live-dot'))) === 'Live');
 
 // 1) paint on A -> A2 sees it without reload
-await A.locator('.team-row.tools .seg button:text-is("X")').click(); await cellTeam(A, 2).click();
+await cellTeam(A, 2).click();
 ok('admin A paints lu2 = X', await eventually(() => st(2) === 'X'));
 ok("admin A2's grid shows it LIVE (no reload)", await eventually(async () => (await txt(cellTeam(A2, 2))) === 'X'));
 ok("headcount row on A2 updated too (X = 1)", await eventually(async () => (await A2.locator(`tfoot td.hc[aria-label]`).evaluateAll((els, T) => els.find((e, i) => true) && els.map((e) => e.getAttribute('aria-label')), T)).some((l) => l === 'X 1, Y 0')));
-await A.locator('.banner button').click();
 
 // 2) change made directly in the database (e.g. by another system) reaches an open user calendar
 sql(`insert into public.day_status (user_id, day, status) values ('${uid(1)}', '${T}', 'X')`);
 ok("user lu1's calendar shows X live after a database change", await eventually(async () => (await txt(U.locator('.day.today .st'))) === 'X'));
 
 // 3) holiday toggled by A2 -> A header, lu1's calendar (XH)
-await A2.locator('.team-row.tools .seg button:text-is("Holiday")').click(); await A2.locator(`th.dh[data-d="${T}"]`).click();
+await A2.locator(`th.dh[data-d="${T}"]`).click();
 ok('A2 marked today as a holiday', await eventually(() => sql(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '1'));
 ok('admin A header turns amber (holiday) live', await eventually(async () => (await A.locator(`th.dh[data-d="${T}"]`).getAttribute('class')).includes('holiday')));
 ok("user lu1's calendar shows XH live (holiday applied to their X)", await eventually(async () => (await txt(U.locator('.day.today .st'))) === 'XH'));
-await A2.locator(`th.dh[data-d="${T}"]`).click(); await A2.locator('.banner button').click();
+await A2.locator(`th.dh[data-d="${T}"]`).click();
 ok('holiday removed -> lu1 back to X live', await eventually(async () => (await txt(U.locator('.day.today .st'))) === 'X'));
 
 // 4) admin edits lu1 (status + overtime) via the grid dialog -> the user's own calendar updates live
-await cellTeam(A, 1).click(); await A.waitForSelector('dialog[open]');
+await cellTeam(A, 1).click({ modifiers: ['Shift'] }); await A.waitForSelector('dialog[open]');
 await A.locator('dialog[open] input[name=st][value=Y]').check(); await A.locator('dialog[open] input[type=number]').fill('2'); await A.locator('dialog[open] button.primary').click(); await A.waitForSelector('dialog[open]', { state: 'detached' });
 ok("lu1's calendar shows Y and the +2h overtime strip live", await eventually(async () => (await txt(U.locator('.day.today .st'))) === 'Y' && (await txt(U.locator('.day.today .ot'))) === '+2h'));
 
@@ -89,7 +88,7 @@ ok("lu1's calendar shows Y and the +2h overtime strip live", await eventually(as
 await A2.goto('http://localhost:4173/#/overtime'); await A2.waitForSelector('.ot-day'); await A2.waitForSelector('.live-dot, .ot-day');
 const todayIdx = Number(T.slice(8)) - 1;
 ok('overtime tab shows today = 2h (from lu1)', (await txt(A2.locator('.ot-day').nth(todayIdx).locator('.st'))) === '2h');
-await cellTeam(A, 3).click(); await A.waitForSelector('dialog[open]');
+await cellTeam(A, 3).click({ modifiers: ['Shift'] }); await A.waitForSelector('dialog[open]');
 await A.locator('dialog[open] input[type=number]').fill('3'); await A.locator('dialog[open] button.primary').click(); await A.waitForSelector('dialog[open]', { state: 'detached' });
 ok("overtime tab on A2 updates LIVE to 5h (2 + 3) when A adds overtime", await eventually(async () => (await txt(A2.locator('.ot-day').nth(todayIdx).locator('.st'))) === '5h'));
 
@@ -203,7 +202,7 @@ await A.click('.back-link'); await A.waitForSelector('.tgrid');
 ok('Back returns to the grid', A.url().endsWith('#/team'));
 // Arabic
 await A.goto('http://localhost:4173/#/person/' + uid(2)); await A.waitForSelector('.person-head'); await A.click('text=العربية'); await A.waitForSelector('.cal-mode');
-ok('Arabic: person page mode labels and hint', (await A.locator('.cal-mode').textContent()).includes('النقر') && (await A.textContent('.legend')).includes('اضغط على يوم'));
+ok('Arabic: person page mode labels and hint', (await A.locator('.cal-mode').textContent()).includes('النقر') && (await (async () => { await A.click('.cal-tools button[aria-label="مساعدة"]'); await A.waitForSelector('dialog[open]'); const tx = await A.textContent('dialog[open]'); await A.keyboard.press('Escape'); return tx; })()).includes('اضغط على يوم'));
 await A.screenshot({ path: S + '/lv-person-ar.png' });
 await A.click('text=English'); await A.waitForSelector('.cal-mode'); await A.screenshot({ path: S + '/lv-person.png' });
 

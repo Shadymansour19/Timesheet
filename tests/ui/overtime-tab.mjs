@@ -44,7 +44,7 @@ ok('totals: 8h, 2 days, 2 people', (await p.locator('.totals').textContent()).re
 await p.screenshot({ path: S + '/ot-grid.png' });
 
 // ---- open a day: everybody listed, prefilled
-await cell(p, 4).click(); await p.waitForSelector('dialog[open]');
+await cell(p, 4).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 ok('dialog lists all 4 people of the department (admin + 3 users), nobody from another department', (await p.locator('dialog[open] .otrow').count()) === 4 && (await p.locator('dialog[open] .otrow strong:text-is("OT Other Dept")').count()) === 0);
 ok('existing overtime is prefilled (u1=2, u2=5 + note)', (await rowOf('OT User One').locator('.ot-hours').inputValue()) === '2' && (await rowOf('OT User Two').locator('.ot-hours').inputValue()) === '5' && (await rowOf('OT User Two').locator('.ot-note').inputValue()) === 'fixture note');
 ok('note field is hidden until a person has hours', (await rowOf('OT User Three').locator('.ot-note').isHidden()) && (await rowOf('OT User Two').locator('.ot-note').isVisible()));
@@ -80,7 +80,7 @@ await p.locator('dialog[open] button.primary').click(); await p.waitForSelector(
 ok('saving without changes closes quietly and writes nothing', (await ot(ID.u1, 4)) === '2|' && (await ot(ID.u2, 4)) === '5|fixture note');
 
 // ---- real edit: different hours and notes for several people, one removal
-await cell(p, 4).click(); await p.waitForSelector('dialog[open]');
+await cell(p, 4).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 await rowOf('OT User One').locator('.ot-hours').fill('3'); await rowOf('OT User One').locator('.ot-note').fill('night shift');
 await rowOf('OT User Three').locator('.ot-hours').fill('4');
 ok('note box appears as soon as hours are entered', await rowOf('OT User Three').locator('.ot-note').isVisible());
@@ -98,13 +98,13 @@ ok('entered_by is the admin for every row and audit has him as actor', db(`selec
 ok('grid cell updated at once: 8h from 3 people', (await cell(p, 4).locator('.st').textContent()) === '8h' && (await cell(p, 4).locator('.ot').textContent()) === '3 people');
 
 // ---- note-only edit
-await cell(p, 4).click(); await p.waitForSelector('dialog[open]');
+await cell(p, 4).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 await rowOf('OT User One').locator('.ot-note').fill('inventory');
 await p.locator('dialog[open] button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('changing only a note is saved (hours unchanged)', (await ot(ID.u1, 4)) === '3|inventory');
 
 // ---- empty day, add from scratch; persists after reload
-await cell(p, 20).click(); await p.waitForSelector('dialog[open]');
+await cell(p, 20).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 ok('empty day: all rows blank, no note boxes', (await p.locator('dialog[open] .ot-note:visible').count()) === 0 && (await p.locator('dialog[open] .ot-hours').first().inputValue()) === '');
 await rowOf('OT User Two').locator('.ot-hours').fill('24'); await p.locator('dialog[open] button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('24h (the maximum) is accepted', (await ot(ID.u2, 20)) === '24|');
@@ -122,7 +122,7 @@ ok('the form is empty again after coming back', (await p.inputValue('#cur')) ===
 await p.goto('http://localhost:4173/#/overtime'); await p.waitForSelector('.ot-day');
 await p.click('text=العربية'); await p.waitForSelector('.ot-day');
 ok('Arabic tab label "الإضافي"', (await p.locator('.nav a').nth(1).textContent()).trim() === 'الإضافي');
-await cell(p, 4).click(); await p.waitForSelector('dialog[open]');
+await cell(p, 4).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 ok('Arabic dialog: placeholder + totals text', (await p.locator('dialog[open] .ot-search').getAttribute('placeholder')) === 'بحث بالاسم أو الرمز' && (await p.locator('dialog[open] .ot-total').textContent()).includes('الإجمالي'));
 const sb2 = await p.locator('dialog[open] button.primary').boundingBox();
 ok('Arabic dialog (all rows prefilled with notes): Save still visible without scrolling', sb2 && sb2.y + sb2.height <= 800, JSON.stringify(sb2));

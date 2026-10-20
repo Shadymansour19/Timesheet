@@ -70,7 +70,7 @@ ok('switch to the user: name, role view, calendar', (await who()) === 'Switch Us
 await tapToday();   // X -> Y as the user
 ok('after switching, writes are performed AS THE USER', (await statusBy(ID.u1)) === 'Y|true', await statusBy(ID.u1));
 await openMenu(); await p.locator('.acct-pick', { hasText: 'Switch Admin' }).click(); await p.waitForSelector('.tgrid');
-await p.locator(`td.c[data-u="${ID.u1}"][data-d="${today}"]`).click(); await p.waitForSelector('dialog[open]');
+await p.locator(`td.c[data-u="${ID.u1}"][data-d="${today}"]`).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 await p.locator('dialog[open] input[name=st][value=E]').check(); await p.locator('dialog[open] button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('after switching back, admin edits are performed AS THE ADMIN (and E clears the row)', db(`select count(*) from public.day_status where user_id='${ID.u1}' and day=current_date`) === '0');
 ok('audit shows the admin as actor of that change', db(`select count(*) from public.audit_log where actor='${ID.adm}' and target_user='${ID.u1}' and table_name='day_status'`) !== '0');

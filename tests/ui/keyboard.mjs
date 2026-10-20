@@ -48,7 +48,6 @@ const nameCell = (p, i) => p.locator(`tr[data-u="${uid(i)}"] th.nm`);
 const active = (p) => p.evaluate(() => { const a = document.activeElement; const tr = a?.closest?.('tr'); return a && tr ? { u: tr.dataset.u, d: a.dataset?.d ?? null, name: a.matches('th.nm') } : null; });
 const at = async (p, i, d) => { const a = await active(p); return a && a.u === uid(i) && (d === 'name' ? a.name : a.d === d); };
 const key = (p, k) => p.keyboard.press(k);
-const modeBtn = (p, label) => p.locator(`.team-row.tools .seg button:text-is("${label}")`);
 const undoBtn = (p) => p.locator('.team-row.tools button:has-text("Undo")').first();
 const plus = (d, n) => sql(`select to_char('${d}'::date + ${n},'YYYY-MM-DD')`);
 
@@ -106,20 +105,24 @@ await key(p, 'ArrowUp'); await key(p, 'Control+z'); ok('Ctrl+Z again undoes the 
 ok('keys on a name cell never change a status (x ignored)', await (async () => { await nameCell(p, 2).focus(); await key(p, 'x'); await p.waitForTimeout(600); return st(2) === 'E'; })());
 
 // ---- Enter / Space / H
-await cell(p, 1).focus(); await key(p, 'Enter'); await p.waitForSelector('dialog[open]');
-ok('Enter in Edit mode opens the day editor for that person and date', (await p.textContent('dialog[open] .muted')).includes('KB User 1'));
+await cell(p, 1).focus(); await key(p, 'Shift+Enter'); await p.waitForSelector('dialog[open]');
+ok('Shift+Enter opens the day editor for that person and date', (await p.textContent('dialog[open] .muted')).includes('KB User 1'));
 await p.locator('dialog[open] input[name=st][value=Y]').check(); await p.locator('dialog[open] button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('after saving, focus returns to the same cell (keyboard flow is not interrupted)', await eventually(() => at(p, 1, T)) && st(1) === 'Y');
 await key(p, 'Escape');
-await modeBtn(p, 'X').click(); await cell(p, 2).focus(); await key(p, 'Enter');
-ok('in painting mode (X) Enter paints the cell', await eventually(() => st(2) === 'X'));
-await p.locator('.banner button').click();
+await cell(p, 2).focus(); await key(p, 'Enter');
+ok('Enter cycles the cell E -> X', await eventually(() => st(2) === 'X'));
+await key(p, ' ');
+ok('Space cycles X -> Y', await eventually(() => st(2) === 'Y'));
+await key(p, 'Enter');
+ok('Enter cycles Y -> E', await eventually(() => st(2) === 'E'));
 await cell(p, 3).focus(); await key(p, 'h');
 ok('H marks the day as a holiday for the department', await eventually(() => sql(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '1') && (await p.locator(`th.dh[data-d="${T}"]`).getAttribute('class')).includes('holiday'));
 await key(p, 'Control+z'); ok('Ctrl+Z removes the holiday again', await eventually(() => sql(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '0'));
-await modeBtn(p, 'Holiday').click(); await cell(p, 3).focus(); await key(p, ' ');
-ok('in holiday mode Space toggles the holiday of that day', await eventually(() => sql(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '1'));
-await key(p, 'Space'); await key(p, ' '); await p.locator('.banner button').click(); await eventually(() => sql(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '0');
+await p.locator(`th.dh[data-d="${T}"]`).click();
+ok('clicking a day number marks the holiday', await eventually(() => sql(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '1'));
+await p.locator(`th.dh[data-d="${T}"]`).click();
+ok('clicking it again unmarks it', await eventually(() => sql(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '0'));
 // name cell + Enter = person page
 await nameCell(p, 4).focus(); await key(p, 'Enter'); await p.waitForSelector('.person-head');
 ok('Enter on a name opens that person\'s timesheet', p.url().includes('#/person/' + uid(4)));

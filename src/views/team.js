@@ -2,14 +2,14 @@ import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective } from '../api/timesheet.js';
-import { WEEK_START, sameData } from '../lib/core.js';
+import { WEEK_START, sameData, fmtOpr } from '../lib/core.js';
 import * as live from '../live.js';
 import { fetchDeptPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { field } from '../components/form.js';
 import { openDayEditor } from '../components/day-editor.js';
-import { openReportSettings } from '../components/report-settings.js';
+import { choice } from '../components/choice.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
 import { icon, SEARCH, INFO, UNDO, DOWNLOAD, REFRESH } from '../components/icons.js';
@@ -35,7 +35,6 @@ export function teamView() {
 
   const root = h('section', { class: 'team' });
   let people = [], dept = null, data = null, days = [];
-  let mode = 'edit';                          // 'edit' | 'X' | 'Y' | 'E' | 'holiday'
   let query = '';
   let built = false, seq = 0, scrollToToday = true;
   const undoStack = [];
@@ -144,6 +143,9 @@ export function teamView() {
     finally { writes--; if (chains.get(k) === run) chains.delete(k); }
   }
 
+  const NEXT = { E: 'X', X: 'Y', Y: 'E' };
+  const cycle = (uid, day) => brush(uid, day, NEXT[statusOf(uid, day)], false);
+
   async function toggleHoliday(day) {
     const on = !data.holidays.has(day);
     if (on) data.holidays.add(day); else data.holidays.delete(day);
@@ -230,10 +232,14 @@ export function teamView() {
   function openExport() {
     const def = viewMode === 'week' ? addDays(weekStart, 3) : ymd(cursor.y, cursor.m, 1);
     const month = field(t('export_month'), { type: 'month', value: def.slice(0, 7), required: true });
-    const format = h('select', { id: 'export-format' }, h('option', { value: 'official' }, t('export_official')), h('option', { value: 'pdf' }, t('export_pdf')), h('option', { value: 'simple' }, t('export_simple')));
-    const content = h('div', { class: 'form' }, month.row,
-      h('div', { class: 'field' }, h('label', { for: 'export-format' }, t('export_format')), format),
-      h('button', { type: 'button', class: 'btn small', onclick: () => openReportSettings({ dept }) }, t('report_settings')),
+    const format = choice(t('export_format'), [
+      { value: 'official', label: t('export_fmt_xlsx'), hint: t('export_fmt_xlsx_hint') },
+      { value: 'pdf', label: t('export_fmt_pdf'), hint: t('export_fmt_pdf_hint') },
+      { value: 'simple', label: t('export_fmt_simple'), hint: t('export_fmt_simple_hint') }], 'official');
+    // The report prints department data; anything missing there falls back to a default - say so
+    const missing = [[dept?.code, 'rs_code'], [dept?.sector, 'rs_sector'], [dept?.field, 'rs_field'], [dept?.report?.dept_print_name, 'rs_dept_print_name'], [dept?.report?.location, 'rs_location']].filter(([v]) => !v).map(([, k]) => t(k));
+    const content = h('div', { class: 'form' }, month.row, format.row,
+      missing.length ? h('p', { class: 'notice', role: 'status' }, `${t('export_missing_dept')} ${missing.join(', ')}`) : null,
       h('p', { class: 'muted' }, t('export_official_hint')));
     openDialog({
       title: t('export_title'), content,
@@ -279,8 +285,8 @@ export function teamView() {
   }
   function announce(text) { if (!el.announce) return; el.announce.textContent = ''; setTimeout(() => { el.announce.textContent = text; }, 30); }
 
-  // Enter / Space on a cell does what a tap does in the current mode (holiday mode: toggle that day)
-  function activate(uid, day) { if (mode === 'edit') openEditor(uid, day); else if (mode === 'holiday') toggleHoliday(day); else brush(uid, day, mode); }
+  // Click / Enter / Space on a cell cycles E -> X -> Y -> E; Shift + it opens the day details (overtime, note)
+  function activate(uid, day, details = false) { if (details) openEditor(uid, day); else cycle(uid, day); }
 
   function onKey(e) {
     if (e.altKey || e.defaultPrevented) return;
@@ -314,7 +320,7 @@ export function teamView() {
     if (k === 'x' || k === 'y' || k === 'e') { e.preventDefault(); brush(uid, day, k.toUpperCase(), false); }
     else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); brush(uid, day, 'E', false); }
     else if (k === 'h') { e.preventDefault(); toggleHoliday(day); }
-    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(uid, day); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(uid, day, e.shiftKey); }
   }
 
   // ---------- rendering ----------
@@ -339,7 +345,7 @@ export function teamView() {
     const mine = focusPos && focusPos.uid === p.id;
     tr.append(h('th', { class: 'nm', scope: 'row', tabindex: mine && focusPos.day === null ? 0 : -1 },
       h('span', { class: 'nm-name' }, p.full_name),
-      h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, p.opr ?? ''), h('span', { class: 'tots' }, totalsLine(p.id)))));
+      h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, fmtOpr(p.opr)), h('span', { class: 'tots' }, totalsLine(p.id)))));
     const t0 = todayStr();
     for (const day of days) {
       const hol = data.holidays.has(day), ot = otOf(p.id, day);
@@ -383,7 +389,7 @@ export function teamView() {
     const head = h('tr', {}, h('th', { class: 'nm' }, t('employee')));
     for (const day of days) {
       const d = dateOf(day);
-      head.append(h('th', { class: 'dh' + (data.holidays.has(day) ? ' holiday' : '') + (day === t0 ? ' today' : '') + (mode === 'holiday' ? ' pick' : ''), 'data-d': day, scope: 'col' },
+      head.append(h('th', { class: 'dh' + (data.holidays.has(day) ? ' holiday' : '') + (day === t0 ? ' today' : '') , 'data-d': day, scope: 'col', title: t('hint_day_number') },
         h('span', {}, d.getDate()), h('small', {}, fmt({ weekday: viewMode === 'week' ? 'short' : 'narrow' }, d))));
     }
     const visible = people.filter(matches);
@@ -421,16 +427,8 @@ export function teamView() {
     el.head.replaceChildren(monthHead(title(), { onPrev: () => go(-1), onNext: () => go(1), onToday: now }));
     el.views.replaceChildren(...[['month', t('view_month')], ['week', t('view_week')]].map(([v, label]) =>
       h('button', { type: 'button', class: 'btn small' + (viewMode === v ? ' on' : ''), 'aria-pressed': String(viewMode === v), onclick: () => switchView(v) }, label)));
-    const modes = [['edit', t('mode_edit')], ['X', 'X'], ['Y', 'Y'], ['E', 'E'], ['holiday', t('holiday')]];
-    el.modes.replaceChildren(...modes.map(([m, label]) => h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m),
-      onclick: () => { mode = m; renderTop(); drawGrid(); } }, label)));
     el.undo.disabled = undoStack.length === 0;
     el.undo.replaceChildren(icon(UNDO, 16), `${t('undo')}${undoStack.length ? ` (${undoStack.length})` : ''}`);
-    const painting = ['X', 'Y', 'E'].includes(mode);
-    el.banner.hidden = !(painting || mode === 'holiday');
-    el.banner.className = 'banner' + (painting ? ' paint s-' + mode.toLowerCase() : ' hol');
-    el.banner.replaceChildren(h('span', {}, painting ? t('painting').replaceAll('{s}', mode) : t('holiday_mode')),
-      h('button', { type: 'button', class: 'btn small', onclick: () => { mode = 'edit'; renderTop(); drawGrid(); } }, t('done')));
   }
 
   function build() {
@@ -444,20 +442,18 @@ export function teamView() {
     el.search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { query = el.search.value.trim().toLowerCase(); drawGrid(); }, 120); });
     el.count = h('span', { class: 'muted team-count' });
     el.views = h('div', { class: 'seg', role: 'group', 'aria-label': t('view_month') + ' / ' + t('view_week') });
-    el.modes = h('div', { class: 'seg', role: 'group', 'aria-label': t('tap_mode') });
     el.undo = h('button', { type: 'button', class: 'btn small', onclick: undo });
-    el.banner = h('div', { class: 'banner', role: 'status', hidden: true });
     el.table = h('table', { class: 'tgrid', role: 'grid', 'aria-label': t('nav_team'), 'aria-keyshortcuts': 'ArrowUp ArrowDown ArrowLeft ArrowRight X Y E Delete H Control+Z' });
     el.announce = h('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
     el.table.addEventListener('keydown', onKey);
     el.table.addEventListener('focusin', (e) => { const n = e.target.closest?.('td.c, tbody th.nm'); if (n && el.table.contains(n)) markActive(n); });   // mouse/touch focus moves the active cell too
     el.table.addEventListener('click', (e) => {
       const td = e.target.closest('td.c');
-      if (td) { if (mode === 'edit') openEditor(td.dataset.u, td.dataset.d); else if (mode !== 'holiday') brush(td.dataset.u, td.dataset.d, mode); return; }
+      if (td) { activate(td.dataset.u, td.dataset.d, e.shiftKey); return; }
       const th = e.target.closest('th.dh');
-      if (th && mode === 'holiday') { toggleHoliday(th.dataset.d); return; }
-      const nm = e.target.closest('tbody th.nm');                  // tap a name (Edit mode) = open that person's timesheet
-      if (nm && mode === 'edit') location.hash = '#/person/' + nm.closest('tr').dataset.u;
+      if (th) { toggleHoliday(th.dataset.d); return; }              // tap a day number = toggle the holiday
+      const nm = e.target.closest('tbody th.nm');                  // tap a name = open that person's timesheet
+      if (nm) location.hash = '#/person/' + nm.closest('tr').dataset.u;
     });
     el.wrap = h('div', { class: 'gridwrap' }, el.table);
     // swipe left/right = next/previous week (the week grid fits the screen, so a swipe is never a scroll)
@@ -471,18 +467,18 @@ export function teamView() {
     el.empty = h('p', { class: 'muted', hidden: true });
     const legend = el.legend = h('div', { class: 'legend-row', 'aria-label': t('legend_label') },
       h('span', { class: 'chip s-x' }, t('legend_x')), h('span', { class: 'chip s-y' }, t('legend_y')), h('span', { class: 'chip' }, t('legend_e')),
-      h('span', { class: 'chip holiday-chip' }, t('holiday')), h('span', { class: 'chip ot' }, t('overtime')));
+      h('span', { class: 'chip holiday-chip' }, t('holiday')), h('span', { class: 'chip ot' }, t('overtime')),
+      h('p', { class: 'hint-line' }, t('team_quick_hint')));
 
     root.replaceChildren(
       h('div', { class: 'team-top' },
         el.sub, el.head,
         h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), el.search, el.count), el.views),
-        h('div', { class: 'team-row tools' }, el.modes,
+        h('div', { class: 'team-row tools' },
           h('button', { type: 'button', class: 'btn small', onclick: openBulk }, t('bulk_fill')), el.undo,
           h('button', { type: 'button', class: 'btn small icon-only', onclick: () => load({ quiet: false, withPeople: true }), 'aria-label': t('refresh'), title: t('refresh') }, icon(REFRESH, 18)),
-          h('button', { type: 'button', class: 'btn small primary', onclick: openExport }, icon(DOWNLOAD, 16), t('export_excel')),
-          h('button', { type: 'button', class: 'btn small icon-only', onclick: openInfo, 'aria-label': t('info_title'), title: t('info_title') }, icon(INFO, 18))),
-        el.banner),
+          h('button', { type: 'button', class: 'btn small primary', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
+          h('button', { type: 'button', class: 'btn small icon-only', onclick: openInfo, 'aria-label': t('info_title'), title: t('info_title') }, icon(INFO, 18)))),
       el.wrap, el.empty, legend, el.announce);
     built = true;
     if (window.ResizeObserver) new ResizeObserver(fit).observe(root.querySelector('.team-top'));

@@ -46,7 +46,6 @@ async function open(w, extra = {}) {
   return p;
 }
 const cell = (p, i, d) => p.locator(`td.c[data-u="${uid(i)}"][data-d="${d}"]`);
-const modeBtn = (p, label) => p.locator(`.team-row.tools .seg button:text-is("${label}")`);
 const undoBtn = (p) => p.locator('.team-row.tools button:has(svg):has-text("Undo"), .team-row.tools button:has-text("Undo")').first();
 const settle = (p) => p.waitForTimeout(900);
 const days = (p) => p.locator('th.dh').evaluateAll((els) => els.map((e) => e.dataset.d));
@@ -124,35 +123,29 @@ ok('the › button also advances a week', (await days(p))[0] === plus(first, 7))
 await p.click('.cal-head button >> nth=2'); await waitFirst(p, first);
 ok('Today returns to the current week', (await days(p))[0] === first && (await p.locator('th.dh.today').count()) === 1);
 
-// painting banner + undo (exact state)
-ok('banner is hidden in Edit mode', await p.locator('.banner').isHidden());
-await modeBtn(p, 'X').click();
-ok('painting banner appears: "Painting X"', (await p.locator('.banner').isVisible()) && (await p.locator('.banner').textContent()).includes('Painting X'));
+// click cycles + undo (exact state)
+ok('no mode buttons or banner; the quick hint is visible', (await p.locator('.team-row.tools .seg').count()) === 0 && (await p.locator('.banner').count()) === 0 && (await p.locator('.hint-line').textContent()).includes('Click a day'));
+ok('day numbers carry a tooltip hint', (await p.locator('th.dh').first().getAttribute('title')) === 'Click to mark / unmark a holiday');
 const before = snapshot();
 ok('Undo is disabled when there is nothing to undo', await undoBtn(p).isDisabled());
 await cell(p, 20, T).click(); await cell(p, 21, T).click(); await cell(p, 22, T).click(); await settle(p);
-ok('painted 3 cells -> X in the database', (await st(20, T)) === 'X' && (await st(21, T)) === 'X' && (await st(22, T)) === 'X');
-ok('one paint stroke = ONE undo step: button says Undo (1)', (await undoBtn(p).textContent()).includes('(1)') && !(await undoBtn(p).isDisabled()));
-await undoBtn(p).click(); await settle(p);
-ok('Undo restores the exact previous state (3 cells back to E)', snapshot() === before && (await st(20, T)) === 'E');
+ok('three clicks: E -> X in the database', (await st(20, T)) === 'X' && (await st(21, T)) === 'X' && (await st(22, T)) === 'X');
+ok('each click is one undo step: button says Undo (3)', (await undoBtn(p).textContent()).includes('(3)') && !(await undoBtn(p).isDisabled()));
+for (let i = 0; i < 3; i++) { await undoBtn(p).click(); await settle(p); }
+ok('Undo x3 restores the exact previous state', snapshot() === before && (await st(20, T)) === 'E');
 ok('...and the grid shows E again', (await cell(p, 20, T).textContent()) === 'E');
 ok('Undo disabled again', await undoBtn(p).isDisabled());
-await modeBtn(p, 'E').click(); await cell(p, 1, T).click(); await settle(p);
-ok('painting E over an X clears it', (await st(1, T)) === 'E');
-await undoBtn(p).click(); await settle(p);
-ok('Undo brings the X back, overtime untouched', (await st(1, T)) === 'X' && db(`select hours from public.overtime where user_id='${uid(1)}' and day='${T}'`) === '3');
-await p.locator('.banner button').click();
-ok('Done returns to Edit mode and hides the banner', await p.locator('.banner').isHidden());
+await cell(p, 1, T).click(); await settle(p); await cell(p, 1, T).click(); await settle(p);
+ok('X -> Y -> E: two more clicks clear the day', (await st(1, T)) === 'E');
+await undoBtn(p).click(); await settle(p); await undoBtn(p).click(); await settle(p);
+ok('Undo x2 brings the X back, overtime untouched', (await st(1, T)) === 'X' && db(`select hours from public.overtime where user_id='${uid(1)}' and day='${T}'`) === '3');
 // holiday toggle + undo
-await modeBtn(p, 'Holiday').click();
-ok('holiday banner shown', (await p.locator('.banner').textContent()).includes('Holiday mode'));
 await p.locator(`th.dh[data-d="${T}"]`).click(); await settle(p);
 ok('holiday marked for today', db(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '1' && (await cell(p, 1, T).textContent()).startsWith('XH'));
 await undoBtn(p).click(); await settle(p);
 ok('Undo removes the holiday again (XH back to X)', db(`select count(*) from public.holidays where department_id='${DA}' and day='${T}'`) === '0' && (await cell(p, 1, T).textContent()).startsWith('X') && !(await cell(p, 1, T).textContent()).startsWith('XH'));
-await modeBtn(p, 'Edit').click();
 // edit dialog status change -> undo step
-await cell(p, 23, T).click(); await p.waitForSelector('dialog[open]');
+await cell(p, 23, T).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 await p.locator('dialog[open] input[name=st][value=Y]').check(); await p.locator('dialog[open] button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('edit dialog change is undoable', (await st(23, T)) === 'Y' && (await undoBtn(p).textContent()).includes('(1)'));
 await undoBtn(p).click(); await settle(p);
@@ -218,8 +211,7 @@ ok('export for a chosen month (2030-02) names the file accordingly', dl2.suggest
 // ---- Arabic
 await p.click('text=العربية'); await p.waitForSelector('.tgrid');
 ok('Arabic: view toggle, headcount label and search placeholder', (await p.locator('.team-row > .seg').first().textContent()).includes('أسبوع') && (await p.locator('tfoot th').textContent()).includes('العدد') && (await p.getAttribute('.team-search', 'placeholder')) === 'بحث عن موظف');
-await modeBtn(p, 'X').click();
-ok('Arabic painting banner', (await p.locator('.banner').textContent()).includes('تلوين X'));
+ok('Arabic quick hint', (await p.locator('.hint-line').textContent()).includes('انقر'));
 await p.screenshot({ path: S + '/tg-phone-ar.png' });
 ok('phone: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 

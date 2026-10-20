@@ -1,3 +1,4 @@
+import { fmtOpr } from '../lib/core.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { state } from '../auth/session.js';
@@ -107,7 +108,7 @@ export function usersView() {
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
         h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${p.opr ?? '-'} · ${t('level')} ${p.level ?? '-'}${p.job_title ? ' · ' + p.job_title : ''}${p.residence ? ' · ' + t('residence_' + p.residence) : ''}`)),
+        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${fmtOpr(p.opr) || '-'} · ${t('level')} ${p.level ?? '-'}${p.job_title ? ' · ' + p.job_title : ''}${p.residence ? ' · ' + t('residence_' + p.residence) : ''}`)),
       h('div', { class: 'pactions' },
         h('a', { class: 'btn small primary', href: '#/person/' + p.id }, t('timesheet')),
         h('button', { class: 'btn small', onclick: () => editUser(p) }, t('edit_data')),

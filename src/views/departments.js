@@ -1,3 +1,4 @@
+import { fmtOpr } from '../lib/core.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { fetchDepartments, fetchAllPeople, createDepartment, renameDepartment, callFn } from '../api/admin.js';
@@ -5,6 +6,7 @@ import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { field } from '../components/form.js';
 import { toast } from '../components/toast.js';
+import { openReportSettings } from '../components/report-settings.js';
 import { personFields, resetPasswordDialog, deletePerson, changeRole } from './users.js';
 
 export function departmentsView() {
@@ -45,7 +47,7 @@ export function departmentsView() {
   function row(p) {
     return h('li', { class: 'person' },
       h('div', { class: 'pinfo' }, h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${p.opr ?? '-'}`)),
+        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${fmtOpr(p.opr) || '-'}`)),
       h('div', { class: 'pactions' },
         p.role === 'user' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'admin', load) }, t('promote')) : null,
         p.role === 'admin' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'user', load) }, t('demote')) : null,
@@ -64,6 +66,7 @@ export function departmentsView() {
           h('summary', {}, h('strong', {}, d.name), h('span', { class: 'muted' }, ` · ${admins.length} ${t('admins')} · ${members.length} ${t('people')}`)),
           h('div', { class: 'pactions top' },
             h('button', { class: 'btn small', onclick: () => nameDialog(t('rename_department'), d.name, (n) => renameDepartment(d.id, n)) }, t('rename')),
+            h('button', { class: 'btn small', onclick: () => openReportSettings({ dept: d, onSaved: load }) }, t('report_settings')),
             h('button', { class: 'btn small primary', onclick: () => addAdmin(d) }, t('add_admin'))),
           h('ul', { class: 'plist' }, members.map(row)));
         det.addEventListener('toggle', () => (det.open ? open.add(d.id) : open.delete(d.id)));

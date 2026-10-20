@@ -36,7 +36,7 @@ export const fetchAllPeople = () => fetchAll(() =>
   supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).neq('role', 'super_admin').order('full_name').order('id'));
 
 export async function fetchDepartments() {
-  const { data, error } = await supabase.from('departments').select('id,name').order('name');
+  const { data, error } = await supabase.from('departments').select('id,name,code,sector,field,report').order('name');
   if (error) throw error;
   return data;
 }

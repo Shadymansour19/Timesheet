@@ -53,7 +53,7 @@ const order = async () => ({ prev: await p.locator(PREV).boundingBox(), next: aw
 let o = await order(); ok('English: previous is left of next, arrows drawn as left/right chevrons', o.prev.x < o.next.x && o.glyphs === 'M15 6l-6 6 6 6|M9 6l6 6-6 6');
 await p.click('text=العربية'); await p.waitForSelector('.day');
 ok('Arabic nav label is "جدولي"', (await p.locator('.nav a').first().textContent()).trim() === 'جدولي');
-const legend = await p.textContent('.legend');
+await p.click('.cal-tools button[aria-label="مساعدة"]'); await p.waitForSelector('dialog[open]'); const legend = await p.textContent('dialog[open]'); await p.keyboard.press('Escape');
 ok('Arabic legend says وردية, not تشغيل', legend.includes('وردية') && !legend.includes('تشغيل'));
 o = await order();
 ok('Arabic: arrows are reverted vs. before — previous on the LEFT (left chevron), next on the RIGHT (right chevron)', o.prev.x < o.next.x && o.glyphs === 'M15 6l-6 6 6 6|M9 6l6 6-6 6', JSON.stringify(o));

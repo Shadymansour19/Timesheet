@@ -1,4 +1,4 @@
-import { ymd, daysIn, effective } from '../lib/core.js';
+import { ymd, daysIn, effective, fmtOpr } from '../lib/core.js';
 
 // ---- Arrival / Departure rules (official report) -----------------------------------------------------------------
 // Work day = status X or Y. Rest day = E (also "no record").
@@ -43,7 +43,7 @@ export function buildModel({ dept, people, data, year, month, departureRule = DE
     const totals = { X: 0, Y: 0, XH: 0, YH: 0, E: 0, ot: 0, tin: 0, tex: 0 };
     for (const c of cells) { totals[c.eff]++; totals.ot += c.ot; totals.tin += c.tin; totals.tex += c.tex; }
     return {
-      id: p.id, fullName: p.full_name, username: p.username, opr: p.opr ?? '', level: p.level ?? '', cells, totals,
+      id: p.id, fullName: p.full_name, username: p.username, opr: fmtOpr(p.opr), level: p.level ?? '', cells, totals,
       jobTitle: p.job_title ?? '', contractNo: p.contract_no ?? '', workLocation: p.work_location ?? '', residence: p.residence ?? '',
       levelText: p.level === null || p.level === undefined || p.level === '' ? '' : `Level ${p.level}`,
     };

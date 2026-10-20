@@ -4,7 +4,7 @@ import { state } from '../auth/session.js';
 import { fetchMonth, fetchEditWindow, setDayStatus, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
 import { fetchDepartment } from '../api/admin.js';
 import { openDialog } from '../components/dialog.js';
-import { field } from '../components/form.js';
+import { choice } from '../components/choice.js';
 import { icon, INFO, DOWNLOAD } from '../components/icons.js';
 import { WEEK_START } from '../lib/core.js';
 import * as live from '../live.js';
@@ -83,8 +83,10 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
 
   // Download THIS person's Monthly Time Report for the shown month (Excel or PDF)
   function openExport() {
-    const format = h('select', { id: 'cal-export-format' }, h('option', { value: 'xlsx' }, 'Excel (.xlsx)'), h('option', { value: 'pdf' }, 'PDF'));
-    openDialog({ title: t('cal_export'), content: h('div', { class: 'form' }, h('div', { class: 'field' }, h('label', { for: 'cal-export-format' }, t('export_format')), format)),
+    const format = choice(t('export_format'), [
+      { value: 'xlsx', label: t('export_fmt_xlsx_one'), hint: t('export_fmt_xlsx_one_hint') },
+      { value: 'pdf', label: t('export_fmt_pdf_one'), hint: t('export_fmt_pdf_one_hint') }], 'xlsx');
+    openDialog({ title: t('cal_export'), content: h('div', { class: 'form' }, format.row),
       buttons: [{ label: t('cancel') }, { label: t('export'), kind: 'primary', onClick: async () => {
         const [{ exportMonth }, d, deptRow] = await Promise.all([import('../export/engine.js'), fetchPaddedMonthData(cursor.y, cursor.m, { userId: uid }), fetchDepartment(dept)]);
         const ppl = personRow();

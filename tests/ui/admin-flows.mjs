@@ -66,7 +66,7 @@ ok('subtitle shows own department and headcount', (await p.textContent('.dept-su
 await p.screenshot({ path: S + '/team.png' });
 
 // edit dialog: status + overtime
-await cell(p, ID.u1, 5).click(); await p.waitForSelector('dialog[open]');
+await cell(p, ID.u1, 5).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 await dlg(p).locator('input[name=st][value=X]').check();
 await dlg(p).locator('input[type=number]').fill('25'); await dlg(p).locator('button.primary').click();
 await p.waitForFunction(() => document.querySelector('dialog[open] .error')?.textContent.length > 0);
@@ -77,22 +77,22 @@ ok('edit: status X saved', (await st(ID.u1, 5)) === 'X');
 ok('edit: overtime 4 saved with note and entered_by admin', db(`select hours||'|'||note||'|'||(entered_by='${ID.adm}') from public.overtime where user_id='${ID.u1}' and day='${dstr(5)}'`) === '4|late shift|true');
 ok('cell shows X with overtime 4', (await cell(p, ID.u1, 5).textContent()) === 'X4');
 
-// brush mode
-await p.click('.seg button:text-is("X")');
+// click cycles E -> X -> Y -> E
 await cell(p, ID.u2, 6).click(); await cell(p, ID.u2, 7).click(); await settle(p);
-ok('brush X writes two days', await until(async () => (await st(ID.u2, 6)) === 'X' && (await st(ID.u2, 7)) === 'X'));
-await p.click('.seg button:text-is("E")'); await cell(p, ID.u2, 6).click(); await settle(p);
-ok('brush E clears the day (row deleted)', (await st(ID.u2, 6)) === 'E');
+ok('a click sets X (E -> X): two days written', await until(async () => (await st(ID.u2, 6)) === 'X' && (await st(ID.u2, 7)) === 'X'));
+await cell(p, ID.u2, 6).click(); await settle(p);
+ok('second click sets Y', await until(async () => (await st(ID.u2, 6)) === 'Y'));
+await cell(p, ID.u2, 6).click(); await settle(p);
+ok('third click clears the day (row deleted)', await until(async () => (await st(ID.u2, 6)) === 'E'));
+ok('no Edit / X / Y / E / Holiday mode buttons remain', (await p.locator('.team-row.tools .seg').count()) === 0 && (await p.locator('.banner').count()) === 0);
 
-// holiday mode
-await p.click('.seg button:text-is("Holiday")');
+// holiday: click a day number
 await p.locator(`th.dh[data-d="${dstr(5)}"]`).click(); await settle(p);
 ok('holiday row stored for own department', db(`select count(*) from public.holidays where department_id='${DA}' and day='${dstr(5)}'`) === '1');
 ok('X on holiday shows XH in grid', (await cell(p, ID.u1, 5).textContent()).startsWith('XH'));
 ok('raw status still plain X', (await st(ID.u1, 5)) === 'X');
 await p.locator(`th.dh[data-d="${dstr(5)}"]`).click(); await settle(p);
 ok('holiday unmarked: row gone, XH back to X', db(`select count(*) from public.holidays where day='${dstr(5)}'`) === '0' && (await cell(p, ID.u1, 5).textContent()).startsWith('X') && !(await cell(p, ID.u1, 5).textContent()).startsWith('XH'));
-await p.click('.seg button:text-is("Edit")');
 
 // bulk fill
 await p.click('button:text-is("Bulk fill")'); await p.waitForSelector('dialog[open]');
@@ -104,8 +104,8 @@ ok('bulk fill did not touch other department', (await st(ID.ub, 10)) === 'E');
 ok('other department data untouched', db(`select status||'|'||(select hours from public.overtime where user_id='${ID.ub}' and day=current_date) from public.day_status where user_id='${ID.ub}' and day=current_date`) === 'X|9');
 
 // export (real download, parsed back)
-await p.click('.seg button:text-is("Holiday")'); await p.locator(`th.dh[data-d="${dstr(5)}"]`).click(); await settle(p); await p.click('.seg button:text-is("Edit")');
-const [dl] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]'); await dlg(p).locator('button.primary').click(); })()]);
+await p.locator(`th.dh[data-d="${dstr(5)}"]`).click(); await settle(p);
+const [dl] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]'); await dlg(p).locator('input[type=radio][value="simple"]').check(); await dlg(p).locator('button.primary').click(); })()]);
 const file = S + '/export.xlsx'; await dl.saveAs(file);
 ok('download filename', dl.suggestedFilename() === `timesheet_UI_Dept_A_${month}.xlsx`, dl.suggestedFilename());
 const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(file); const ws = wb.worksheets[0];
@@ -171,6 +171,11 @@ await dlg(sa).getByLabel('Department name').fill('UI Renamed Dept'); await dlg(s
 await sa.waitForSelector('.dept:has-text("UI Renamed Dept")');
 ok('department renamed', db(`select count(*) from public.departments where name='UI Renamed Dept'`) === '1');
 const rd = sa.locator('.dept', { hasText: 'UI Renamed Dept' });
+await rd.locator('button:text-is("Department data")').click(); await sa.waitForSelector('dialog[open]');
+await dlg(sa).getByLabel('Department code').fill('77'); await dlg(sa).getByLabel('Sector (printed').fill('UI Sector'); await dlg(sa).getByLabel('Field (printed').fill('UI Field');
+await dlg(sa).getByLabel('Department name as printed').fill('UI PRINT'); await dlg(sa).getByLabel('Location').fill('UI Site');
+await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached' });
+ok('super_admin edits department data (code, sector, field, printed name, location)', await until(() => db(`select code||'|'||sector||'|'||field||'|'||(report->>'dept_print_name')||'|'||(report->>'location') from public.departments where name='UI Renamed Dept'`) === '77|UI Sector|UI Field|UI PRINT|UI Site'));
 await rd.locator('button:text-is("Add admin")').click(); await sa.waitForSelector('dialog[open]');
 await dlg(sa).getByLabel('Username').fill('uinewadm'); const apw = await dlg(sa).getByLabel('Temporary password').inputValue();
 await dlg(sa).getByLabel('Full name').fill('UI New Admin'); await dlg(sa).getByLabel('OPR').fill('OPR-NA'); await dlg(sa).locator('button.primary').click();

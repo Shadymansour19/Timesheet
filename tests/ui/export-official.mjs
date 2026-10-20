@@ -49,7 +49,7 @@ async function login(un, w = 1280) {
 }
 async function doExport(p, { format, monthValue } = {}) {
   await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
-  if (format) await dlg(p).locator('#export-format').selectOption(format);
+  if (format) await dlg(p).locator(`input[type=radio][value="${format}"]`).check();
   if (monthValue) await dlg(p).locator('input[type=month]').fill(monthValue);
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
   const file = `${S}/xo-${format ?? 'official'}-${monthValue ?? month}.xlsx`; await dl.saveAs(file);
@@ -84,17 +84,16 @@ ok('residence edit is saved', await eventually(() => sql(`select residence from 
 // ---- B. report settings
 await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr');
 await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
-ok('export dialog: format defaults to the official report; PDF and Simple grid are the alternatives', (await dlg(p).locator('#export-format').inputValue()) === 'official' && (await dlg(p).locator('#export-format option').count()) === 3);
-await dlg(p).locator('button:text-is("Report settings")').click(); await p.waitForFunction(() => document.querySelectorAll('dialog[open]').length === 2);
-const rs = p.locator('dialog[open]').last();
-ok('Report settings: 5 fields (code, sector, field, printed name, location), defaults as placeholders', (await rs.locator('input').count()) === 5 && (await rs.getByLabel('Department name as printed').getAttribute('placeholder')) === 'XO ALPHA');
-await rs.getByLabel('Department code').fill('19'); await rs.getByLabel('Sector (printed').fill('Maintenance Sector X'); await rs.getByLabel('Field (printed').fill('Operations [Fields] X');
-await rs.getByLabel('Department name as printed').fill('TURBO (MAINT.)'); await rs.getByLabel('Location').fill('IDKU Site');
-await rs.locator('button.primary').click();
-ok('saved: code / sector / field are department columns, printed name and location in report', await eventually(() => { const r = JSON.parse(sql(`select report::text from public.departments where id='${DA}'`)); return sql(`select code||'|'||sector||'|'||field from public.departments where id='${DA}'`) === '19|Maintenance Sector X|Operations [Fields] X' && r.location === 'IDKU Site' && r.dept_print_name === 'TURBO (MAINT.)' && Object.keys(r).length === 2; }));
-ok('the other department is unaffected', sql(`select report::text||code::text from public.departments where name='XO Beta'`) === '{}' || sql(`select report::text from public.departments where name='XO Beta'`) === '{}');
-await p.locator('dialog[open]').last().waitFor({ state: 'visible' });
-await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+ok('export dialog: modern radio cards (no native dropdown), official Excel default, PDF and simple grid alternatives, no Report settings button', (await dlg(p).locator('select').count()) === 0 && (await dlg(p).locator('input[type=radio]:checked').getAttribute('value')) === 'official' && (await dlg(p).locator('input[type=radio]').count()) === 3 && (await dlg(p).locator('button:text-is("Report settings")').count()) === 0);
+ok('department data missing -> a notice lists what is missing (defaults are used)', (await dlg(p).locator('.notice').textContent()).includes('Department code') && (await dlg(p).locator('.notice').textContent()).includes('Location'));
+await p.keyboard.press('Escape');
+// the report data comes from the DEPARTMENT record (set here as a super admin would, via the department data dialog / RPC)
+sql(`update public.departments set code='19', sector='Maintenance Sector X', field='Operations [Fields] X', report='{"dept_print_name":"TURBO (MAINT.)","location":"IDKU Site"}' where id='${DA}'`);
+await p.reload(); await p.waitForSelector('.tgrid tbody tr');
+await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
+ok('with the department data filled in, the notice is gone', (await dlg(p).locator('.notice').count()) === 0);
+await p.keyboard.press('Escape');
+ok('the other department is unaffected', sql(`select report::text from public.departments where name='XO Beta'`) === '{}');
 
 // ---- C. official export vs the database
 const off = await doExport(p, {});
@@ -132,7 +131,7 @@ ok('review sheet: engineer days (SUMIF by title) = 3 + 1 = 4... computed from th
 
 // ---- C3. PDF
 { await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
-  await dlg(p).locator('#export-format').selectOption('pdf');
+  await dlg(p).locator('input[type=radio][value="pdf"]').check();
   const [dlp] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
   await dlp.saveAs(S + '/xo.pdf');
   const txt = execSync(`pdftotext -layout "${S}/xo.pdf" -`, { encoding: 'utf8' }), pages = Number(/Pages:\s+(\d+)/.exec(execSync(`pdfinfo "${S}/xo.pdf"`, { encoding: 'utf8' }))[1]);
@@ -152,7 +151,7 @@ ok('another month (Feb 2030, 28 days): 28 day sheets, the employees, Review; fil
 // ---- F. Arabic UI, English workbook
 await p.click('text=العربية'); await p.waitForSelector('.tgrid tbody tr');
 await p.click('button:text-is("تصدير")'); await p.waitForSelector('dialog[open]');
-ok('Arabic UI: the export dialog is in Arabic', (await dlg(p).textContent()).includes('إعدادات التقرير') && (await dlg(p).textContent()).includes('التقرير الشهري الرسمي'));
+ok('Arabic UI: the export dialog is in Arabic', (await dlg(p).textContent()).includes('التقرير الشهري الرسمي') && (await dlg(p).locator('input[type=radio]').count()) === 3);
 await p.screenshot({ path: S + '/xo-dialog-ar.png' });
 const [dla] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
 await dla.saveAs(S + '/xo-ar.xlsx'); const wba = new ExcelJS.Workbook(); await wba.xlsx.readFile(S + '/xo-ar.xlsx');
@@ -189,7 +188,7 @@ await big.context().close();
   ok('user export: ONE sheet, only that person (their name, OPR, contract no.)', wu.worksheets.length === 1 && sh.getCell('C8').value === 'XO Engineer One' && sh.getCell('P11').value === 'EMC-901' && sh.getCell('P9').value === '033/2019' && dx.suggestedFilename().startsWith('timesheet_XO_Engineer_One_'), dx.suggestedFilename());
   ok('user export: first day X with 2h overtime "inventory"; day 3 Y', sh.getCell('B15').value === 'X' && sh.getCell('I15').value === 2 && String(sh.getCell('J15').value).includes('inventory') && sh.getCell('B17').value === 'Y');
   await u.click('.cal-tools button:has-text("Export")'); await u.waitForSelector('dialog[open]');
-  await dlg(u).locator('select').selectOption('pdf');
+  await dlg(u).locator('input[type=radio][value="pdf"]').check();
   const [dpdf] = await Promise.all([u.waitForEvent('download', { timeout: 60000 }), dlg(u).locator('button.primary').click()]);
   await dpdf.saveAs(S + '/xo-user.pdf');
   const ut = execSync(`pdftotext -layout "${S}/xo-user.pdf" -`, { encoding: 'utf8' });
