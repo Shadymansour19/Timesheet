@@ -26,7 +26,8 @@ export function syncInstall() {
 }
 
 export function initInstall() {
-  ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone();
+  // iPadOS 13+ reports itself as a Mac, but has a touch screen
+  ios = (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !standalone();
   document.body.prepend(bar);
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; syncInstall(); });
   window.addEventListener('appinstalled', () => { deferred = null; hidden = true; syncInstall(); });

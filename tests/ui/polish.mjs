@@ -166,6 +166,10 @@ ok('cleanup removed every test row (real data untouched)', db("select count(*) f
   ok('phone: Install triggers the browser install prompt', await ph.evaluate(() => window.__installPrompted === true));
   const dk = await mk({ viewport: { width: 1280, height: 800 } }); await fire(dk);
   ok('desktop: no install bar', (await dk.locator('.install-bar:not([hidden])').count()) === 0);
+  const ip = await mk({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1' });
+  ok('iPhone Safari (no install prompt): the bar shows the Share -> Add to Home Screen hint, no Install button, with an X', (await ip.locator('.install-bar:not([hidden])').count()) === 1 && (await ip.locator('.install-bar').textContent()).includes('Add to Home Screen') && (await ip.locator('.install-bar button:text-is("Install")').count()) === 0 && (await ip.locator('.install-x').count()) === 1);
+  await ip.click('.install-x'); ok('iPhone: X hides it', (await ip.locator('.install-bar:not([hidden])').count()) === 0); await ip.reload(); await ip.waitForSelector('#username');
+  ok('iPhone: it is back after a refresh', (await ip.locator('.install-bar:not([hidden])').count()) === 1); await ip.context().close();
   await ph.context().close(); await dk.context().close(); }
 
 await b.close();
