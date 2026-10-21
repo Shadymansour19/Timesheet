@@ -96,7 +96,7 @@ export function usersView() {
   function editUser(person) {
     const p = personFields(person);
     openDialog({
-      title: `${t('edit_data')}: ${person.username}`, wide: 'xl', content: h('div', { class: 'form two-col' }, p.rows),
+      title: `${t('edit_data')}: ${person.full_name}`, wide: 'xl', content: h('div', { class: 'form two-col' }, h('p', { class: 'muted' }, `${t('username')}: ${person.username}`), p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
         await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value);
         await load();
@@ -109,7 +109,7 @@ export function usersView() {
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
         h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${fmtOpr(p.opr) || '-'} · ${t('level')} ${p.level ?? '-'}${p.job_title ? ' · ' + p.job_title : ''}${p.position ? ' · ' + p.position : ''}${p.residence ? ' · ' + t('residence_' + p.residence) : ''}`)),
+        h('span', { class: 'muted' }, `${t('opr')} ${fmtOpr(p.opr) || '-'}${p.position ? ' · ' + p.position : ''}`)),   // everything else is in Edit data
       h('div', { class: 'pactions' },
         h('a', { class: 'btn small primary', href: '#/person/' + p.id }, t('timesheet')),
         h('button', { class: 'btn small', onclick: () => editUser(p) }, t('edit_data')),

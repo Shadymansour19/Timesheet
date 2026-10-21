@@ -75,7 +75,7 @@ await p.waitForSelector('dialog[open]', { state: 'detached', timeout: 60000 });
 ok('the new person is created WITH job title and contract number (Edge Function)', await eventually(() => sql(`select job_title||'|'||contract_no from public.profiles where username='xonew'`) === 'Certified Rigger|202/2024'));
 ok('position is stored (Edge Function)', await eventually(() => sql(`select position from public.profiles where username='xonew'`) === 'Tech'));
 ok('work location and residence are stored (Edge Function)', await eventually(() => sql(`select work_location||'|'||residence from public.profiles where username='xonew'`) === 'Abu Qir Site|outside'));
-ok('the Users list shows the job title', await eventually(async () => (await p.locator('.person', { hasText: 'XO Brand New' }).textContent()).includes('Certified Rigger')));
+ok('the user card shows only the main data (name, OPR, position), the rest is in Edit data', await eventually(async () => { const c = await p.locator('.person', { hasText: 'XO Brand New' }).textContent(); return c.includes('EMC-999') && c.includes('Tech') && !c.includes('Certified Rigger') && !c.includes('xonew') && !c.includes('Level') && !c.includes('Abu Qir'); }));
 await p.locator('.person', { hasText: 'XO Brand New' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
 ok('Edit data shows the stored values', (await dlg(p).getByLabel('Job title').inputValue()) === 'Certified Rigger' && (await dlg(p).getByLabel('Contract no.').inputValue()) === '202/2024');
 ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'outside');
