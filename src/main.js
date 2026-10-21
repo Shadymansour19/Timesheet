@@ -7,6 +7,8 @@ import { applyTheme } from './theme.js';
 import { loginView } from './views/login.js';
 import { resolve } from './router.js';
 import { shell } from './components/shell.js';
+import { acting, ensureActing } from './acting.js';
+import { fetchDepartments } from './api/admin.js';
 
 const root = document.getElementById('app');
 const banner = h('div', { class: 'offline-banner', role: 'status', hidden: true }, t('offline'));
@@ -34,6 +36,11 @@ function render() {
   }
   const route = resolve();
   if (!route) return; // redirecting to the landing page; hashchange re-renders
+  if (state.profile.role === 'super_admin' && acting.active && !acting.list.length) {   // first admin tab of this session: choose / load the department
+    root.append(h('p', { class: 'muted center' }, t('loading')));
+    ensureActing(fetchDepartments).then(render, () => { acting.list = [{ id: acting.dept, name: '' }]; render(); });
+    return;
+  }
   root.append(shell(route.view(), { onLang: render }));
 }
 

@@ -311,9 +311,9 @@ select set_config('realtime.topic', 'deptpub:10000000-0000-0000-0000-00000000000
 select t.count('adminB cannot join department A public channel', $$select 1 from realtime.messages where topic = 'deptpub:10000000-0000-0000-0000-00000000000a'$$, 0);
 select t.login('00000000-0000-0000-0000-0000000000a0');
 select set_config('realtime.topic', 'dept:10000000-0000-0000-0000-00000000000a', true);
-select t.count('super_admin receives no department channel (no timesheet access)', $$select 1 from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a'$$, 0);
+select t.eq('super_admin may listen to department channels (changed 2026-10-21: it can act as admin of any department)', $$select (count(*) > 0)::text from realtime.messages where topic = 'dept:10000000-0000-0000-0000-00000000000a'$$, 'true');
 select set_config('realtime.topic', 'deptpub:10000000-0000-0000-0000-00000000000a', true);
-select t.count('...nor the public one', $$select 1 from realtime.messages where topic = 'deptpub:10000000-0000-0000-0000-00000000000a'$$, 0);
+select t.eq('...and the public one', $$select (count(*) > 0)::text from realtime.messages where topic = 'deptpub:10000000-0000-0000-0000-00000000000a'$$, 'true');
 select t.anon();
 select t.count('anon sees no realtime messages at all (no policy for anon)', $$select 1 from realtime.messages$$, 0);
 select t.su();
@@ -458,6 +458,43 @@ select t.denied('super_admin direct UPDATE profiles', $$update public.profiles s
 select t.ok('super_admin soft-deletes an admin', $$select public.soft_delete_user('00000000-0000-0000-0000-0000000000a1')$$);
 
 -- ---------------------------------------------------------------- last super_admin guard (owner / service-role path)
+-- ---- super_admin ACTING as the admin of a department (header x-acting-dept, migration 13)
+select t.login('00000000-0000-0000-0000-0000000000a0');
+select set_config('request.headers', '{"x-acting-dept":"10000000-0000-0000-0000-00000000000a"}', true);
+select t.eq('acting: app_role() answers admin and app_dept() the chosen department', $$select public.app_role() || '|' || (public.app_dept() = '10000000-0000-0000-0000-00000000000a')$$, 'admin|true');
+select t.count('acting as A: sees exactly the department A people (+ nobody from B)', $$select 1 from public.profiles where username in ('adma','ua1','ua2','admb','ub1')$$, 3);
+select t.ok('acting as A: sets a status of a department A person', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 40, 'X')$$);
+select t.count('acting as A: reads it back through RLS', $$select 1 from public.day_status where user_id = '00000000-0000-0000-0000-0000000000a2' and day = current_date + 40$$, 1);
+select t.denied('acting as A: cannot touch a department B person', $$select public.set_day_status('00000000-0000-0000-0000-0000000000b2', current_date + 40, 'X')$$);
+select t.count('acting as A: department B timesheet stays invisible', $$select 1 from public.day_status where user_id = '00000000-0000-0000-0000-0000000000b2'$$, 0);
+select t.ok('acting as A: sets overtime', $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date + 40, 3, 'acting')$$);
+select t.ok('acting as A: marks a department holiday for A', $$select public.set_holiday(current_date + 41, true)$$);
+select t.count('...the holiday belongs to department A', $$select 1 from public.holidays where day = current_date + 41 and department_id = '10000000-0000-0000-0000-00000000000a'$$, 1);
+select t.ok('acting as A: edits a person of A', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, 'Engineer')$$);
+select t.denied('acting as A: cannot edit a person of B', $$select public.update_profile('00000000-0000-0000-0000-0000000000b2', 'x', 'x', 1)$$);
+select t.ok('acting as A: may save the department data of A', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, '19')$$);
+select t.denied('acting as A: may NOT save the department data of B', $$select public.set_department_report('10000000-0000-0000-0000-00000000000b', '{}'::jsonb, '19')$$);
+select t.denied('acting: cannot create a department (super functions are off while acting)', $$select public.create_department('Dept Z')$$);
+select set_config('request.headers', '{"x-acting-dept":"10000000-0000-0000-0000-00000000000b"}', true);
+select t.denied('switching to B: A person is out of reach now', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 40, 'Y')$$);
+select t.ok('switching to B: a B person is reachable', $$select public.set_day_status('00000000-0000-0000-0000-0000000000b2', current_date + 40, 'Y')$$);
+select set_config('request.headers', '{"x-acting-dept":"garbage"}', true);
+select t.count('a malformed header is ignored (no timesheet access)', 'select 1 from public.day_status', 0);
+select set_config('request.headers', '{"x-acting-dept":"99999999-9999-9999-9999-999999999999"}', true);
+select t.count('an unknown department in the header is ignored', 'select 1 from public.day_status', 0);
+select set_config('request.headers', '', true);
+select t.count('no header: super_admin has no timesheet access again', 'select 1 from public.day_status', 0);
+select t.denied('no header: super_admin cannot set a status', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
+select t.ok('no header: super_admin manages departments again', $$select public.create_department('Dept Y')$$);
+-- the header means nothing to anyone else
+select t.login('00000000-0000-0000-0000-0000000000a1');
+select set_config('request.headers', '{"x-acting-dept":"10000000-0000-0000-0000-00000000000b"}', true);
+select t.count('a department admin sending the header still sees only his own department', $$select 1 from public.profiles where username in ('ub1','admb')$$, 0);
+select t.denied('a department admin cannot use the header to reach department B', $$select public.set_day_status('00000000-0000-0000-0000-0000000000b2', current_date + 42, 'X')$$);
+select t.login('00000000-0000-0000-0000-0000000000a2');
+select t.count('a plain user sending the header gets no extra rows', $$select 1 from public.profiles where username in ('ub1','admb')$$, 0);
+select set_config('request.headers', '', true);
+select t.login('00000000-0000-0000-0000-0000000000a0');
 select t.su();
 -- real super_admins may exist in the target DB: remove them inside this (rolled-back) transaction so the fixture is the only one
 delete from public.profiles where role = 'super_admin' and id <> '00000000-0000-0000-0000-0000000000a0';

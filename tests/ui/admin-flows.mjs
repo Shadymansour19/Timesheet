@@ -159,7 +159,26 @@ ok('admin own calendar: Y on days 10-12', (await p.locator('.day').nth(9).locato
 // ================= super admin =================
 const sa = await session('uisa'); await sa.waitForSelector('.dept');
 ok('super_admin lands on departments', sa.url().endsWith('#/departments'));
-ok('super_admin has only the Departments tab', (await sa.locator('.nav a').allTextContents()).join('|') === 'Departments');
+ok('super_admin has Departments plus the admin tabs (Team, Overtime, Users)', (await sa.locator('.nav a').count()) === 4 && (await sa.locator('.nav a').first().textContent()).includes('Departments'));
+// ---- acting as the admin of ANY department (header x-acting-dept; migration 13)
+await sa.goto('http://localhost:4173/#/team'); await sa.waitForSelector('.tgrid tbody tr', { timeout: 30000 });
+await sa.waitForSelector('.dept-switch');
+await sa.click('.dept-switch'); await sa.waitForSelector('dialog[open]');
+await dlg(sa).locator('label.choice-card', { hasText: 'UI Dept A' }).click(); await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached' });
+ok('acting as Dept A: the team grid shows its people and the subtitle names it', await until(async () => (await sa.textContent('.dept-sub')).includes('UI Dept A')) && (await sa.locator(`tr[data-u="${ID.u1}"]`).count()) === 1 && (await sa.locator(`tr[data-u="${ID.ub}"]`).count()) === 0);
+await sa.waitForTimeout(1500); await cell(sa, ID.u1, 20).click(); await settle(sa);
+ok('acting as Dept A: a click sets the status exactly as its admin would (RLS + RPC through the header)', await until(async () => (await st(ID.u1, 20)) === 'X'));
+await sa.goto('http://localhost:4173/#/users'); await sa.waitForSelector('.person');
+ok('Users tab lists Dept A people for the acting super admin', (await sa.locator('.person', { hasText: 'UI User One' }).count()) === 1);
+await sa.click('button:text-is("Add user")'); await sa.waitForSelector('dialog[open]');
+await dlg(sa).getByLabel('Username').fill('uiactnew'); await dlg(sa).getByLabel('Full name').fill('UI Acting New'); await dlg(sa).getByLabel('OPR').fill('OPR-ACT'); await dlg(sa).getByLabel('Level').fill('2');
+await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached', timeout: 60000 });
+ok('acting: a user created through the Edge Function lands in the acting department', await until(() => db(`select role||'|'||department_id from public.profiles where username='uiactnew'`) === `user|${DA}`));
+await sa.click('.dept-switch'); await sa.waitForSelector('dialog[open]');
+await dlg(sa).locator('label.choice-card', { hasText: 'UI Dept B' }).click(); await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached' });
+ok('switching to Dept B shows B people only', await until(async () => (await sa.locator('.person', { hasText: 'UI User Bee' }).count()) === 1 && (await sa.locator('.person', { hasText: 'UI User One' }).count()) === 0));
+await sa.goto('http://localhost:4173/#/departments'); await sa.waitForSelector('.dept');
+
 ok('super_admin sees both departments', (await sa.locator('.dept').count()) >= 2);
 await sa.click('button:text-is("Add department")'); await sa.waitForSelector('dialog[open]');
 await dlg(sa).getByLabel('Department name').fill('UI New Dept'); await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached' });

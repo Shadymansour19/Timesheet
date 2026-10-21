@@ -3,9 +3,11 @@ import { t, otherLang, setLang } from '../i18n/index.js';
 import { state, signOut, signOutAll, switchTo, addAccount, removeAccount, listAccounts } from '../auth/session.js';
 import { navFor } from '../router.js';
 import { openDialog, confirmDialog } from './dialog.js';
-import { icon, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT, SUN, MOON, MONITOR } from './icons.js';
+import { icon, BUILDING, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT, SUN, MOON, MONITOR } from './icons.js';
 import { getTheme, setTheme } from '../theme.js';
 import { field } from './form.js';
+import { choice } from './choice.js';
+import { acting, setActing } from '../acting.js';
 import { toast } from './toast.js';
 
 const initials = (name) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -82,6 +84,15 @@ function accountMenu() {
   return det;
 }
 
+// Super admin only: which department the admin tabs act for
+function departmentSwitcher(onChange) {
+  return h('button', { class: 'btn small dept-switch', type: 'button', title: t('acting_as'), onclick: () => {
+    const pick = choice(t('acting_as'), acting.list.map((d) => ({ value: d.id, label: d.name })), acting.dept);
+    openDialog({ title: t('switch_department'), content: h('div', { class: 'form' }, pick.row),
+      buttons: [{ label: t('cancel') }, { label: t('switch'), kind: 'primary', onClick: async () => { if (pick.value && pick.value !== acting.dept) { setActing(pick.value); onChange(); } } }] });
+  } }, icon(BUILDING, 16), h('span', {}, acting.name || '—'), icon(CHEVRON_UPDOWN, 14));
+}
+
 export function shell(content, { onLang }) {
   const here = location.hash.replace(/^#/, '');
   // Top tabs on wide screens; on phones the same links become an icon bar fixed to the bottom (hidden when there is only one tab).
@@ -102,6 +113,7 @@ export function shell(content, { onLang }) {
     h('header', { class: 'topbar' },
       accountMenu(),
       h('div', { class: 'actions' },
+        acting.active && state.profile.role === 'super_admin' ? departmentSwitcher(onLang) : null,
         h('button', { class: 'btn small', onclick: () => { setLang(otherLang()); onLang(); } }, t('language')))),
     nav,
     h('main', { class: 'content' }, back, content));

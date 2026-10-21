@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
-import { state } from '../auth/session.js';
+import { state, myDept } from '../auth/session.js';
 import { fetchMonth, fetchEditWindow, setDayStatus, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
 import { fetchDepartment } from '../api/admin.js';
 import { openDialog } from '../components/dialog.js';
@@ -21,7 +21,7 @@ const sameMonth = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); re
 export function calendarView({ userId, admin = false, person = null } = {}) {
   const me = state.profile.id;
   const uid = userId ?? me;
-  const dept = state.profile.department_id;
+  const dept = myDept();
   const root = h('section', { class: 'cal' });
   let data = {};                 // shown values by day (optimistic)
   let editWindow = null;

@@ -63,6 +63,8 @@ const p = await login('xoadm');
 // ---- A. job title + contract number in the Users tab
 await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
 await p.click('button:text-is("Add user")'); await p.waitForSelector('dialog[open]');
+{ const bx = await dlg(p).evaluate((d) => { const r = d.getBoundingClientRect(); const u = d.querySelector('input').getBoundingClientRect(); const pw = [...d.querySelectorAll('input')][1].getBoundingClientRect(); return { w: r.width, h: r.height, vh: innerHeight, sameRow: Math.abs(u.top - pw.top) < 4 && pw.left > u.left + 100 }; });
+  ok('Add user dialog: two columns, wider, and short enough for one screen', bx.sameRow && bx.w >= 700 && bx.h <= bx.vh - 20, JSON.stringify(bx)); await p.screenshot({ path: S + '/xo-add-user.png' }); }
 ok('Add user dialog has Job title and Contract no. fields', (await dlg(p).getByLabel('Job title').count()) === 1 && (await dlg(p).getByLabel('Contract no.').count()) === 1);
 await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name').fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('EMC-999');
 ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'inside');

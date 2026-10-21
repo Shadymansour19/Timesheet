@@ -366,3 +366,11 @@ a.btn.primary { color: #fff; }
 
 .users .team-top, .users > .team-row, .users .toolbar { margin-block-end: 16px; }
 .users .plist { margin-block-start: 16px; }
+.dept-switch { display: inline-flex; align-items: center; gap: 6px; max-width: 200px; } .dept-switch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* person dialogs: two columns on wide screens, one on phones */
+.dlg.xl { width: min(94vw, 800px); }
+.form.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; align-items: start; }
+.form.two-col > p, .form.two-col > .choice { grid-column: 1 / -1; }
+.form.two-col .choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 640px) { .form.two-col { grid-template-columns: 1fr; } .form.two-col .choice-list { grid-template-columns: 1fr; } }

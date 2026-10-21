@@ -146,9 +146,9 @@ ok('...and sees the overtime the admin entered, read-only (+3h strip, no edit di
 await u.evaluate(() => { location.hash = '#/overtime'; }); await u.waitForTimeout(500);
 ok('...typing #/overtime shows no overtime screen', (await u.locator('.ot-view').count()) === 0);
 const s = await newPage('otsa'); await s.waitForSelector('.depts');
-ok('super_admin has no Overtime tab either', (await s.locator('.nav a').allTextContents()).join('|') === 'Departments');
-await s.evaluate(() => { location.hash = '#/overtime'; }); await s.waitForTimeout(500);
-ok('...and cannot open it by URL', (await s.locator('.ot-view').count()) === 0);
+ok('super_admin has an Overtime tab (acts as the admin of a chosen department)', (await s.locator('.nav a').allTextContents()).join('|').includes('Overtime'));
+await s.evaluate(() => { location.hash = '#/overtime'; }); await s.waitForSelector('.ot-view', { timeout: 30000 });
+ok('...and it opens with a department switcher', (await s.locator('.dept-switch').count()) === 1);
 
 cleanup();
 ok('cleanup removed every test row (real data untouched)', db("select count(*) from auth.users where email like 'ot%@timesheet.local'") === '0' && db("select count(*) from public.departments where name like 'OT %'") === '0');

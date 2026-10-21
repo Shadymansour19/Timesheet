@@ -2,7 +2,7 @@ import { choice } from '../components/choice.js';
 import { fmtOpr } from '../lib/core.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
-import { state } from '../auth/session.js';
+import { state, myDept } from '../auth/session.js';
 import { fetchDeptPeople, updateProfile, setUserRole, callFn } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog, confirmDialog } from '../components/dialog.js';
@@ -69,7 +69,7 @@ export function usersView() {
 
   async function load({ quiet = false } = {}) {
     let fresh;
-    try { fresh = await fetchDeptPeople(me.department_id); }
+    try { fresh = await fetchDeptPeople(myDept()); }
     catch (e) { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, explain(e))); return; }
     if (quiet && built && JSON.stringify(fresh) === JSON.stringify(people)) return;   // nothing new
     people = fresh;
@@ -80,11 +80,11 @@ export function usersView() {
   function addUser() {
     const p = personFields({}, { withLogin: true, isNew: true });
     openDialog({
-      title: t('add_user'), content: h('div', { class: 'form' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
+      title: t('add_user'), wide: 'xl', content: h('div', { class: 'form two-col' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
       buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {
         await callFn('create_user', {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
-          opr: p.f.opr.input.value, level: p.level(), department_id: me.department_id, role: 'user',
+          opr: p.f.opr.input.value, level: p.level(), department_id: myDept(), role: 'user',
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
           work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value,
         });
@@ -96,7 +96,7 @@ export function usersView() {
   function editUser(person) {
     const p = personFields(person);
     openDialog({
-      title: `${t('edit_data')}: ${person.username}`, content: h('div', { class: 'form' }, p.rows),
+      title: `${t('edit_data')}: ${person.username}`, wide: 'xl', content: h('div', { class: 'form two-col' }, p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
         await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value);
         await load();
@@ -158,7 +158,7 @@ export function usersView() {
 
   // live: another admin added / edited / removed someone
   let liveTimer;
-  live.watch([`dept:${me.department_id}`], (p) => {
+  live.watch([`dept:${myDept()}`], (p) => {
     if (p.t !== 'profiles' && p.t !== 'resync') return;
     clearTimeout(liveTimer); liveTimer = setTimeout(() => load({ quiet: true }), 350);
   });

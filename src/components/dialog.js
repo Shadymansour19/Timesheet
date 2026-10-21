@@ -6,7 +6,7 @@ import { explain } from '../api/errors.js';
 // Errors thrown by onClick are shown inside the dialog. Enter submits the first primary/danger button.
 export function openDialog({ title, content, buttons, onClose, wide = false, autofocus = true }) {
   const err = h('p', { class: 'error', role: 'alert' });
-  const dlg = h('dialog', { class: 'dlg' + (wide ? ' wide' : '') });
+  const dlg = h('dialog', { class: 'dlg' + (wide ? ' wide' + (wide === 'xl' ? ' xl' : '') : '') });
   const els = buttons.map((b) => h('button', { type: 'button', class: 'btn ' + (b.kind || ''), onclick: async () => {
     if (!b.onClick) return dlg.close();
     els.forEach((x) => { x.disabled = true; }); err.textContent = '';

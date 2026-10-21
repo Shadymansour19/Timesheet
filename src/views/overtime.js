@@ -1,7 +1,7 @@
 import { fmtOpr } from '../lib/core.js';
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
-import { state } from '../auth/session.js';
+import { state, myDept } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchMonthData } from '../api/timesheet.js';
 import { WEEK_START } from '../lib/core.js';
 import { fetchDeptPeople, setOvertimeBulk } from '../api/admin.js';
@@ -19,7 +19,7 @@ const key = (uid, day) => `${uid}|${day}`;
 // Department overtime: a month grid like the user calendar, but each day shows the TOTAL for all employees;
 // tapping a day opens a dialog to add / edit overtime (hours + note) for every employee on that day.
 export function overtimeView() {
-  const deptId = state.profile.department_id;
+  const deptId = myDept();
   const root = h('section', { class: 'cal ot-view' });
   let people = [], data = null;
   const todayStr = (() => { const n = new Date(); return ymd(n.getFullYear(), n.getMonth(), n.getDate()); })();

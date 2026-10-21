@@ -9,7 +9,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-acting-dept",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -65,7 +65,8 @@ Deno.serve(async (req) => {
 
     // Client acting AS THE CALLER: RLS and the RPC checks see the real user.
     const caller = createClient(url, anon, {
-      global: { headers: { Authorization: authHeader } },
+      // a super admin acting for a department sends x-acting-dept; the database honours it only for a real super admin
+      global: { headers: { Authorization: authHeader, ...(req.headers.get("x-acting-dept") ? { "x-acting-dept": req.headers.get("x-acting-dept")! } : {}) } },
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const { data: who, error: whoErr } = await caller.auth.getUser();

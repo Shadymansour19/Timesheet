@@ -31,7 +31,7 @@ export function departmentsView() {
   function addAdmin(dept) {
     const p = personFields({}, { withLogin: true, isNew: true });
     openDialog({
-      title: `${t('add_admin')} – ${dept.name}`, content: h('div', { class: 'form' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
+      title: `${t('add_admin')} – ${dept.name}`, wide: 'xl', content: h('div', { class: 'form two-col' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
       buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {
         await callFn('create_user', {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,

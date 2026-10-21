@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
-import { state } from '../auth/session.js';
+import { state, myDept } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective } from '../api/timesheet.js';
 import { WEEK_START, sameData, fmtOpr } from '../lib/core.js';
 import * as live from '../live.js';
@@ -30,7 +30,7 @@ const writePref = (v) => { try { localStorage.setItem(PREF, v); } catch { /* ign
 let viewMode = null, weekStart = null;      // module state: survives switching tabs
 
 export function teamView() {
-  const deptId = state.profile.department_id;
+  const deptId = myDept();
   viewMode ??= readPref();
   weekStart ??= weekStartOf(todayStr());
 

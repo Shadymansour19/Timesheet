@@ -1,7 +1,7 @@
 import { fmtOpr } from '../lib/core.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
-import { state } from '../auth/session.js';
+import { state, myDept } from '../auth/session.js';
 import { supabase } from '../supabase.js';
 import { calendarView } from './calendar.js';
 
@@ -14,7 +14,7 @@ export function personView(personId) {
   (async () => {
     const { data: p, error } = await supabase.from('profiles').select('id,username,full_name,opr,level,role,department_id,active,job_title,contract_no,work_location,residence,position').eq('id', personId).maybeSingle();
     if (error) { root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
-    if (!p || !p.active || p.department_id !== state.profile.department_id) { root.replaceChildren(h('p', { class: 'muted center' }, t('person_not_found'))); return; }
+    if (!p || !p.active || p.department_id !== myDept()) { root.replaceChildren(h('p', { class: 'muted center' }, t('person_not_found'))); return; }
     root.replaceChildren(
       h('div', { class: 'person-head card' },
         h('span', { class: 'avatar big' }, initials(p.full_name)),
