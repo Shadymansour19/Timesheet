@@ -169,31 +169,38 @@ export async function exportMonth({ dept, people, data, year, month, lang, templ
   download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `timesheet_${safe}_${stamp}.xlsx`);
 }
 
-// Print directly: the official monthly report as PDF (all A4 pages; with employeeId only that person's page) goes into a hidden
-// frame and the browser's print dialog opens. Any failure falls back to downloading the official Excel file. Returns 'print' or 'excel'.
+// Print only - nothing is downloaded. 1) the official report as PDF (all A4 pages; with employeeId only that person's page) is built
+// in memory and sent to the printer through a hidden frame (the PDF carries A4 + "print at actual size" hints); 2) if that fails
+// for any reason, the Excel version is built in memory, turned into printable A4 HTML and sent to the printer; 3) if that fails
+// too, an error is thrown (the caller shows a message). Returns 'pdf' or 'excel'.
+function printFrame({ url, html }) {
+  return new Promise((resolve, reject) => {
+    const f = document.createElement('iframe');
+    f.style.cssText = 'position:fixed;inset-inline-end:0;inset-block-end:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
+    let done = false;
+    const finish = (err) => { if (done) return; done = true; if (err) { f.remove(); if (url) URL.revokeObjectURL(url); reject(err); } else { resolve(); setTimeout(() => { f.remove(); if (url) URL.revokeObjectURL(url); }, 120000); } };
+    f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); finish(); } catch (e) { finish(e); } };
+    f.onerror = () => finish(new Error('print frame failed'));
+    setTimeout(() => finish(new Error('print frame did not load')), 15000);
+    if (url) f.src = url; else f.srcdoc = html;
+    document.body.append(f);
+  });
+}
+
 export async function printMonth({ dept, people, data, year, month, lang, employeeId = null }) {
+  const model = buildModel({ dept, people: employeeId ? people.filter((p) => p.id === employeeId) : people, data, year, month });
   try {
-    const model = buildModel({ dept, people: employeeId ? people.filter((p) => p.id === employeeId) : people, data, year, month });
     const [{ jsPDF }, pdf] = await Promise.all([import('jspdf'), import('./pdf.js')]);
-    const logos = await loadPdfLogos(officialTemplate);
-    const doc = pdf.buildOfficialPdf(model, officialTemplate, { jsPDF, logos, employeeId });   // the OFFICIAL report (all pages), or one person's page
-    const url = URL.createObjectURL(doc.output('blob'));
-    await new Promise((resolve, reject) => {
-      const f = document.createElement('iframe');
-      f.style.cssText = 'position:fixed;inset-inline-end:0;inset-block-end:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
-      f.onload = () => {
-        try { f.contentWindow.focus(); f.contentWindow.print(); resolve(); } catch (e) { reject(e); }
-        setTimeout(() => { f.remove(); URL.revokeObjectURL(url); }, 120000);
-      };
-      f.onerror = () => reject(new Error('print frame failed'));
-      setTimeout(() => reject(new Error('print frame did not load')), 15000);   // reject after a resolve is a no-op
-      f.src = url;
-      document.body.append(f);
-    });
-    return 'print';
-  } catch (e) {
-    console.warn('print failed, falling back to Excel', e);
-    await exportMonth({ dept, people, data, year, month, lang, format: 'xlsx', employeeId, template: officialTemplate });
-    return 'excel';
+    const doc = pdf.buildOfficialPdf(model, officialTemplate, { jsPDF, logos: await loadPdfLogos(officialTemplate), employeeId });
+    try { doc.viewerPreferences({ PrintScaling: 'None', PickTrayByPDFSize: true, NumCopies: 1 }, true); } catch { /* hints only */ }
+    await printFrame({ url: URL.createObjectURL(doc.output('blob')) });
+    return 'pdf';
+  } catch (e1) {
+    console.warn('PDF print failed, printing the Excel version instead', e1);
   }
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = employeeId ? await buildEmployeeWorkbook(model, officialTemplate, ExcelJS, { loadAsset, employeeId }) : await buildOfficialWorkbook(model, officialTemplate, ExcelJS, { loadAsset });
+  const { workbookToPrintHtml } = await import('./print-html.js');
+  await printFrame({ html: workbookToPrintHtml(wb) });
+  return 'excel';
 }

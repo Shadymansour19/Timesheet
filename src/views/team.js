@@ -266,7 +266,7 @@ export function teamView() {
       const [{ printMonth }, monthData] = await Promise.all([import('../export/engine.js'), fetchPaddedMonthData(y, m)]);
       const how = await printMonth({ dept, people, data: monthData, year: y, month: m, lang: getLang() });
       if (how === 'excel') toast(t('print_fallback'));
-    } catch (e) { toast(explain(e)); }
+    } catch (e) { console.error('print failed', e); toast(t('print_failed')); }
   }
 
   const openInfo = () => openDialog({ title: t('info_title'), content: h('div', { class: 'form' },

@@ -98,7 +98,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
       const [{ printMonth }, d, deptRow] = await Promise.all([import('../export/engine.js'), fetchPaddedMonthData(cursor.y, cursor.m, { userId: uid }), fetchDepartment(dept)]);
       const how = await printMonth({ dept: deptRow ?? { name: '' }, people: [personRow()], data: d, year: cursor.y, month: cursor.m, lang: getLang(), employeeId: uid });
       if (how === 'excel') toast(t('print_fallback'));
-    } catch { toast(t('save_failed')); }
+    } catch (e) { console.error('print failed', e); toast(t('print_failed')); }
   }
   function personRow() {
     if (uid === me) return state.profile;
