@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective } from '../api/timesheet.js';
-import { WEEK_START, sameData } from '../lib/core.js';
+import { WEEK_START, sameData, nextStatus } from '../lib/core.js';
 import * as live from '../live.js';
 import { fetchDeptPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
 import { explain } from '../api/errors.js';
@@ -137,6 +137,7 @@ export function teamView() {
   async function brush(uid, day, status, stroke = true) {
     const prev = statusOf(uid, day);
     if (prev === status) return;
+    if (status === 'Y' && !yOk(uid)) { toast(t('y_not_allowed')); return; }
     setLocal(uid, day, status); updateRow(uid);
     pushUndo({ type: 'cells', stroke, cells: [{ uid, day, prev, next: status }] });
     announce(`${people.find((x) => x.id === uid)?.full_name}, ${dayLabels.get(day) ?? day}: ${status}`);
@@ -150,8 +151,8 @@ export function teamView() {
     finally { writes--; if (chains.get(k) === run) chains.delete(k); }
   }
 
-  const NEXT = { E: 'X', X: 'Y', Y: 'E' };
-  const cycle = (uid, day) => brush(uid, day, NEXT[statusOf(uid, day)], false);
+  const yOk = (uid) => people.find((x) => x.id === uid)?.y_allowed !== false;       // may this person have Y?
+  const cycle = (uid, day) => brush(uid, day, nextStatus(statusOf(uid, day), yOk(uid)), false);
 
   async function toggleHoliday(day) {
     const on = !data.holidays.has(day);
@@ -194,19 +195,20 @@ export function teamView() {
     };
     // cells whose status would actually change
     async function plan() {
-      const users = boxes.filter((b) => b.checked).map((b) => b.value), ds = dayList();
-      if (!users.length || !ds.length || ds.length > 366) return { users, ds, rows: [], total: 0, invalid: true };
+      const chosen = boxes.filter((b) => b.checked).map((b) => b.value), ds = dayList();
+      const users = st.value === 'Y' ? chosen.filter(yOk) : chosen, skipped = chosen.length - users.length;   // people without Y are left out of a Y fill
+      if (!users.length || !ds.length || ds.length > 366) return { users, ds, rows: [], total: 0, invalid: true, skipped };
       const map = await statusMap(ds[0], ds[ds.length - 1]);
       const target = st.value, rows = [];
       for (const u of users) for (const d of ds) { const prev = map.get(key(u, d)) ?? 'E'; if (prev !== target) rows.push({ user: u, day: d, status: target, prev }); }
-      return { users, ds, rows, total: users.length * ds.length };
+      return { users, ds, rows, total: users.length * ds.length, skipped };
     }
     let timer;
     const refresh = () => {
       preview.textContent = '…'; clearTimeout(timer);
       timer = setTimeout(async () => {
         const p = await plan();
-        preview.textContent = p.invalid ? t('bulk_empty') : `${p.rows.length} ${t('cells_will_change')} (${p.total} ${t('cells_selected')})`;
+        preview.textContent = p.invalid ? t('bulk_empty') : `${p.rows.length} ${t('cells_will_change')} (${p.total} ${t('cells_selected')})${p.skipped ? ` · ${p.skipped} ${t('y_skipped')}` : ''}`;
         preview.classList.toggle('warn', p.rows.length > 500);
       }, 200);
     };

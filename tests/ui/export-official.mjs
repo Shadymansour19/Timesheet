@@ -68,7 +68,7 @@ await p.click('button:text-is("Add user")'); await p.waitForSelector('dialog[ope
   ok('Add user dialog: two columns, wider, and short enough for one screen', bx.sameRow && bx.w >= 700 && bx.h <= bx.vh - 20, JSON.stringify(bx)); await p.screenshot({ path: S + '/xo-add-user.png' }); }
 ok('Add user dialog has Job title and Contract no. fields', (await dlg(p).getByLabel('Job title').count()) === 1 && (await dlg(p).getByLabel('Contract no.').count()) === 1);
 await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name').fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('XOT-999'); await dlg(p).getByLabel('Payroll number').fill('PR-999');
-ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'inside');
+ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).locator('.choice:has-text("Lives in") input:checked').inputValue()) === 'inside');
 await dlg(p).getByLabel('Job title').fill('Certified Rigger'); await dlg(p).getByLabel('Contract no.').fill('202/2024');
 await dlg(p).getByLabel('Position').fill('Tech'); await dlg(p).getByLabel('Work location (site)').fill('Abu Qir Site'); await dlg(p).locator('label.choice-card:has(input[value="outside"])').click();
 await dlg(p).locator('button.primary').click();
@@ -79,7 +79,7 @@ ok('work location and residence are stored (Edge Function)', await eventually(()
 ok('the user card shows only the main data (name, OPR, position), the rest is in Edit data', await eventually(async () => { const c = await p.locator('.person', { hasText: 'XO Brand New' }).textContent(); return c.includes('XOT-999') && c.includes('Tech') && !c.includes('Certified Rigger') && !c.includes('xonew') && !c.includes('Level') && !c.includes('Abu Qir'); }));
 await p.locator('.person', { hasText: 'XO Brand New' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
 ok('Edit data shows the stored values', (await dlg(p).getByLabel('Job title').inputValue()) === 'Certified Rigger' && (await dlg(p).getByLabel('Contract no.').inputValue()) === '202/2024');
-ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'outside');
+ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).locator('.choice:has-text("Lives in") input:checked').inputValue()) === 'outside');
 await dlg(p).getByLabel('Position').fill('Engineer'); await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill(''); await dlg(p).locator('label.choice-card:has(input[value="inside"])').click();
 await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('editing saves the new job title and clearing the contract number empties it', await eventually(() => sql(`select job_title||'|'||coalesce(contract_no,'NULL') from public.profiles where username='xonew'`) === 'Senior Rigger|NULL'));
@@ -192,6 +192,28 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   await p.keyboard.press('Escape');
   const tmpl = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Bulk add (Excel)")'); await p.waitForSelector('dialog[open]'); await dlg(p).locator('button:text-is("Download the template")').click(); })()]);
   ok('bulk add: the template downloads', tmpl[0].suggestedFilename() === 'users_template.xlsx'); await p.keyboard.press('Escape'); }
+
+// ---- F3. a person who may not have Y: admin switches it off, the cycle becomes E -> X -> E everywhere
+{ await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
+  await p.locator('.person', { hasText: 'XO Engineer Two' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
+  ok('Edit data has the "Allowed to have Y" choice (allowed by default)', (await dlg(p).locator('.choice:has-text("Allowed to have Y") input:checked').inputValue()) === 'yes');
+  await dlg(p).locator('label.choice-card:has(input[value="no"])').click(); await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
+  ok('y_allowed is stored as false (admin controls it)', await eventually(() => sql(`select y_allowed from public.profiles where opr='XOT-902'`) === 'f'));
+  const day = sql("select to_char(current_date,'YYYY-MM-DD')"); const u2 = sql(`select id from public.profiles where opr='XOT-902'`);
+  const stOf = () => sql(`select coalesce((select status from public.day_status where user_id='${u2}' and day='${day}'),'E')`);
+  await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr'); await p.waitForTimeout(1500);
+  const cellU2 = p.locator(`td.c[data-u="${u2}"][data-d="${day}"]`);
+  await cellU2.click(); ok('grid: E -> X', await eventually(() => stOf() === 'X'));
+  await cellU2.click(); ok('grid: X -> E (no Y for this person)', await eventually(() => stOf() === 'E'));
+  await cellU2.focus(); await p.keyboard.press('y');
+  ok('the Y key is refused with a message and nothing is written', await eventually(async () => (await p.locator('.toast').allTextContents()).join('').includes('Y is not allowed')) && stOf() === 'E');
+  await cellU2.click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
+  ok('day details: the Y option is disabled for this person', await dlg(p).locator('input[name=st][value=Y]').isDisabled()); await p.keyboard.press('Escape');
+  const ub = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); const up2 = await ub.newPage();
+  await up2.goto(BASE + '/'); await up2.fill('#username', 'xou2'); await up2.fill('#password', PW); await up2.click('button[type=submit]'); await up2.waitForSelector('.cal .day');
+  await up2.locator('.day.today').click(); ok('own calendar: E -> X', await eventually(() => stOf() === 'X'));
+  await up2.locator('.day.today').click(); ok('own calendar: X -> E (no Y)', await eventually(() => stOf() === 'E'));
+  await ub.close(); }
 
 ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 await p.context().close();

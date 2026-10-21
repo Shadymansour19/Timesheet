@@ -6,13 +6,12 @@ import { fetchDepartment } from '../api/admin.js';
 import { openDialog } from '../components/dialog.js';
 import { choice } from '../components/choice.js';
 import { icon, INFO, DOWNLOAD, PRINT } from '../components/icons.js';
-import { WEEK_START } from '../lib/core.js';
+import { WEEK_START, nextStatus } from '../lib/core.js';
 import * as live from '../live.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
 import { openDayEditor } from '../components/day-editor.js';
 
-const NEXT = { E: 'X', X: 'Y', Y: 'E' };
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
 const sameMonth = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => b[k] && a[k].status === b[k].status && a[k].eff === b[k].eff && a[k].ot === b[k].ot && (a[k].note ?? '') === (b[k].note ?? '') && a[k].hol === b[k].hol); };
 
@@ -53,7 +52,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
   // Serialise writes per day: tapping fast sends only the latest wanted value, one request at a time.
   async function change(day) {
     const cur = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
-    const next = NEXT[cur.status];
+    const next = nextStatus(cur.status, (admin ? person?.y_allowed : state.profile.y_allowed) !== false);
     data[day] = { ...cur, status: next, eff: effOf(next, cur.hol) };
     want[day] = next;
     draw();

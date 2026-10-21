@@ -363,6 +363,16 @@ select t.ok('adminA sets a payroll number (10-argument update_profile)', $$selec
 select t.eq('...stored (OPR untouched)', $$select payroll || '|' || opr from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'PR-777|OPR-A2');
 select t.denied('payroll must be unique', $$select public.update_profile('00000000-0000-0000-0000-0000000000a1', 'Admin A', 'OPR-A1', 1, null, null, null, null, null, 'PR-777')$$, '23505');
 select t.denied('adminA cannot set the payroll of a dept B person', $$select public.update_profile('00000000-0000-0000-0000-0000000000b2', 'x', 'x', 1, null, null, null, null, null, 'PR-1')$$);
+select t.ok('adminA forbids Y for a person (11-argument update_profile)', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, null, null, false)$$);
+select t.eq('...stored', $$select y_allowed::text from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'false');
+select t.denied('Y is rejected by the admin for that person (set_day_status)', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 50, 'Y')$$, '22023');
+select t.denied('...and by the bulk rows RPC, nothing written', $$select public.set_day_status_rows('[{"user":"00000000-0000-0000-0000-0000000000a2","day":"2030-02-01","status":"Y"}]'::jsonb)$$, '22023');
+select t.ok('X is still fine for that person', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 50, 'X')$$);
+select t.denied('a plain user cannot allow Y for himself', $$update public.profiles set y_allowed = true$$);
+select t.ok('adminA allows Y again (NULL keeps it otherwise)', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, null, null, true)$$);
+select t.ok('...and Y works', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 50, 'Y')$$);
+select t.ok('4-argument update_profile leaves the permission unchanged', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7)$$);
+select t.eq('...still allowed', $$select y_allowed::text from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'true');
 select t.ok('adminA sets the approved totals of his department', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '264', '295')$$);
 select t.eq('...stored as whole numbers', $$select approved_engineer || '|' || approved_tech from public.departments where id = '10000000-0000-0000-0000-00000000000a'$$, '264|295');
 select t.denied('approved totals must be whole numbers', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '12.5', null)$$, '22023');

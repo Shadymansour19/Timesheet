@@ -21,3 +21,6 @@ export function sameData(a, b) {
 }
 
 
+
+// Click / Enter cycle of a day: E -> X -> Y -> E; a person who may not have Y goes E -> X -> E.
+export const nextStatus = (cur, yAllowed = true) => (cur === 'E' ? 'X' : cur === 'X' ? (yAllowed ? 'Y' : 'E') : 'E');

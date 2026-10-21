@@ -8,7 +8,7 @@ import { setStatus, setOvertime } from '../api/admin.js';
 // overtime: { hours, note } | null. run(fn) lets the caller track in-flight writes. onSaved({ status, prevStatus, hours, note }).
 export function openDayEditor({ person, day, status, overtime, holiday = false, run = (fn) => fn(), onSaved, onClose }) {
   const radios = ['E', 'X', 'Y'].map((s) => h('label', { class: 'radio' },
-    h('input', { type: 'radio', name: 'st', value: s, checked: s === status }), h('span', { class: 'chip s-' + s.toLowerCase() }, s)));
+    h('input', { type: 'radio', name: 'st', value: s, checked: s === status, disabled: s === 'Y' && person.y_allowed === false && status !== 'Y' }), h('span', { class: 'chip s-' + s.toLowerCase() }, s)));
   const hours = field(t('overtime_hours'), { type: 'number', min: 0, max: 24, step: 1, inputmode: 'numeric', value: overtime?.hours ?? 0 });
   const note = field(t('note'), { type: 'text', maxlength: 200, value: overtime?.note ?? '' });
   const date = new Date(day + 'T00:00:00').toLocaleDateString(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', { weekday: 'long', day: 'numeric', month: 'long' });

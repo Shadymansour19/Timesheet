@@ -14,8 +14,9 @@ export const COLUMNS = [
   ['full_name', 'Full name', ['full name', 'name', 'fullname']], ['opr', 'OPR', ['opr']], ['payroll', 'Payroll', ['payroll', 'p/r', 'pr']],
   ['username', 'Username', ['username', 'user name', 'login']], ['password', 'Password', ['password', 'pass']], ['level', 'Level', ['level']],
   ['job_title', 'Job title', ['job title', 'title']], ['contract_no', 'Contract no', ['contract no', 'contract no.', 'contract', 'contr. no']],
-  ['work_location', 'Work location', ['work location', 'location', 'site']], ['position', 'Position', ['position']], ['residence', 'Residence', ['residence', 'lives']],
+  ['work_location', 'Work location', ['work location', 'location', 'site']], ['position', 'Position', ['position']], ['residence', 'Residence', ['residence', 'lives']], ['y_allowed', 'Y allowed', ['y allowed', 'y']],
 ];
+const YES = ['yes', 'y', 'true', '1'], NO = ['no', 'n', 'false', '0'];
 const USERNAME = /^[a-z0-9._-]{3,32}$/;
 
 const cellText = (c) => {
@@ -79,10 +80,11 @@ async function createRow(r, dupError = '') {
   else if (out.password.length < 8 || out.password.length > 72) out.error = t('bulk_err_password');
   else if (level !== null && (!Number.isInteger(level) || level < 0)) out.error = t('bulk_err_level');
   else if (r.residence && !['inside', 'outside'].includes(r.residence.toLowerCase())) out.error = t('bulk_err_residence');
+  else if (r.y_allowed && !YES.includes(r.y_allowed.toLowerCase()) && !NO.includes(r.y_allowed.toLowerCase())) out.error = t('bulk_err_y');
   if (out.error) return out;
   try {
     await callFn('create_user', { username: out.username, password: out.password, full_name: r.full_name, opr: r.opr, level, department_id: myDept(), role: 'user',
-      job_title: r.job_title, contract_no: r.contract_no, work_location: r.work_location, residence: r.residence.toLowerCase(), position: r.position, payroll: r.payroll });
+      job_title: r.job_title, contract_no: r.contract_no, work_location: r.work_location, residence: r.residence.toLowerCase(), position: r.position, payroll: r.payroll, y_allowed: !NO.includes((r.y_allowed || 'yes').toLowerCase()) });
     out.ok = true;
   } catch (e) { out.error = explain(e); }
   return out;

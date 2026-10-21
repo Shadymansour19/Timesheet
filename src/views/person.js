@@ -11,7 +11,7 @@ const initials = (name) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0])
 export function personView(personId) {
   const root = h('section', { class: 'person-view' }, h('p', { class: 'muted center' }, t('loading')));
   (async () => {
-    const { data: p, error } = await supabase.from('profiles').select('id,username,full_name,opr,level,role,department_id,active,job_title,contract_no,work_location,residence,position,payroll').eq('id', personId).maybeSingle();
+    const { data: p, error } = await supabase.from('profiles').select('id,username,full_name,opr,level,role,department_id,active,job_title,contract_no,work_location,residence,position,payroll,y_allowed').eq('id', personId).maybeSingle();
     if (error) { root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
     if (!p || !p.active || p.department_id !== myDept()) { root.replaceChildren(h('p', { class: 'muted center' }, t('person_not_found'))); return; }
     root.replaceChildren(

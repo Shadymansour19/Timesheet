@@ -31,6 +31,9 @@ export function personFields(initial = {}, { withLogin = false, isNew = false } 
   // inside / outside the work-location city: decides whether Arrival / Departure trips count as TRANS/IN or TRANS/EX
   const residence = choice(t('residence'), [{ value: 'inside', label: t('residence_inside') }, { value: 'outside', label: t('residence_outside') }, { value: '', label: t('residence_unset') }], initial.residence ?? (isNew ? 'inside' : ''));
   f.residence = { row: residence.row, input: residence };
+  // may this person have Y (shift days)? off = their day cycle is E -> X only
+  const yAllowed = choice(t('y_allowed'), [{ value: 'yes', label: t('y_yes') }, { value: 'no', label: t('y_no') }], initial.y_allowed === false ? 'no' : 'yes');
+  f.y_allowed = { row: yAllowed.row, input: yAllowed };
   f.position.row.append(h('datalist', { id: 'position-list' }, h('option', { value: 'Engineer' }), h('option', { value: 'Tech' })));   // suggestions only: the position is free text
   const rows = Object.values(f).filter(Boolean).map((x) => x.row);
   const level = () => (f.level.input.value === '' ? null : Number(f.level.input.value));
@@ -87,7 +90,7 @@ export function usersView() {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: myDept(), role: 'user',
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
-          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value, payroll: p.f.payroll.input.value,
+          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value, payroll: p.f.payroll.input.value, y_allowed: p.f.y_allowed.input.value === 'yes',
         });
         toast(t('user_created'), 'success'); await load();
       } }],
@@ -99,7 +102,7 @@ export function usersView() {
     openDialog({
       title: `${t('edit_data')}: ${person.full_name}`, wide: 'xl', content: h('div', { class: 'form two-col' }, h('p', { class: 'muted' }, `${t('username')}: ${person.username}`), p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
-        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value, p.f.payroll.input.value);
+        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value, p.f.payroll.input.value, p.f.y_allowed.input.value === 'yes');
         await load();
       } }],
     });
