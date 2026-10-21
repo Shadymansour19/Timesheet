@@ -1,4 +1,3 @@
-import { fmtOpr } from '../lib/core.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { fetchDepartments, fetchAllPeople, createDepartment, renameDepartment, callFn } from '../api/admin.js';
@@ -37,7 +36,7 @@ export function departmentsView() {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: dept.id, role: 'admin',
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
-          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value,
+          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value, payroll: p.f.payroll.input.value,
         });
         open.add(dept.id); toast(t('user_created'), 'success'); await load();
       } }],
@@ -47,7 +46,7 @@ export function departmentsView() {
   function row(p) {
     return h('li', { class: 'person' },
       h('div', { class: 'pinfo' }, h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${fmtOpr(p.opr) || '-'}`)),
+        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${p.opr || '-'}`)),
       h('div', { class: 'pactions' },
         p.role === 'user' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'admin', load) }, t('promote')) : null,
         p.role === 'admin' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'user', load) }, t('demote')) : null,

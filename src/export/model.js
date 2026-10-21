@@ -1,4 +1,4 @@
-import { ymd, daysIn, effective, fmtOpr } from '../lib/core.js';
+import { ymd, daysIn, effective } from '../lib/core.js';
 
 // ---- Arrival / Departure rules (official report) -----------------------------------------------------------------
 // Work day = status X or Y. Rest day = E (also "no record").
@@ -12,7 +12,7 @@ export const DEPARTURE_RULE = 'work-day';   // 'work-day' | 'rest-day'
 const shift = (y, m, d, n) => { const dt = new Date(Date.UTC(y, m, d + n)); return ymd(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()); };
 
 // Normalised, template-independent view of one department-month.
-// people: [{ id, full_name, username, opr, level, job_title, contract_no, work_location, residence }]
+// people: [{ id, full_name, username, payroll, level, job_title, contract_no, work_location, residence }]
 // dept:   { name, code, sector, field, report }
 // data:   { status: Map('user|day' -> 'X'|'Y'), overtime: Map('user|day' -> {hours, note}), holidays: Set(day) }
 //         (status should also contain the day before the first and the day after the last day of the month, for Arrival / Departure)
@@ -43,7 +43,7 @@ export function buildModel({ dept, people, data, year, month, departureRule = DE
     const totals = { X: 0, Y: 0, XH: 0, YH: 0, E: 0, ot: 0, tin: 0, tex: 0 };
     for (const c of cells) { totals[c.eff]++; totals.ot += c.ot; totals.tin += c.tin; totals.tex += c.tex; }
     return {
-      id: p.id, fullName: p.full_name, username: p.username, opr: fmtOpr(p.opr), level: p.level ?? '', cells, totals,
+      id: p.id, fullName: p.full_name, username: p.username, payroll: p.payroll ?? '', level: p.level ?? '', cells, totals,
       jobTitle: p.job_title ?? '', contractNo: p.contract_no ?? '', workLocation: p.work_location ?? '', residence: p.residence ?? '', position: p.position ?? '',
       levelText: p.level === null || p.level === undefined || p.level === '' ? '' : `Level ${p.level}`,
     };

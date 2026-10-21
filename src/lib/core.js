@@ -21,5 +21,3 @@ export function sameData(a, b) {
 }
 
 
-// Payroll (OPR) is stored as entered (normally an integer) and always DISPLAYED with the company prefix: 1234 -> EMC-1234.
-export const fmtOpr = (v) => { const s = String(v ?? '').trim(); return /^\d+$/.test(s) ? `EMC-${s}` : s; };

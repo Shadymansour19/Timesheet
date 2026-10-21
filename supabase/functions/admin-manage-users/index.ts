@@ -100,6 +100,7 @@ Deno.serve(async (req) => {
         const workLocation = optional(body.work_location, "work_location", 100);
         const residence = optional(body.residence, "residence", 20);
         const position = optional(body.position, "position", 100);
+        const payroll = optional(body.payroll, "payroll", 50);
         if (residence !== null && residence !== "inside" && residence !== "outside") throw new HttpError(400, "residence must be inside or outside");
         const deptId = uuid(body.department_id, "department_id");
         const role = str(body.role ?? "user", "role", 20);
@@ -133,6 +134,7 @@ Deno.serve(async (req) => {
           work_location: workLocation,
           residence,
           position,
+          payroll,
         });
         if (profErr) {
           await admin.auth.admin.deleteUser(created.user.id); // roll back the auth user

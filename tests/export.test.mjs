@@ -14,9 +14,9 @@ const dir = mkdtempSync(join(tmpdir(), 'xlsx-'));
 
 // Feb 2028 (leap year, 29 days). Holiday on the 2nd and 3rd.
 const people = [
-  { id: 'u1', full_name: 'Alice A', username: 'alice', opr: 'OPR-1', level: 3 },
-  { id: 'u2', full_name: 'Bob B', username: 'bob', opr: 'OPR-2', level: null },
-  { id: 'u3', full_name: 'Zoe Z', username: 'zoe', opr: 'OPR-3', level: 1 },
+  { id: 'u1', full_name: 'Alice A', username: 'alice', opr: 'OPR-1', payroll: 'OPR-1', level: 3 },
+  { id: 'u2', full_name: 'Bob B', username: 'bob', opr: 'OPR-2', payroll: 'OPR-2', level: null },
+  { id: 'u3', full_name: 'Zoe Z', username: 'zoe', opr: 'OPR-3', payroll: 'OPR-3', level: 1 },
 ];
 const data = {
   status: new Map([

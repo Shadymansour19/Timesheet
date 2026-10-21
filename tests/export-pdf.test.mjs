@@ -13,7 +13,7 @@ const ok = (label, cond, extra = '') => { if (!cond) fails++; console.log(`${con
 const dir = mkdtempSync(join(tmpdir(), 'pdf-'));
 const png = (f) => { const b = readFileSync(new URL('../public/templates/' + f, import.meta.url)); return { data: 'data:image/png;base64,' + b.toString('base64'), width: b.readUInt32BE(16), height: b.readUInt32BE(20) }; };
 const logos = { left: png('logo-left.png'), right: png('logo-right.png') };
-const mk = (n) => Array.from({ length: n }, (_, i) => ({ id: 'p' + i, full_name: i === 1 ? 'Ahmed محمد Ali' : `Person Number ${i}`, username: 'p' + i, opr: 'OPR-' + (100 + i), level: 2, job_title: i % 2 ? 'Engineer' : 'Technician', contract_no: '033/2019', residence: i % 3 ? 'inside' : 'outside', position: i % 2 ? 'Engineer' : 'Tech' }));
+const mk = (n) => Array.from({ length: n }, (_, i) => ({ id: 'p' + i, full_name: i === 1 ? 'Ahmed محمد Ali' : `Person Number ${i}`, username: 'p' + i, opr: 'OPR-' + (100 + i), payroll: 'OPR-' + (100 + i), level: 2, job_title: i % 2 ? 'Engineer' : 'Technician', contract_no: '033/2019', residence: i % 3 ? 'inside' : 'outside', position: i % 2 ? 'Engineer' : 'Tech' }));
 const run = (n, extra = {}) => {
   const people = mk(n), status = new Map(), overtime = new Map();
   status.set('p0|2028-10-05', 'X'); status.set('p0|2028-10-06', 'Y'); status.set('p0|2028-10-07', 'X'); overtime.set('p0|2028-10-06', { hours: 3, note: 'night' });
@@ -34,8 +34,6 @@ ok('review + overtime titles', /Monthly Attendance Sheet Review/.test(a.text) &&
 ok('non-Latin characters replaced, not crashing', /Ahmed \?+ Ali/.test(a.text));
 ok('arrival comment present', /Arrival/.test(a.text) && /Departure/.test(a.text));
 ok('two logos embedded (one image object each, reused)', execFileSync('pdfimages', ['-list', a.f]).toString().split('\n').filter((l) => /\bimage\b/.test(l)).length >= 2);
-import { fmtOpr } from '../src/lib/core.js';
-ok('payroll display: integer gets EMC- prefix, existing prefix / text untouched', fmtOpr('1234') === 'EMC-1234' && fmtOpr(77) === 'EMC-77' && fmtOpr('EMC-5') === 'EMC-5' && fmtOpr(null) === '' && fmtOpr('OPR-1') === 'OPR-1');
 const one = run(6, { employeeId: 'p0' });
 ok('single employee PDF = 1 page with that person only', one.pages === 1 && /OPR-100/.test(one.text) && !/OPR-101/.test(one.text));
 ok('single page: totals X=2 Y=1 OT 3', /Total \(X\) Days:\s+2/.test(one.text) && /Total \(Y\) Days:\s+1/.test(one.text));

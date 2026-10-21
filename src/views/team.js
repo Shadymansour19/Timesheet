@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective } from '../api/timesheet.js';
-import { WEEK_START, sameData, fmtOpr } from '../lib/core.js';
+import { WEEK_START, sameData } from '../lib/core.js';
 import * as live from '../live.js';
 import { fetchDeptPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
 import { explain } from '../api/errors.js';
@@ -362,7 +362,7 @@ export function teamView() {
     const mine = focusPos && focusPos.uid === p.id;
     tr.append(h('th', { class: 'nm', scope: 'row', tabindex: mine && focusPos.day === null ? 0 : -1 },
       h('span', { class: 'nm-name' }, p.full_name),
-      h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, fmtOpr(p.opr)), h('span', { class: 'tots' }, totalsLine(p.id)))));
+      h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, (p.opr ?? '')), h('span', { class: 'tots' }, totalsLine(p.id)))));
     const t0 = todayStr();
     for (const day of days) {
       const hol = data.holidays.has(day), ot = otOf(p.id, day);

@@ -1,5 +1,5 @@
 import { choice } from '../components/choice.js';
-import { fmtOpr } from '../lib/core.js';
+import { openBulkAdd } from './bulk-users.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
@@ -25,6 +25,7 @@ export function personFields(initial = {}, { withLogin = false, isNew = false } 
     job_title: field(t('job_title'), { maxlength: 100, value: initial.job_title ?? '' }),
     contract_no: field(t('contract_no'), { maxlength: 50, value: initial.contract_no ?? (isNew ? DEFAULT_CONTRACT_NO : '') }),
     work_location: field(t('work_location'), { maxlength: 100, value: initial.work_location ?? '' }),
+    payroll: field(t('payroll'), { required: true, maxlength: 50, value: initial.payroll ?? '' }),
     position: field(t('position'), { maxlength: 100, value: initial.position ?? '', list: 'position-list', placeholder: 'Engineer, Tech' }),
   };
   // inside / outside the work-location city: decides whether Arrival / Departure trips count as TRANS/IN or TRANS/EX
@@ -86,7 +87,7 @@ export function usersView() {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: myDept(), role: 'user',
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
-          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value,
+          work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value, payroll: p.f.payroll.input.value,
         });
         toast(t('user_created'), 'success'); await load();
       } }],
@@ -98,7 +99,7 @@ export function usersView() {
     openDialog({
       title: `${t('edit_data')}: ${person.full_name}`, wide: 'xl', content: h('div', { class: 'form two-col' }, h('p', { class: 'muted' }, `${t('username')}: ${person.username}`), p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
-        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value);
+        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value, p.f.payroll.input.value);
         await load();
       } }],
     });
@@ -109,7 +110,7 @@ export function usersView() {
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
         h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${t('opr')} ${fmtOpr(p.opr) || '-'}${p.position ? ' · ' + p.position : ''}`)),   // everything else is in Edit data
+        h('span', { class: 'muted' }, `${t('opr')} ${p.opr || '-'}${p.position ? ' · ' + p.position : ''}`)),   // everything else is in Edit data
       h('div', { class: 'pactions' },
         h('a', { class: 'btn small primary', href: '#/person/' + p.id }, t('timesheet')),
         h('button', { class: 'btn small', onclick: () => editUser(p) }, t('edit_data')),
@@ -132,7 +133,7 @@ export function usersView() {
     el.list = h('ul', { class: 'plist' });
     el.empty = h('div', { class: 'empty card', hidden: true });
     root.replaceChildren(
-      h('div', { class: 'cal-head' }, el.title, h('button', { class: 'btn small primary', onclick: addUser }, t('add_user'))),
+      h('div', { class: 'cal-head' }, el.title, h('div', { class: 'actions' }, h('button', { class: 'btn small', onclick: () => openBulkAdd({ onDone: load }) }, t('bulk_add')), h('button', { class: 'btn small primary', onclick: addUser }, t('add_user')))),
       h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), el.search, el.count), el.seg),
       el.list, el.empty);
     built = true;

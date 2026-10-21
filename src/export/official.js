@@ -1,6 +1,6 @@
-// Official monthly report: one sheet per DAY (named 1, 2, 3 ...), then one sheet per EMPLOYEE ("Name OPR"), then a Review
+// Official monthly report: one sheet per DAY (named 1, 2, 3 ...), then one sheet per EMPLOYEE ("Name Payroll"), then a Review
 // sheet and an Overtime summary. Day sheets hold the recorded data (incl. Arrival / Departure and TRANS/IN-EX). Employee
-// sheets READ them with formulas (INDEX/MATCH on the P/R = OPR code), the Review and Overtime sheets read the employee
+// sheets READ them with formulas (INDEX/MATCH on the P/R = payroll number), the Review and Overtime sheets read the employee
 // sheets, so editing a day sheet in Excel flows through. Every formula also carries its computed result, so viewers that do
 // not recalculate (phone previews) still show the right numbers.
 
@@ -31,9 +31,9 @@ export function uniqueSheetName(base, used) {
   used.add(out.toLowerCase());
   return out;
 }
-// "<name> <OPR>", shortening the NAME (never the OPR) so the sheet name fits and stays recognisable
-export function employeeSheetName(fullName, opr, used) {
-  const tail = opr ? ` ${opr}` : '';
+// "<name> <payroll>", shortening the NAME (never the payroll) so the sheet name fits and stays recognisable
+export function employeeSheetName(fullName, payroll, used) {
+  const tail = payroll ? ` ${payroll}` : '';
   const room = Math.max(1, 31 - tail.length);
   const clean = String(fullName).replace(/[\\/?*[\]:']/g, ' ').replace(/\s+/g, ' ').trim();
   return uniqueSheetName(`${clean.slice(0, room).trim()}${tail}`, used);
@@ -115,7 +115,7 @@ function daySheet(wb, model, S, di, name, logos) {
     setCell(ws, r, D.name, e.fullName, { bold: true, size: 8, h: 'left', shrink: true });
     setCell(ws, r, D.title, e.jobTitle, { bold: true, size: 8, shrink: true });
     setCell(ws, r, D.level, e.levelText, { bold: true, size: 8 });
-    setCell(ws, r, D.pr, e.opr, { bold: true, size: 8 });
+    setCell(ws, r, D.pr, e.payroll, { bold: true, size: 8 });
     setCell(ws, r, D.status, c.status, { bold: true, size: 11 });                  // X / Y / E (holidays are shown in the date line)
     setCell(ws, r, D.acc, null);
     setCell(ws, r, D.tin, c.tin || null, { bold: true, size: 9 });
@@ -163,8 +163,8 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   lab(E.name, 12, 15, 'Month:'); val(E.name, 16, 21, monthDate, { numFmt: 'mmm-yy' });
   lab(E.name + 1, 12, 15, 'Contr. No:'); val(E.name + 1, 16, 21, e.contractNo);
   lab(E.name + 2, 12, 15, 'Department:'); val(E.name + 2, 16, 21, S.printName);
-  lab(E.name + 3, 12, 15, 'PAYROLL'); val(E.name + 3, 16, 21, e.opr);
-  const prCell = addr(16, E.name + 3);                       // P/R (OPR) used by the lookups below
+  lab(E.name + 3, 12, 15, 'PAYROLL'); val(E.name + 3, 16, 21, e.payroll);
+  const prCell = addr(16, E.name + 3);                       // P/R (payroll) used by the lookups below
 
   // table headers
   for (const base of [E.left, E.right]) {
@@ -293,7 +293,7 @@ function reviewSheet(wb, model, S, emps, name, logos) {
     const b = { bold: true, size: 8 };
     setCell(ws, r, V.no, i + 1, b);
     setCell(ws, r, V.name, e.fullName, { ...b, h: 'left', shrink: true });
-    setCell(ws, r, V.title, e.jobTitle, { ...b, shrink: true }); setCell(ws, r, V.level, e.levelText, b); setCell(ws, r, V.pr, e.opr, b);
+    setCell(ws, r, V.title, e.jobTitle, { ...b, shrink: true }); setCell(ws, r, V.level, e.levelText, b); setCell(ws, r, V.pr, e.payroll, b);
     setCell(ws, r, V.x, fx(`${q}!${x.refs.X}+${q}!${x.refs.C}+${q}!${x.refs.Q}`, nx), b);
     setCell(ws, r, V.y, fx(`${q}!${x.refs.Y}+${q}!${x.refs.O}`, ny), b);
     setCell(ws, r, V.total, fx(`${addr(V.x, r, false)}+${addr(V.y, r, false)}`, nx + ny), { ...b, fill: GREY });
@@ -349,7 +349,7 @@ function overtimeSheet(wb, model, S, emps, name) {
   ws.getRow(3).height = 24;
   who.forEach(({ e, i }, k) => {
     const r = 4 + k, ob = { bold: true, size: 11 };
-    setCell(ws, r, 1, k + 1, ob); setCell(ws, r, 2, e.fullName, { ...ob, h: 'left', shrink: true }); setCell(ws, r, 3, e.opr, ob);
+    setCell(ws, r, 1, k + 1, ob); setCell(ws, r, 2, e.fullName, { ...ob, h: 'left', shrink: true }); setCell(ws, r, 3, e.payroll, ob);
     dates.forEach((d, c) => setCell(ws, r, 4 + c, e.cells[d.day - 1].ot || null, { ...ob, font: CAL }));
     const x = emps[i];
     setCell(ws, r, totalCol, fx(`${quote(x.sheet)}!${x.refs.otNormal}+${quote(x.sheet)}!${x.refs.otShift}`, x.totals.otNormal + x.totals.otShift), { ...ob, font: CAL });
@@ -385,7 +385,7 @@ export async function buildOfficialWorkbook(model, tpl, ExcelJS, { loadAsset, ca
   let dayLast = D.first;
   model.days.forEach((_, i) => { dayLast = daySheet(wb, model, S, i, dayNames[i], logos).last; });
   dayLast = Math.max(dayLast, D.first);
-  const emps = model.employees.map((e) => employeeSheet(wb, model, S, e, employeeSheetName(e.fullName, e.opr, used), dayNames, dayLast, logos));
+  const emps = model.employees.map((e) => employeeSheet(wb, model, S, e, employeeSheetName(e.fullName, e.payroll, used), dayNames, dayLast, logos));
   reviewSheet(wb, model, S, emps, uniqueSheetName('Review', used), logos);
   overtimeSheet(wb, model, S, emps, uniqueSheetName('Overtime', used));
   return wb;
@@ -399,6 +399,6 @@ export async function buildEmployeeWorkbook(model, tpl, ExcelJS, { loadAsset, em
   const S = reportSettings(model, tpl);
   const logos = await loadLogos(wb, tpl, loadAsset);
   const e = model.employees.find((x) => x.id === employeeId) ?? model.employees[0];
-  employeeSheet(wb, model, S, e, employeeSheetName(e.fullName, e.opr, new Set()), model.days.map((d) => String(d.day)), D.first, logos, true);   // names unused: plain values
+  employeeSheet(wb, model, S, e, employeeSheetName(e.fullName, e.payroll, new Set()), model.days.map((d) => String(d.day)), D.first, logos, true);   // names unused: plain values
   return wb;
 }

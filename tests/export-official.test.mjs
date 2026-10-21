@@ -24,6 +24,7 @@ const people = [
   { id: 'e5', position: 'Technician', full_name: 'Hamdy Mahmoud Abdelnabi', username: 'e5', opr: 'EMC-102', level: 4, job_title: 'Supervisor', contract_no: '', residence: 'outside' },
   { id: 'e6', position: 'Rigger Foreman', full_name: 'Khaled Orabi Ali', username: 'e6', opr: 'EMC-074', level: 5, job_title: null, contract_no: '033/2019', residence: 'inside' },
 ];
+people.forEach((p) => { p.payroll = p.opr; });   // reports print the PAYROLL number
 const status = new Map([
   ['e1|2028-09-30', 'X'], ['e1|2028-10-01', 'X'], ['e1|2028-10-02', 'X'], ['e1|2028-10-03', 'Y'], ['e1|2028-10-31', 'X'], ['e1|2028-11-01', 'X'],   // work continues from September and into November
   ['e2|2028-10-02', 'Y'], ['e2|2028-10-17', 'X'],                                                     // two isolated work days

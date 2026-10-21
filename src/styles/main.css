@@ -374,3 +374,8 @@ a.btn.primary { color: #fff; }
 .form.two-col > p, .form.two-col > .choice { grid-column: 1 / -1; }
 .form.two-col .choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 640px) { .form.two-col { grid-template-columns: 1fr; } .form.two-col .choice-list { grid-template-columns: 1fr; } }
+
+.bulk-results { max-height: 46vh; overflow: auto; margin-block-start: 8px; }
+.bulk-table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+.bulk-table th, .bulk-table td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: start; }
+.bulk-table tr.bad td { color: var(--danger); } .bulk-table td:nth-child(4) { font-family: ui-monospace, monospace; }

@@ -17,8 +17,8 @@ export const setOvertime = (uid, day, hours, note) => rpc('set_overtime', { p_us
 export const setOvertimeBulk = (day, rows) => supabase.rpc('set_overtime_bulk', { p_day: day, p_rows: rows }).then(({ error }) => { if (error) throw error; });
 export const setHoliday = (day, on) => rpc('set_holiday', { p_day: day, p_on: on });
 // jobTitle / contractNo / workLocation / residence ('inside' | 'outside' the work-location city): text to set ('' clears); null leaves unchanged
-export const updateProfile = (uid, fullName, opr, level, jobTitle = null, contractNo = null, workLocation = null, residence = null, position = null) =>
-  rpc('update_profile', { p_user: uid, p_full_name: fullName, p_opr: opr, p_level: level, p_job_title: jobTitle, p_contract_no: contractNo, p_work_location: workLocation, p_residence: residence, p_position: position });
+export const updateProfile = (uid, fullName, opr, level, jobTitle = null, contractNo = null, workLocation = null, residence = null, position = null, payroll = null) =>
+  rpc('update_profile', { p_user: uid, p_full_name: fullName, p_opr: opr, p_level: level, p_job_title: jobTitle, p_contract_no: contractNo, p_work_location: workLocation, p_residence: residence, p_position: position, p_payroll: payroll });
 // department print settings: report = { dept_print_name?, location? } (replaced as a whole); code / sector / field are columns ('' clears, null keeps)
 export const setDepartmentReport = (id, report, { code = null, sector = null, field = null, approvedEngineer = null, approvedTech = null } = {}) =>
   rpc('set_department_report', { p_dept: id, p_report: report, p_code: code, p_sector: sector, p_field: field, p_approved_engineer: approvedEngineer, p_approved_tech: approvedTech });
@@ -26,7 +26,7 @@ export const setUserRole = (uid, role) => rpc('set_user_role', { p_user: uid, p_
 export const createDepartment = (name) => rpc('create_department', { p_name: name });
 export const renameDepartment = (id, name) => rpc('rename_department', { p_id: id, p_name: name });
 
-const PEOPLE_COLS = 'id,username,full_name,opr,level,role,department_id,job_title,contract_no,work_location,residence,position';
+const PEOPLE_COLS = 'id,username,full_name,opr,level,role,department_id,job_title,contract_no,work_location,residence,position,payroll';
 
 export const fetchDeptPeople = (deptId) => fetchAll(() =>
   supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).eq('department_id', deptId).order('full_name').order('id'));

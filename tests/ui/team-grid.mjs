@@ -32,6 +32,7 @@ db(`insert into public.day_status (user_id, day, status)
     insert into public.overtime (user_id, day, hours) values ('${uid(1)}', current_date, 3), ('${OTHER}', current_date, 9);
     insert into public.holidays (department_id, day) values ('${DA}', current_date + 2);`);
 
+db(`update public.profiles set payroll = opr where payroll is null and opr is not null`);   // reports print the payroll number
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };

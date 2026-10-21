@@ -21,18 +21,19 @@ const mkUsers = (rows) => sql(`insert into auth.users (instance_id,id,aud,role,e
   insert into auth.identities (id,user_id,provider_id,identity_data,provider,last_sign_in_at,created_at,updated_at) select gen_random_uuid(), id, id::text, json_build_object('sub', id), 'email', now(), now(), now() from auth.users where id in (${rows.map((r) => `'${r[0]}'`).join(',')});
   insert into public.profiles (id,username,full_name,opr,level,department_id,role,job_title,contract_no) values ${rows.map((r) => `('${r[0]}','${r[1]}','${r[2]}','${r[3]}',${r[4]},'${r[5]}','${r[6]}',${r[7] ? `'${r[7]}'` : 'null'},${r[8] ? `'${r[8]}'` : 'null'})`).join(',')};`);
 mkUsers([
-  [uid(0), 'xoadm', 'XO Admin', 'EMC-900', 4, DA, 'admin', 'Supervisor', '010/2019'],
-  [uid(1), 'xou1', 'XO Engineer One', 'EMC-901', 3, DA, 'user', 'Engineer', '033/2019'],
-  [uid(2), 'xou2', 'XO Engineer Two', 'EMC-902', 2, DA, 'user', 'Engineer', null],
-  [uid(3), 'xou3', 'XO Tech Three', 'EMC-903', 1, DA, 'user', 'Technician', '7/2021'],
-  [uid(4), 'xou4', 'XO No Title Four', 'EMC-904', 1, DA, 'user', null, null],
-  ['37000000-0000-0000-0000-000000000201', 'xobadm', 'XO Beta Admin', 'EMC-950', 4, DB, 'admin', 'Manager', null],
+  [uid(0), 'xoadm', 'XO Admin', 'XOT-900', 4, DA, 'admin', 'Supervisor', '010/2019'],
+  [uid(1), 'xou1', 'XO Engineer One', 'XOT-901', 3, DA, 'user', 'Engineer', '033/2019'],
+  [uid(2), 'xou2', 'XO Engineer Two', 'XOT-902', 2, DA, 'user', 'Engineer', null],
+  [uid(3), 'xou3', 'XO Tech Three', 'XOT-903', 1, DA, 'user', 'Technician', '7/2021'],
+  [uid(4), 'xou4', 'XO No Title Four', 'XOT-904', 1, DA, 'user', null, null],
+  ['37000000-0000-0000-0000-000000000201', 'xobadm', 'XO Beta Admin', 'XOT-950', 4, DB, 'admin', 'Manager', null],
 ]);
 const M = "date_trunc('month', current_date)::date";
 sql(`insert into public.day_status (user_id, day, status) values ('${uid(1)}', ${M}+0, 'X'), ('${uid(1)}', ${M}+1, 'X'), ('${uid(1)}', ${M}+2, 'Y'), ('${uid(2)}', ${M}+1, 'Y'), ('${uid(3)}', ${M}+4, 'X'), ('${uid(0)}', ${M}+4, 'Y');
   insert into public.overtime (user_id, day, hours, note) values ('${uid(1)}', ${M}+0, 2, 'inventory'), ('${uid(1)}', ${M}+2, 6, 'night shift'), ('${uid(2)}', ${M}+1, 4, null), ('${uid(0)}', ${M}+4, 3, 'audit');
   insert into public.holidays (department_id, day) values ('${DA}', ${M}+1);`);
 
+sql(`update public.profiles set payroll = opr where payroll is null and opr is not null`);   // reports print the payroll number
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
@@ -66,7 +67,7 @@ await p.click('button:text-is("Add user")'); await p.waitForSelector('dialog[ope
 { const bx = await dlg(p).evaluate((d) => { const r = d.getBoundingClientRect(); const u = d.querySelector('input').getBoundingClientRect(); const pw = [...d.querySelectorAll('input')][1].getBoundingClientRect(); return { w: r.width, h: r.height, vh: innerHeight, sameRow: Math.abs(u.top - pw.top) < 4 && pw.left > u.left + 100 }; });
   ok('Add user dialog: two columns, wider, and short enough for one screen', bx.sameRow && bx.w >= 700 && bx.h <= bx.vh - 20, JSON.stringify(bx)); await p.screenshot({ path: S + '/xo-add-user.png' }); }
 ok('Add user dialog has Job title and Contract no. fields', (await dlg(p).getByLabel('Job title').count()) === 1 && (await dlg(p).getByLabel('Contract no.').count()) === 1);
-await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name').fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('EMC-999');
+await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name').fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('XOT-999'); await dlg(p).getByLabel('Payroll number').fill('PR-999');
 ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'inside');
 await dlg(p).getByLabel('Job title').fill('Certified Rigger'); await dlg(p).getByLabel('Contract no.').fill('202/2024');
 await dlg(p).getByLabel('Position').fill('Tech'); await dlg(p).getByLabel('Work location (site)').fill('Abu Qir Site'); await dlg(p).locator('label.choice-card:has(input[value="outside"])').click();
@@ -75,7 +76,7 @@ await p.waitForSelector('dialog[open]', { state: 'detached', timeout: 60000 });
 ok('the new person is created WITH job title and contract number (Edge Function)', await eventually(() => sql(`select job_title||'|'||contract_no from public.profiles where username='xonew'`) === 'Certified Rigger|202/2024'));
 ok('position is stored (Edge Function)', await eventually(() => sql(`select position from public.profiles where username='xonew'`) === 'Tech'));
 ok('work location and residence are stored (Edge Function)', await eventually(() => sql(`select work_location||'|'||residence from public.profiles where username='xonew'`) === 'Abu Qir Site|outside'));
-ok('the user card shows only the main data (name, OPR, position), the rest is in Edit data', await eventually(async () => { const c = await p.locator('.person', { hasText: 'XO Brand New' }).textContent(); return c.includes('EMC-999') && c.includes('Tech') && !c.includes('Certified Rigger') && !c.includes('xonew') && !c.includes('Level') && !c.includes('Abu Qir'); }));
+ok('the user card shows only the main data (name, OPR, position), the rest is in Edit data', await eventually(async () => { const c = await p.locator('.person', { hasText: 'XO Brand New' }).textContent(); return c.includes('XOT-999') && c.includes('Tech') && !c.includes('Certified Rigger') && !c.includes('xonew') && !c.includes('Level') && !c.includes('Abu Qir'); }));
 await p.locator('.person', { hasText: 'XO Brand New' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
 ok('Edit data shows the stored values', (await dlg(p).getByLabel('Job title').inputValue()) === 'Certified Rigger' && (await dlg(p).getByLabel('Contract no.').inputValue()) === '202/2024');
 ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).locator('.choice input:checked').inputValue()) === 'outside');
@@ -97,8 +98,8 @@ await dlg(p).getByLabel('Department code').fill('19'); await dlg(p).getByLabel('
 await dlg(p).getByLabel('Department name as printed').fill('TURBO (MAINT.)'); await dlg(p).getByLabel('Total approved (Engineer)').fill('264'); await dlg(p).getByLabel('Total approved (Tech)').fill('295');
 await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('a DEPARTMENT ADMIN edits the department data himself (same dialog as the super admin)', await eventually(() => sql(`select code||'|'||sector||'|'||field||'|'||approved_engineer||'|'||approved_tech||'|'||(report->>'dept_print_name') from public.departments where id='${DA}'`) === '19|Maintenance Sector X|Operations [Fields] X|264|295|TURBO (MAINT.)'));
-sql(`update public.profiles set work_location='IDKU Site' where opr='EMC-901'`);
-sql(`update public.profiles set position='Engineer' where opr in ('EMC-901','EMC-902'); update public.profiles set position='Tech' where opr='EMC-903'`);
+sql(`update public.profiles set work_location='IDKU Site' where opr='XOT-901'`);
+sql(`update public.profiles set position='Engineer' where opr in ('XOT-901','XOT-902'); update public.profiles set position='Tech' where opr='XOT-903'`);
 await p.reload(); await p.waitForSelector('.tgrid tbody tr');
 await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
 ok('with the department data filled in, the notice is gone', (await dlg(p).locator('.notice').count()) === 0);
@@ -108,22 +109,22 @@ ok('the other department is unaffected', sql(`select report::text from public.de
 // ---- C. official export vs the database
 const off = await doExport(p, {});
 const wb = off.wb, names = wb.worksheets.map((w) => w.name);
-const emps = JSON.parse(sql(`select coalesce(json_agg(json_build_object('id', id, 'name', full_name, 'opr', opr, 'title', job_title, 'contract', contract_no, 'level', level) order by full_name),'[]') from public.profiles where department_id='${DA}' and active`));
+const emps = JSON.parse(sql(`select coalesce(json_agg(json_build_object('id', id, 'name', full_name, 'opr', payroll, 'title', job_title, 'contract', contract_no, 'level', level) order by full_name),'[]') from public.profiles where department_id='${DA}' and active`));
 ok(`download is named for the department and month`, off.name === `timesheet_XO_Alpha_${month}.xlsx`, off.name);
 ok(`sheets: ${nDays} day sheets (1..${nDays}), ${emps.length} employee sheets, Review, Overtime`, names.length === nDays + emps.length + 2 && names.slice(0, nDays).every((n, i) => n === String(i + 1)) && names[names.length - 2] === 'Review', names.slice(0, 3).join(',') + '...' + names.slice(-3).join(','));
-ok('employee sheets are named "<name> <OPR>" in alphabetical order', names.slice(nDays, nDays + emps.length).every((n, i) => n === `${emps[i].name} ${emps[i].opr}`.slice(0, 31) || n.endsWith(emps[i].opr)), names.slice(nDays, nDays + emps.length).join(' | '));
+ok('employee sheets are named "<name> <payroll>" in alphabetical order', names.slice(nDays, nDays + emps.length).every((n, i) => n === `${emps[i].name} ${emps[i].opr}`.slice(0, 31) || n.endsWith(emps[i].opr)), names.slice(nDays, nDays + emps.length).join(' | '));
 const d1 = wb.getWorksheet('1');
 ok('settings are applied: title line and sign-offs on a day sheet', d1.getCell('A4').value === 'XO Alpha Dept. Daily Attendance Sheet' && tx(d1.getCell('C1')).includes('Maintenance Sector X') && tx(d1.getCell('C1')).includes('Operations [Fields] X') && d1.getCell(9 + emps.length + 1, 1).value === 'XO Alpha SH/DH' && d1.getCell(9 + emps.length + 1, 8).value === 'XO Alpha AGM', '');
 // every cell of every day sheet equals the database
-const dbRows = sql(`select p.opr, extract(day from d.day)::int, coalesce(s.status,'E'), coalesce(o.hours::text,''), coalesce(o.note,'') from public.profiles p cross join generate_series(date_trunc('month',current_date)::date, (date_trunc('month',current_date)+interval '1 month - 1 day')::date, '1 day') d(day) left join public.day_status s on s.user_id=p.id and s.day=d.day left join public.overtime o on o.user_id=p.id and o.day=d.day where p.department_id='${DA}' and p.active`).split('\n').map((l) => l.split('|'));
+const dbRows = sql(`select p.payroll, extract(day from d.day)::int, coalesce(s.status,'E'), coalesce(o.hours::text,''), coalesce(o.note,'') from public.profiles p cross join generate_series(date_trunc('month',current_date)::date, (date_trunc('month',current_date)+interval '1 month - 1 day')::date, '1 day') d(day) left join public.day_status s on s.user_id=p.id and s.day=d.day left join public.overtime o on o.user_id=p.id and o.day=d.day where p.department_id='${DA}' and p.active`).split('\n').map((l) => l.split('|'));
 let mism = 0; for (const [opr, day, status, hours, note] of dbRows) {
   const ws = wb.getWorksheet(String(Number(day))); let found = false;
   for (let r = 9; r < 9 + emps.length; r++) if (ws.getCell(r, 5).value === opr) { found = true; if (ws.getCell(r, 6).value !== status || String(ws.getCell(r, 10).value ?? '') !== hours || !String(ws.getCell(r, 11).value ?? '').includes(note)) mism++; }
   if (!found) mism++;
 }
 ok(`all ${dbRows.length} day-sheet rows (status, overtime hours, note) equal the database`, mism === 0, `${mism} mismatches`);
-const e1 = wb.worksheets[nDays + emps.findIndex((e) => e.opr === 'EMC-901')];
-ok('employee sheet: name, title, level, location, contract number, department, code, payroll', e1.getCell('C8').value === 'XO Engineer One' && e1.getCell('C9').value === 'Engineer' && e1.getCell('C10').value === 'Level 3' && e1.getCell('C11').value === 'IDKU Site' && e1.getCell('P9').value === '033/2019' && e1.getCell('P10').value === 'TURBO (MAINT.)' && e1.getCell('P7').value === '19' && e1.getCell('P11').value === 'EMC-901');
+const e1 = wb.worksheets[nDays + emps.findIndex((e) => e.opr === 'XOT-901')];
+ok('employee sheet: name, title, level, location, contract number, department, code, payroll', e1.getCell('C8').value === 'XO Engineer One' && e1.getCell('C9').value === 'Engineer' && e1.getCell('C10').value === 'Level 3' && e1.getCell('C11').value === 'IDKU Site' && e1.getCell('P9').value === '033/2019' && e1.getCell('P10').value === 'TURBO (MAINT.)' && e1.getCell('P7').value === '19' && e1.getCell('P11').value === 'XOT-901');
 ok('employee sheet: daily values come from formulas that read the day sheets (day 1 X / 2h / "inventory")', typeof e1.getCell('B15').value === 'object' && e1.getCell('B15').value.formula.includes("'1'!") && res(e1.getCell('B15')) === 'X' && res(e1.getCell('I15')) === 2 && String(res(e1.getCell('J15'))).includes('inventory'));
 const rv = wb.getWorksheet('Review'); let rvOk = true, rvMsg = '';
 for (let i = 0; i < emps.length; i++) {
@@ -136,7 +137,7 @@ ok('review sheet: engineer days (SUMIF by position) = 3 + 1 = 4', res(rv.getCell
 
 // ---- C2. arrival / departure / transport in the downloaded file (xou3 works alone on day 5 -> both marks, residence unset = IN)
 { const d5 = wb.getWorksheet(String(Number(sql("select extract(day from date_trunc('month',current_date)::date+4)")))); let row = null;
-  for (let r = 9; r < 9 + emps.length; r++) if (d5.getCell(r, 5).value === 'EMC-903') row = r;
+  for (let r = 9; r < 9 + emps.length; r++) if (d5.getCell(r, 5).value === 'XOT-903') row = r;
   ok('an isolated work day is both Arrival and Departure: 2 trips in TRANS/IN (residence unspecified), comment says so', row && Number(d5.getCell(row, 8).value) === 2 && /Arrival/.test(d5.getCell(row, 11).value) && /Departure/.test(d5.getCell(row, 11).value), row && `${d5.getCell(row, 8).value} ${d5.getCell(row, 11).value}`); }
 
 // ---- C3. PDF
@@ -166,13 +167,39 @@ await p.screenshot({ path: S + '/xo-dialog-ar.png' });
 const [dla] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
 await dla.saveAs(S + '/xo-ar.xlsx'); const wba = new ExcelJS.Workbook(); await wba.xlsx.readFile(S + '/xo-ar.xlsx');
 ok('...the workbook itself stays the English company form', wba.getWorksheet('1').getCell('A4').value === 'XO Alpha Dept. Daily Attendance Sheet' && wba.getWorksheet('Review').getCell('H8').value === 'Total Days');
+// ---- F2. bulk add users from an Excel sheet
+{ const bw = new ExcelJS.Workbook(); const bs = bw.addWorksheet('Users');
+  bs.addRow(['Full name', 'OPR', 'Payroll', 'Username', 'Password', 'Level', 'Job title', 'Contract no', 'Work location', 'Position', 'Residence']);
+  bs.addRow(['XO Bulk One', 'OPRCTR9001', 'XOT-9001', '', '', 2, 'Engineer', '033/2019', 'IDKU Site', 'Engineer', 'inside']);
+  bs.addRow(['XO Bulk Two', 'OPRCTR9002', 'XOT-9002', 'xobulk2', 'Bulk-Pass-1234']);
+  bs.addRow(['XO Bulk Dup', 'OPRCTR9001', 'XOT-9003']);
+  bs.addRow(['XO Bulk Bad', '', 'XOT-9004']);
+  await bw.xlsx.writeFile(S + '/xo-bulk.xlsx');
+  if (await p.locator('button:text-is("English")').count()) await p.click('button:text-is("English")');   // the Arabic check above switched the UI
+  await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
+  await p.click('button:text-is("Bulk add (Excel)")'); await p.waitForSelector('dialog[open]');
+  await dlg(p).locator('input[type=file]').setInputFiles(S + '/xo-bulk.xlsx');
+  ok('bulk add: the file is read (4 users found)', await eventually(async () => (await dlg(p).locator('p.muted').nth(1).textContent()).includes('4 users found')));
+  await dlg(p).locator('button:text-is("Create users")').click();
+  ok('bulk add: result says 2 created, 2 failed', await eventually(async () => (await dlg(p).textContent()).includes('Created: 2 · Failed: 2'), 120000));
+  const rowsTxt = await dlg(p).locator('.bulk-table tbody tr').allTextContents();
+  ok('bulk add: empty username = the OPR (lower-case) with a generated password (8+ chars), given username/password kept', rowsTxt[0].includes('oprctr9001') && /[A-Za-z0-9]{8,}/.test(rowsTxt[0].replace('XO Bulk One', '').replace('oprctr9001', '').replace('Created', '')) && rowsTxt[1].includes('xobulk2') && rowsTxt[1].includes('Bulk-Pass-1234'), rowsTxt.join(' | '));
+  ok('bulk add: the duplicate and the row without OPR are reported as failed', rowsTxt[2].includes('Repeated in the file') && rowsTxt[2].includes('XO Bulk Dup') && rowsTxt[3].includes('required'), rowsTxt.slice(2).join(' | '));
+  ok('bulk add: users are in the database with payroll / OPR exactly as typed (no prefix added) in the acting department', sql(`select username||'|'||opr||'|'||payroll||'|'||coalesce(position,'')||'|'||department_id from public.profiles where username='oprctr9001'`) === `oprctr9001|OPRCTR9001|XOT-9001|Engineer|${DA}` && sql(`select count(*) from public.profiles where username in ('oprctr9001','xobulk2')`) === '2');
+  const [dlr] = await Promise.all([p.waitForEvent('download'), dlg(p).locator('#bulk-download').click()]);
+  await dlr.saveAs(S + '/xo-bulk-result.xlsx'); const rw = new ExcelJS.Workbook(); await rw.xlsx.readFile(S + '/xo-bulk-result.xlsx'); const rs = rw.worksheets[0];
+  ok('bulk add: the result downloads as Excel with usernames and passwords', rs.getCell('E2').value === 'oprctr9001' && String(rs.getCell('F2').value).length >= 8 && rs.getCell('E3').value === 'xobulk2' && rs.getCell('F3').value === 'Bulk-Pass-1234' && rs.getCell('G2').value === 'Created' && dlr.suggestedFilename() === 'users_created.xlsx');
+  await p.keyboard.press('Escape');
+  const tmpl = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Bulk add (Excel)")'); await p.waitForSelector('dialog[open]'); await dlg(p).locator('button:text-is("Download the template")').click(); })()]);
+  ok('bulk add: the template downloads', tmpl[0].suggestedFilename() === 'users_template.xlsx'); await p.keyboard.press('Escape'); }
+
 ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 await p.context().close();
 
 // ---- G. a 40-person department: size and speed
-const rows = [[uid(50), 'xoladm', 'XO Large Admin', 'EMC-1000', 4, DL, 'admin', 'Supervisor', '1/2020']];
-for (let i = 1; i <= 39; i++) rows.push([`37000000-0000-0000-0000-0000000003${String(i).padStart(2, '0')}`, `xol${i}`, `XO Person ${String(i).padStart(2, '0')} Abdelrahman Mahmoud`, `EMC-${1000 + i}`, 1 + (i % 5), DL, 'user', i % 3 ? 'Technician' : 'Engineer', `${i}/2021`]);
-mkUsers(rows);
+const rows = [[uid(50), 'xoladm', 'XO Large Admin', 'XOT-1000', 4, DL, 'admin', 'Supervisor', '1/2020']];
+for (let i = 1; i <= 39; i++) rows.push([`37000000-0000-0000-0000-0000000003${String(i).padStart(2, '0')}`, `xol${i}`, `XO Person ${String(i).padStart(2, '0')} Abdelrahman Mahmoud`, `XOT-${1000 + i}`, 1 + (i % 5), DL, 'user', i % 3 ? 'Technician' : 'Engineer', `${i}/2021`]);
+mkUsers(rows); sql(`update public.profiles set payroll = opr where payroll is null and opr is not null`);
 sql(`insert into public.day_status (user_id, day, status) select p.id, d::date, case when (abs(hashtext(p.id::text||d::text))%3)=0 then 'X' else 'Y' end from public.profiles p, generate_series(date_trunc('month',current_date), date_trunc('month',current_date) + interval '9 days', '1 day') d where p.department_id='${DL}' and (abs(hashtext(p.id::text||d::text))%2)=0`);
 const big = await login('xoladm');
 await big.goto(BASE + '/#/team'); await big.waitForSelector('.tgrid tbody tr');
@@ -180,7 +207,7 @@ const t0 = Date.now(); const bigOut = await doExport(big, {}); const secs = (Dat
 ok(`40 employees: ${nDays + 40 + 2} sheets generated and downloaded in ${secs.toFixed(1)} s (limit 90 s)`, bigOut.wb.worksheets.length === nDays + 40 + 2 && secs < 90, `${bigOut.wb.worksheets.length} sheets, ${secs}s`);
 const names2 = bigOut.wb.worksheets.map((w) => w.name);
 ok('...every sheet name valid (<=31 chars, unique, no forbidden characters) despite long names', names2.every((n) => n.length <= 31 && !/[\\/?*[\]:']/.test(n)) && new Set(names2.map((n) => n.toLowerCase())).size === names2.length);
-ok('...day sheets list all 40 employees', bigOut.wb.getWorksheet('3').getCell(9 + 39, 5).value?.toString().startsWith('EMC-') && !bigOut.wb.getWorksheet('3').getCell(9 + 40, 5).value);
+ok('...day sheets list all 40 employees', bigOut.wb.getWorksheet('3').getCell(9 + 39, 5).value?.toString().startsWith('XOT-') && !bigOut.wb.getWorksheet('3').getCell(9 + 40, 5).value);
 ok('big: no page errors ' + JSON.stringify(big.errs), big.errs.length === 0);
 await big.context().close();
 
@@ -224,7 +251,7 @@ await big.context().close();
   const [dx] = await Promise.all([u.waitForEvent('download', { timeout: 60000 }), dlg(u).locator('button.primary').click()]);
   await dx.saveAs(S + '/xo-user.xlsx'); const wu = new ExcelJS.Workbook(); await wu.xlsx.readFile(S + '/xo-user.xlsx');
   const sh = wu.worksheets[0];
-  ok('user export: ONE sheet, only that person (their name, OPR, contract no.)', wu.worksheets.length === 1 && sh.getCell('C8').value === 'XO Engineer One' && sh.getCell('P11').value === 'EMC-901' && sh.getCell('P9').value === '033/2019' && dx.suggestedFilename().startsWith('timesheet_XO_Engineer_One_'), dx.suggestedFilename());
+  ok('user export: ONE sheet, only that person (their name, OPR, contract no.)', wu.worksheets.length === 1 && sh.getCell('C8').value === 'XO Engineer One' && sh.getCell('P11').value === 'XOT-901' && sh.getCell('P9').value === '033/2019' && dx.suggestedFilename().startsWith('timesheet_XO_Engineer_One_'), dx.suggestedFilename());
   ok('user export: first day X with 2h overtime "inventory"; day 3 Y', sh.getCell('B15').value === 'X' && sh.getCell('I15').value === 2 && String(sh.getCell('J15').value).includes('inventory') && sh.getCell('B17').value === 'Y');
   await u.click('.cal-tools button:has-text("Export")'); await u.waitForSelector('dialog[open]');
   await dlg(u).locator('input[type=radio][value="pdf"]').check();

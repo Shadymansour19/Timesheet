@@ -359,6 +359,10 @@ select t.eq('...stored, other fields untouched', $$select "position" || '|' || c
 select t.ok('position can be any free text and be cleared with empty text', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, 'Rigger Foreman')$$);
 select t.denied('position longer than 100 characters is rejected', format($f$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, '%s')$f$, repeat('x', 101)), '23514');
 select t.denied('adminA cannot set the position of a dept B person', $$select public.update_profile('00000000-0000-0000-0000-0000000000b2', 'x', 'x', 1, null, null, null, null, 'Engineer')$$);
+select t.ok('adminA sets a payroll number (10-argument update_profile)', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', 7, null, null, null, null, null, 'PR-777')$$);
+select t.eq('...stored (OPR untouched)', $$select payroll || '|' || opr from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'PR-777|OPR-A2');
+select t.denied('payroll must be unique', $$select public.update_profile('00000000-0000-0000-0000-0000000000a1', 'Admin A', 'OPR-A1', 1, null, null, null, null, null, 'PR-777')$$, '23505');
+select t.denied('adminA cannot set the payroll of a dept B person', $$select public.update_profile('00000000-0000-0000-0000-0000000000b2', 'x', 'x', 1, null, null, null, null, null, 'PR-1')$$);
 select t.ok('adminA sets the approved totals of his department', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '264', '295')$$);
 select t.eq('...stored as whole numbers', $$select approved_engineer || '|' || approved_tech from public.departments where id = '10000000-0000-0000-0000-00000000000a'$$, '264|295');
 select t.denied('approved totals must be whole numbers', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '12.5', null)$$, '22023');

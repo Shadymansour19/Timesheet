@@ -1,4 +1,3 @@
-import { fmtOpr } from '../lib/core.js';
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
@@ -62,7 +61,7 @@ export function overtimeView() {
       const cur = data.overtime.get(key(p.id, day));
       const hours = h('input', { type: 'number', min: 0, max: 24, step: 1, inputmode: 'numeric', class: 'ot-hours', value: cur?.hours ?? '', placeholder: '0', 'aria-label': `${t('overtime_hours_short')}: ${p.full_name}` });
       const note = h('input', { type: 'text', maxlength: 200, class: 'ot-note', value: cur?.note ?? '', placeholder: t('note'), 'aria-label': `${t('note')}: ${p.full_name}` });
-      const el = h('div', { class: 'otrow' }, h('div', { class: 'otname' }, h('strong', {}, p.full_name), h('small', { class: 'muted' }, fmtOpr(p.opr))), hours, note);
+      const el = h('div', { class: 'otrow' }, h('div', { class: 'otname' }, h('strong', {}, p.full_name), h('small', { class: 'muted' }, (p.opr ?? ''))), hours, note);
       return { p, cur, hours, note, el, search: `${p.full_name} ${p.opr ?? ''} ${p.username}`.toLowerCase() };
     });
 
