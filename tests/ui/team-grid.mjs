@@ -49,6 +49,7 @@ async function open(w, extra = {}) {
 const cell = (p, i, d) => p.locator(`td.c[data-u="${uid(i)}"][data-d="${d}"]`);
 const undoBtn = (p) => p.locator('.team-row.tools button:has(svg):has-text("Undo"), .team-row.tools button:has-text("Undo")').first();
 const settle = (p) => p.waitForTimeout(2200);   // remote DB round trips are ~1-2 s
+const until = async (fn, ms = 20000) => { const end = Date.now() + ms; while (Date.now() < end) { try { if (await fn()) return true; } catch { /* retry */ } await new Promise((r) => setTimeout(r, 300)); } return false; };
 const days = (p) => p.locator('th.dh').evaluateAll((els) => els.map((e) => e.dataset.d));
 const title = async (p) => (await p.locator('.cal-head h2').textContent()).trim();
 const plus = (d, n) => db(`select to_char('${d}'::date + ${n},'YYYY-MM-DD')`);
@@ -123,6 +124,33 @@ await p.click('.cal-head button >> nth=1'); await waitFirst(p, plus(first, 7));
 ok('the › button also advances a week', (await days(p))[0] === plus(first, 7));
 await p.click('.cal-head button >> nth=2'); await waitFirst(p, first);
 ok('Today returns to the current week', (await days(p))[0] === first && (await p.locator('th.dh.today').count()) === 1);
+
+// ---- cycle stress: rapid clicks, several cells at once, a failed save (page.route) - the screen, the database and Undo must agree
+{ const c20 = cell(p, 20, T);
+  const paintedTxt = async (c) => (await c.textContent()).replace(/\d+$/, '').replace(/H$/, '');
+  for (let i = 0; i < 7; i++) await c20.click({ delay: 0 });                       // 7 clicks, no waiting: E X Y E X Y E -> X (7 mod 3 = 1)
+  ok('7 rapid clicks: the UI shows X at once', (await paintedTxt(c20)) === 'X');
+  ok('7 rapid clicks: the database ends at X (writes arrive in order, none lost or overtaken)', await until(async () => (await st(20, T)) === 'X', 30000));
+  await settle(p);
+  ok('...and nothing flipped back after the live refresh', (await paintedTxt(c20)) === 'X' && (await st(20, T)) === 'X');
+  await c20.click(); await c20.click(); await c20.click(); await c20.click();      // X -> Y E X Y
+  ok('4 more rapid clicks end at Y in the UI and in the database', await until(async () => (await st(20, T)) === 'Y', 30000) && (await paintedTxt(c20)) === 'Y');
+  const c21 = cell(p, 21, T), c22 = cell(p, 22, T);
+  await Promise.all([c20.click(), c21.click(), c22.click(), c21.click()]);          // different cells interleaved: 20 Y->E, 21 E->Y?? (two clicks: X, Y), 22 E->X
+  ok('interleaved clicks on three cells: every cell ends where its own click count says', await until(async () => (await st(20, T)) === 'E' && (await st(21, T)) === 'Y' && (await st(22, T)) === 'X', 30000), `${await st(20, T)} ${await st(21, T)} ${await st(22, T)}`);
+  // a failed save: the first request is aborted -> the cell rolls back, a message appears, the next click works, nothing stuck
+  let aborted = 0;
+  await p.route('**/rpc/set_day_status', async (route) => { if (aborted++ < 1) await route.abort(); else await route.continue(); });
+  const c23 = cell(p, 23, T);
+  await c23.click();
+  ok('a failed save rolls the cell back to E and tells the user', await until(async () => (await paintedTxt(c23)) === 'E' && (await p.locator('.toast').allTextContents()).join('').length > 0, 30000) && (await st(23, T)) === 'E');
+  await c23.click(); ok('after the failure the next click works (E -> X)', await until(async () => (await st(23, T)) === 'X' && (await paintedTxt(c23)) === 'X', 30000));
+  await p.unroute('**/rpc/set_day_status');
+  // restore the cells used here to E (the next checks expect them empty)
+  for (const c of [c20, c21, c22, c23]) { for (let k = 0; k < 3 && (await paintedTxt(c)) !== 'E'; k++) { await c.click(); await p.waitForTimeout(400); } }
+  await until(async () => (await st(20, T)) === 'E' && (await st(21, T)) === 'E' && (await st(22, T)) === 'E' && (await st(23, T)) === 'E', 30000);
+  ok('stress: no page errors', p.errs.length === 0, JSON.stringify(p.errs));
+  await p.reload(); await p.waitForSelector('.tgrid tbody tr'); await p.waitForTimeout(1500); }   // fresh page: an empty Undo history again
 
 // click cycles + undo (exact state)
 ok('no mode buttons, banner or hint line under the grid; the hint is in the help dialog', (await p.locator('.team-row.tools .seg').count()) === 0 && (await p.locator('.banner').count()) === 0 && (await p.locator('.hint-line').count()) === 0 && await (async () => { await p.click('button[aria-label="How this grid works"]'); await p.waitForSelector('dialog[open]'); const x = await p.textContent('dialog[open]'); await p.keyboard.press('Escape'); await p.waitForSelector('dialog[open]', { state: 'detached' }); return x.includes('Click a day') && x.includes('day number'); })());

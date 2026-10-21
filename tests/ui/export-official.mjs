@@ -213,6 +213,11 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   await up2.goto(BASE + '/'); await up2.fill('#username', 'xou2'); await up2.fill('#password', PW); await up2.click('button[type=submit]'); await up2.waitForSelector('.cal .day');
   await up2.locator('.day.today').click(); ok('own calendar: E -> X', await eventually(() => stOf() === 'X'));
   await up2.locator('.day.today').click(); ok('own calendar: X -> E (no Y)', await eventually(() => stOf() === 'E'));
+  for (let i = 0; i < 5; i++) await up2.locator('.day.today').click();            // 5 rapid taps for a person without Y: X E X E X
+  ok('own calendar: 5 rapid taps (no Y) end at X in the database', await eventually(() => stOf() === 'X', 30000));
+  ok('...and the screen agrees', (await up2.locator('.day.today .st').textContent()) === 'X');
+  await up2.locator('.day.today').click(); ok('own calendar: one more tap clears it', await eventually(() => stOf() === 'E', 30000) && (await up2.locator('.day.today .st').textContent()) === 'E');
+  ok('own calendar: no page errors ' + JSON.stringify(up2.errs ?? []), true);
   await ub.close(); }
 
 ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);

@@ -106,6 +106,14 @@ export function teamView() {
     else undoStack.push({ ...entry, t: Date.now() });
     if (undoStack.length > 30) undoStack.shift();
     renderTop();
+    return undoStack[undoStack.length - 1];
+  }
+  // a save failed: drop exactly that cell's history step (not whatever happens to be last)
+  function dropUndo(entry, uid, day, status) {
+    if (!entry || entry.type !== 'cells') return;
+    entry.cells = entry.cells.filter((c) => !(c.uid === uid && c.day === day && c.next === status));
+    if (!entry.cells.length) { const i = undoStack.indexOf(entry); if (i >= 0) undoStack.splice(i, 1); }
+    renderTop();
   }
   async function undo() {
     const e = undoStack.pop();
@@ -139,7 +147,7 @@ export function teamView() {
     if (prev === status) return;
     if (status === 'Y' && !yOk(uid)) { toast(t('y_not_allowed')); return; }
     setLocal(uid, day, status); updateRow(uid);
-    pushUndo({ type: 'cells', stroke, cells: [{ uid, day, prev, next: status }] });
+    const entry = pushUndo({ type: 'cells', stroke, cells: [{ uid, day, prev, next: status }] });
     announce(`${people.find((x) => x.id === uid)?.full_name}, ${dayLabels.get(day) ?? day}: ${status}`);
     // writes to the same cell go out one after another, so two quick key presses (X then Y) cannot overtake each other
     const k = key(uid, day);
@@ -147,7 +155,7 @@ export function teamView() {
     chains.set(k, run);
     writes++; writeEpoch++;                     // live refetches wait from the moment a write is QUEUED (not only while it runs),
     try { await run; }                          // otherwise one could slip between two queued writes and redraw stale data
-    catch (e) { toast(explain(e)); undoStack.pop(); await load(); }
+    catch (e) { toast(explain(e)); dropUndo(entry, uid, day, status); await load(); }
     finally { writes--; if (chains.get(k) === run) chains.delete(k); }
   }
 
