@@ -11,7 +11,7 @@ Each phase ends with local commits (never pushed) and a hand-off of push + Supab
 6. **Super admin screen** (DONE): departments and admins.
 7. **Export** (DONE: default template): data model → template mapping engine → default layout; verify the generated xlsx contents programmatically.
 8. **Polish** (DONE: offline banner; LIVE UPDATES via Realtime; offline write queue deferred): offline tolerance, optional realtime, a11y, mobile QA.
-9. **Template swap** (WAITING for the official form): when the official form arrives, add a new template mapping.
+9. **Official report** (DONE 2026-10-20): official monthly report as Excel and PDF, print, department data; see SPEC.md decisions and MAINTAINING.md section 5.
 
 ## Backlog (agreed, NOT now - do later when asked)
 - [x] **Desktop keyboard use** in the department grid: DONE (arrows, Home/End, PageUp/PageDown, X/Y/E, Delete, Enter/Space, H for holiday, Ctrl+Z; ARIA grid; Arabic-aware). Its own suite tests/ui/keyboard.mjs passed 5/5.
