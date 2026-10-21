@@ -379,3 +379,5 @@ a.btn.primary { color: #fff; }
 .bulk-table { border-collapse: collapse; width: 100%; font-size: .85rem; }
 .bulk-table th, .bulk-table td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: start; }
 .bulk-table tr.bad td { color: var(--danger); } .bulk-table td:nth-child(4) { font-family: ui-monospace, monospace; }
+
+.btn.danger-outline { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }

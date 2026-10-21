@@ -138,6 +138,19 @@ ok('Today returns to the current week', (await days(p))[0] === first && (await p
   const c21 = cell(p, 21, T), c22 = cell(p, 22, T);
   await Promise.all([c20.click(), c21.click(), c22.click(), c21.click()]);          // different cells interleaved: 20 Y->E, 21 E->Y?? (two clicks: X, Y), 22 E->X
   ok('interleaved clicks on three cells: every cell ends where its own click count says', await until(async () => (await st(20, T)) === 'E' && (await st(21, T)) === 'Y' && (await st(22, T)) === 'X', 30000), `${await st(20, T)} ${await st(21, T)} ${await st(22, T)}`);
+  // flicker check: record every text the cell shows over time; two clicks with different gaps must only ever move FORWARD (E, X, Y), never back and forth
+  const sel = `td.c[data-u="${uid(24)}"][data-d="${T}"]`;
+  const watchCell = (c) => p.evaluate((q) => { const val = () => (document.querySelector(q)?.textContent ?? '').replace(/\d+$/, ''); window.__seq = [[0, val()]]; const t0 = performance.now(); window.__obs?.disconnect(); window.__obs = new MutationObserver(() => { const v = val(); if (window.__seq.at(-1)[1] !== v) window.__seq.push([Math.round(performance.now() - t0), v]); }); window.__obs.observe(document.querySelector('.tgrid'), { childList: true, subtree: true, characterData: true }); }, sel);
+  const seqOf = () => p.evaluate(() => window.__seq);
+  for (const gap of [150, 700, 1500, 3500]) {
+    const c = cell(p, 24, T);
+    await watchCell(c);
+    await c.click(); await p.waitForTimeout(gap); await c.click();                  // E -> X -> Y with `gap` ms between the two clicks
+    await until(async () => (await st(24, T)) === 'Y', 30000); await p.waitForTimeout(4000);        // let every live refresh arrive
+    const seq = (await seqOf(c)).map((x) => x[1]);
+    ok(`no flicker with ${gap} ms between two clicks: the cell only moves E -> X -> Y (saw ${seq.join(' > ')})`, seq.join('>') === 'E>X>Y' || seq.join('>') === 'E>Y' && gap < 300, JSON.stringify(await seqOf(c)));
+    await c.click(); await until(async () => (await st(24, T)) === 'E', 30000); await p.waitForTimeout(2500);    // Y -> E, reset
+  }
   // a failed save: the first request is aborted -> the cell rolls back, a message appears, the next click works, nothing stuck
   let aborted = 0;
   await p.route('**/rpc/set_day_status', async (route) => { if (aborted++ < 1) await route.abort(); else await route.continue(); });

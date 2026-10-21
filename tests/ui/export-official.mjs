@@ -217,7 +217,38 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   ok('own calendar: 5 rapid taps (no Y) end at X in the database', await eventually(() => stOf() === 'X', 30000));
   ok('...and the screen agrees', (await up2.locator('.day.today .st').textContent()) === 'X');
   await up2.locator('.day.today').click(); ok('own calendar: one more tap clears it', await eventually(() => stOf() === 'E', 30000) && (await up2.locator('.day.today .st').textContent()) === 'E');
+  // flicker check on the calendar with SLOW reads (a live refresh that started before the 2nd tap returns after its save): only forward moves
+  let slowGets = 0; await up2.route('**/rest/v1/day_status*', async (route) => { if (route.request().method() === 'GET') slowGets++; if (route.request().method() === 'GET') await new Promise((r) => setTimeout(r, 5000)); await route.continue(); });
+  for (const gap of [1800, 2600, 3400]) {
+    await up2.evaluate(() => { const val = () => (document.querySelector('.day.today .st')?.textContent ?? ''); window.__seq = [val()]; window.__obs?.disconnect(); window.__obs = new MutationObserver(() => { const v = val(); if (window.__seq.at(-1) !== v) window.__seq.push(v); }); window.__obs.observe(document.querySelector('.cal'), { childList: true, subtree: true, characterData: true }); });
+    await up2.locator('.day.today').click(); await up2.waitForTimeout(gap); await up2.locator('.day.today').click();      // E -> X -> E (no Y)
+    await eventually(() => stOf() === 'E', 30000); await up2.waitForTimeout(10000);
+    const seq = await up2.evaluate(() => window.__seq);
+    ok(`own calendar, slow reads, ${gap} ms between two taps: the day only moves E > X > E (saw ${seq.join(' > ')})`, seq.join('>') === 'E>X>E', seq.join('>'));
+  }
+  await up2.unroute('**/rest/v1/day_status*');
+  // clear the month: confirmation first, then every X / Y of the month goes, overtime stays
+  const mFirst = "date_trunc('month', current_date)::date";
+  sql(`insert into public.day_status (user_id, day, status) values ('${u2}', ${mFirst}+10, 'X'), ('${u2}', ${mFirst}+11, 'X'), ('${u2}', ${mFirst}+12, 'X'); insert into public.overtime (user_id, day, hours, note) values ('${u2}', ${mFirst}+10, 2, 'keep me')`);
+  await up2.reload(); await up2.waitForSelector('.cal .day');
+  const monthRows = () => Number(sql(`select count(*) from public.day_status where user_id='${u2}' and day >= ${mFirst} and day < ${mFirst} + interval '1 month'`));
+  const before = monthRows();
+  await up2.click('.cal-tools button:has-text("Clear")'); await up2.waitForSelector('dialog[open]');
+  ok('Clear asks for confirmation first and names the number of days', (await up2.textContent('dialog[open]')).includes(`Clear ${before} day(s)`) && before >= 4, String(before));
+  await up2.locator('dialog[open] button:text-is("Cancel")').click(); await up2.waitForSelector('dialog[open]', { state: 'detached' }); await up2.waitForTimeout(1500);
+  ok('Cancel clears nothing', monthRows() === before);
+  await up2.click('.cal-tools button:has-text("Clear")'); await up2.waitForSelector('dialog[open]'); await up2.locator('dialog[open] button.danger').click(); await up2.waitForSelector('dialog[open]', { state: 'detached' });
+  ok('confirming clears every X / Y of the month', await eventually(() => monthRows() === 0, 60000));
+  ok('...the screen shows only E and the overtime entries are kept', await eventually(async () => (await up2.locator('.day .st').allTextContents()).every((x) => x === 'E')) && Number(sql(`select count(*) from public.overtime where user_id='${u2}'`)) >= 2);
+  await up2.click('.cal-tools button:has-text("Clear")'); ok('with nothing left, Clear only says so (no dialog)', await eventually(async () => (await up2.locator('.toast').allTextContents()).join('').includes('Nothing to clear')) && (await up2.locator('dialog[open]').count()) === 0);
   ok('own calendar: no page errors ' + JSON.stringify(up2.errs ?? []), true);
+  // the admin clears a person's month from the person timesheet (one transaction)
+  const u3 = sql(`select id from public.profiles where opr='XOT-903'`);
+  const rows3 = () => Number(sql(`select count(*) from public.day_status where user_id='${u3}' and day >= ${mFirst} and day < ${mFirst} + interval '1 month'`));
+  ok('fixture: the person has days this month', rows3() >= 1);
+  await p.goto(BASE + '/#/person/' + u3); await p.waitForSelector('.cal .day');
+  await p.click('.cal-tools button:has-text("Clear")'); await p.waitForSelector('dialog[open]'); await p.locator('dialog[open] button.danger').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
+  ok('admin: Clear on a person timesheet removes that person\'s days of the month', await eventually(() => rows3() === 0, 60000));
   await ub.close(); }
 
 ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);

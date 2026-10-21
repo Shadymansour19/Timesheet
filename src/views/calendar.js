@@ -2,10 +2,10 @@ import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { fetchMonth, fetchEditWindow, setDayStatus, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
-import { fetchDepartment } from '../api/admin.js';
-import { openDialog } from '../components/dialog.js';
+import { fetchDepartment, setStatusRows } from '../api/admin.js';
+import { openDialog, confirmDialog } from '../components/dialog.js';
 import { choice } from '../components/choice.js';
-import { icon, INFO, DOWNLOAD, PRINT } from '../components/icons.js';
+import { icon, INFO, DOWNLOAD, PRINT, TRASH } from '../components/icons.js';
 import { WEEK_START, nextStatus } from '../lib/core.js';
 import * as live from '../live.js';
 import { toast } from '../components/toast.js';
@@ -28,6 +28,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
   const confirmed = {};          // day -> status last confirmed by the server
   const want = {};               // day -> latest status the user asked for
   const busy = new Set();        // days with a request in flight
+  let wver = 0;                  // bumped whenever a save starts or ends: a background read that overlapped one is stale and is dropped
 
   const todayStr = (() => { const n = new Date(); return ymd(n.getFullYear(), n.getMonth(), n.getDate()); })();
   const earliest = () => {
@@ -38,10 +39,13 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
 
   async function load({ quiet = false } = {}) {
     if (!quiet) root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
+    if (quiet && busy.size) { refetch(); return; }          // a save is in flight: read after it
+    const v0 = wver;
     let fresh, win = editWindow;
     try { [fresh, win] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow()]); }
     catch { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
-    if (quiet && (busy.size || sameMonth(fresh, data))) return;   // nothing new, or our own write is still in flight
+    if (quiet && (busy.size || v0 !== wver)) { refetch(); return; }   // a save started / finished while we were reading: this read may predate it
+    if (quiet && sameMonth(fresh, data)) return;                      // nothing new
     data = fresh; editWindow = win;
     for (const [day, v] of Object.entries(data)) if (!busy.has(day)) confirmed[day] = v.status;
     draw();
@@ -57,7 +61,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     want[day] = next;
     draw();
     if (busy.has(day)) return;
-    busy.add(day);
+    busy.add(day); wver++;
     try {
       while ((confirmed[day] ?? 'E') !== want[day]) {
         const sending = want[day];
@@ -72,7 +76,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
           toast(e.code === '42501' ? t('edit_denied') : t('save_failed'));
         }
       }
-    } finally { busy.delete(day); draw(); }
+    } finally { busy.delete(day); wver++; draw(); }
   }
 
   // Help text lives behind the "i" button (keeps the calendar compact)
@@ -92,6 +96,26 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
         await exportMonth({ dept: deptRow ?? { name: '' }, people: [ppl], data: d, year: cursor.y, month: cursor.m, lang: getLang(), format: format.value, employeeId: uid });
       } }] });
   }
+  // Clear every day of the shown month that is not E (and that this person may still edit), after a confirmation.
+  // Overtime entries are not touched (they are entered by the admin).
+  async function clearMonth() {
+    const lim = earliest();
+    const days = Object.entries(data).filter(([d, v]) => v.status !== 'E' && !(lim !== null && d < lim)).map(([d]) => d);
+    const monthName = fmt({ month: 'long', year: 'numeric' }, new Date(cursor.y, cursor.m, 1));
+    if (!days.length) { toast(t('clear_nothing')); return; }
+    const yes = await confirmDialog(t('clear_confirm').replace('{n}', days.length).replace('{month}', monthName),
+      { danger: true, confirmLabel: t('clear'), detail: t('clear_detail') });
+    if (!yes) return;
+    days.forEach((d) => { busy.add(d); want[d] = 'E'; data[d] = { ...data[d], status: 'E', eff: 'E' }; });     // hold live refreshes, show it at once
+    wver++; draw();
+    try {
+      if (admin) await setStatusRows(days.map((d) => ({ user: uid, day: d, status: 'E' })));                   // one transaction
+      else { let i = 0; await Promise.all([0, 1, 2, 3].map(async () => { while (i < days.length) { const d = days[i++]; await setDayStatus(uid, d, 'E'); confirmed[d] = 'E'; } })); }
+      toast(t('cleared'), 'success');
+    } catch (e) { toast(e.code === '42501' ? t('edit_denied') : t('save_failed')); }
+    finally { days.forEach((d) => busy.delete(d)); wver++; await load({ quiet: false }); }
+  }
+
   async function printMine() {
     try {
       const [{ printMonth }, d, deptRow] = await Promise.all([import('../export/engine.js'), fetchPaddedMonthData(cursor.y, cursor.m, { userId: uid }), fetchDepartment(dept)]);
@@ -106,15 +130,15 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
 
   function openDetails(day) {
     const v = data[day] ?? { status: 'E', ot: 0, note: '', hol: false };
-    busy.add(day);   // hold live refetches while the dialog is open and saving
+    busy.add(day); wver++;   // hold live refetches while the dialog is open and saving
     openDayEditor({
       person: { id: uid, full_name: person?.full_name ?? state.profile.full_name }, day,
       status: v.status, overtime: v.ot ? { hours: v.ot, note: v.note } : null, holiday: v.hol,
-      onSaved: () => { busy.delete(day); load({ quiet: false }); },
+      onSaved: () => { busy.delete(day); wver++; load({ quiet: false }); },
     });
     // release the hold if the dialog is dismissed without saving
     const dlg = document.querySelector('dialog[open]');
-    dlg?.addEventListener('close', () => { busy.delete(day); });
+    dlg?.addEventListener('close', () => { busy.delete(day); wver++; });
   }
 
   function cell(d) {
@@ -148,6 +172,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
         h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m), onclick: () => { mode = m; draw(); } }, label))) : null;
 
     const tools = h('div', { class: 'cal-tools' },
+      h('button', { type: 'button', class: 'btn small danger-outline', onclick: clearMonth }, icon(TRASH, 16), t('clear')),
       h('button', { type: 'button', class: 'btn small', onclick: printMine }, icon(PRINT, 16), t('print')),
       h('button', { type: 'button', class: 'btn small', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
       h('button', { type: 'button', class: 'btn small icon-only', onclick: openHelp, 'aria-label': t('help'), title: t('help') }, icon(INFO, 18)));

@@ -34,3 +34,4 @@ export const CALENDAR = ['M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2
 export const BUILDING = ['M3 21h18', 'M5 21V3h10v18', 'M15 9h4v12', 'M9 7h2', 'M9 11h2', 'M9 15h2'];
 
 export const PRINT = ['M6 9V2h12v7', 'M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2', 'M6 14h12v8H6z'];
+export const TRASH = ['M3 6h18', 'M8 6V4h8v2', 'M19 6l-1 14H6L5 6', 'M10 11v6', 'M14 11v6'];
