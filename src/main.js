@@ -7,13 +7,15 @@ import { applyTheme } from './theme.js';
 import { loginView } from './views/login.js';
 import { resolve } from './router.js';
 import { shell } from './components/shell.js';
+import { initInstall, syncInstall } from './install.js';
 import { acting, ensureActing } from './acting.js';
 import { fetchDepartments } from './api/admin.js';
 
 const root = document.getElementById('app');
 const banner = h('div', { class: 'offline-banner', role: 'status', hidden: true }, t('offline'));
 document.body.prepend(banner);
-const syncOnline = () => { banner.textContent = t('offline'); banner.hidden = navigator.onLine; };
+initInstall();
+const syncOnline = () => { banner.textContent = t('offline'); banner.hidden = navigator.onLine; syncInstall(); };
 window.addEventListener('online', syncOnline);
 window.addEventListener('offline', syncOnline);
 let notice = null;

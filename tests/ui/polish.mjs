@@ -151,5 +151,22 @@ ok('Arabic: back arrow is mirrored', (await p.locator('.back-link svg').evaluate
 ok('no page errors ' + JSON.stringify(errs), errs.length === 0);
 cleanup();
 ok('cleanup removed every test row (real data untouched)', db("select count(*) from auth.users where email like 'pl%@timesheet.local'") === '0');
+// ---- install bar (phones): appears when the browser offers installation, X hides it, a refresh brings it back; never on desktop
+{ const fire = (pg) => pg.evaluate(() => { const e = new Event('beforeinstallprompt', { cancelable: true }); e.prompt = async () => { window.__installPrompted = true; }; e.userChoice = Promise.resolve({ outcome: 'dismissed' }); window.dispatchEvent(e); });
+  const mk = async (opts) => { const ctx = await b.newContext(opts); const pg = await ctx.newPage(); await pg.goto('http://localhost:4173/'); await pg.waitForSelector('#username'); return pg; };
+  const ph = await mk({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true });
+  ok('phone: no install bar before the browser offers the install', (await ph.locator('.install-bar:not([hidden])').count()) === 0);
+  await fire(ph);
+  ok('phone: the install bar appears with an Install button and an X', (await ph.locator('.install-bar:not([hidden])').count()) === 1 && (await ph.locator('.install-bar button:text-is("Install")').count()) === 1 && (await ph.locator('.install-x').count()) === 1);
+  await ph.click('.install-x');
+  ok('phone: X hides the bar', (await ph.locator('.install-bar:not([hidden])').count()) === 0);
+  await ph.reload(); await ph.waitForSelector('#username'); await fire(ph);
+  ok('phone: after a refresh the bar is back', (await ph.locator('.install-bar:not([hidden])').count()) === 1);
+  await ph.click('.install-bar button:text-is("Install")');
+  ok('phone: Install triggers the browser install prompt', await ph.evaluate(() => window.__installPrompted === true));
+  const dk = await mk({ viewport: { width: 1280, height: 800 } }); await fire(dk);
+  ok('desktop: no install bar', (await dk.locator('.install-bar:not([hidden])').count()) === 0);
+  await ph.context().close(); await dk.context().close(); }
+
 await b.close();
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL POLISH TESTS PASSED ===');
