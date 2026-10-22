@@ -222,8 +222,8 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .gridwrap { max-height: calc(100dvh - 230px); min-height: 300px; transition: opacity .15s; }
 .gridwrap.loading { opacity: .55; pointer-events: none; }
 .tgrid.month .nm { min-width: 170px; max-width: 210px; }
-.tgrid.month { width: 100%; min-width: calc(240px + 32px * 31); table-layout: fixed; }  /* fills the tab; day columns are fixed, the name column takes the rest (never sized by its content) */
-.tgrid.month th.nm { width: 240px; min-width: 240px; max-width: 240px; }
+.tgrid.month { width: 100%; min-width: calc(260px + 32px * 31); table-layout: fixed; }  /* fills the tab; day columns are fixed, the name column takes the rest (never sized by its content) */
+.tgrid.month th.nm { width: 260px; min-width: 260px; max-width: 260px; }
 .tgrid.month th.dh, .tgrid.month td.c, .tgrid.month td.hc { min-width: 32px; }   /* day columns share the free width equally: all cells the same size whatever they hold */
 .tgrid.month .tot { width: 44px; min-width: 44px; max-width: 44px; }
 .tgrid td.c { position: relative; overflow: hidden; white-space: nowrap; text-overflow: clip; }   /* a cell holds at most 2 characters (X, Y, E, XH, YH); the overtime badge sits in the corner */
