@@ -125,6 +125,49 @@ ok('the › button also advances a week', (await days(p))[0] === plus(first, 7))
 await p.click('.cal-head button >> nth=2'); await waitFirst(p, first);
 ok('Today returns to the current week', (await days(p))[0] === first && (await p.locator('th.dh.today').count()) === 1);
 
+// ---- drag-to-fill in the grid: mouse (at once) and touch (press and hold first); along one person's row; one Undo step
+{ await p.reload(); await p.waitForSelector('.tgrid tbody tr'); await p.waitForTimeout(1500);
+  const vis = await p.locator('th.dh').evaluateAll((els) => els.map((e) => e.dataset.d));       // the days on screen (week view on the phone): the first four
+  const [d0, d1, d2, d3] = vis;
+  const cl = (d) => cell(p, 18, d);
+  const stD = (d) => st(18, d);
+  const txtD = async (d) => (await cl(d).textContent()).replace(/\d+$/, '').replace(/H$/, '');
+  const centre = async (loc) => { const b = await loc.boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+  {
+    await cl(d0).click(); ok('drag setup: the start day is clicked to X', await until(async () => (await stD(d0)) === 'X', 60000)); await settle(p);
+    const [ax, ay] = await centre(cl(d0)); const [bx, by] = await centre(cl(d1)); const [cx, cy] = await centre(cl(d3));
+    await p.mouse.move(ax, ay); await p.mouse.down(); await p.mouse.move(bx, by, { steps: 5 });
+    ok('grid mouse drag: the next day is filled WHILE the button is down', (await txtD(d1)) === 'X');
+    await p.mouse.move(cx, cy, { steps: 8 });
+    ok('...and the days after it as the pointer reaches them', (await txtD(d2)) === 'X' && (await txtD(d3)) === 'X');
+    await p.mouse.up();
+    ok('after release: the next three days saved as X for that person only', await until(async () => (await stD(d1)) === 'X' && (await stD(d2)) === 'X' && (await stD(d3)) === 'X', 60000) && (await st(19, d1)) === 'E');
+    ok('one drag = ONE extra Undo step on top of the click (button says Undo (2))', (await undoBtn(p).textContent()).includes('(2)'), await undoBtn(p).textContent());
+    await undoBtn(p).click(); ok('Undo restores all three days at once', await until(async () => (await stD(d1)) === 'E' && (await stD(d2)) === 'E' && (await stD(d3)) === 'E', 60000));
+    // touch: needs a hold first
+    const tctx = await b.newContext({ viewport: { width: 1100, height: 800 }, hasTouch: true, isMobile: true });
+    const tp = await tctx.newPage(); await tp.addInitScript(() => { try { localStorage.setItem('ts.teamView', 'month'); } catch { /* ignore */ } });
+    await tp.goto('http://localhost:4173/'); await tp.fill('#username', 'tgadm'); await tp.fill('#password', PW); await tp.click('button[type=submit]'); await tp.waitForSelector('.tgrid tbody tr'); await tp.waitForTimeout(1500);
+    const cdp = await tctx.newCDPSession(tp); const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y })) });
+    const tcell = (d) => tp.locator(`td.c[data-u="${uid(18)}"][data-d="${d}"]`); const ttxt = async (d) => (await tcell(d).textContent()).replace(/\d+$/, '').replace(/H$/, '');
+    await tcell(d0).scrollIntoViewIfNeeded(); const [t0x, t0y] = await centre(tcell(d0)); const [t1x, t1y] = await centre(tcell(d1)); const [t2x, t2y] = await centre(tcell(d2));
+    await touch('touchStart', [[t0x, t0y]]); await tp.waitForTimeout(150); await touch('touchMove', [[t1x, t1y]]); await tp.waitForTimeout(80); await touch('touchEnd', []);
+    await tp.waitForTimeout(800);
+    ok('touch: a quick swipe (no hold) fills NOTHING (it is a scroll)', (await ttxt(d1)) === 'E');
+    db(`insert into public.day_status (user_id, day, status) values ('${uid(18)}', '${d0}', 'X') on conflict (user_id, day) do update set status = 'X'`);   // the start day is X for the hold-drag
+    await tp.reload(); await tp.waitForSelector('.tgrid tbody tr'); await tp.waitForTimeout(1500); await tcell(d0).scrollIntoViewIfNeeded();
+    const [u0x, u0y] = await centre(tcell(d0)); const [u1x, u1y] = await centre(tcell(d1)); const [u2x, u2y] = await centre(tcell(d2));
+    await touch('touchStart', [[u0x, u0y]]); await tp.waitForTimeout(400);
+    for (const [x, y] of [[u0x + 8, t0y], [u1x, u1y], [u1x + 8, t1y], [u2x, u2y]]) { await touch('touchMove', [[x, y]]); await tp.waitForTimeout(40); }
+    ok('touch: press-and-hold then drag fills the days passed, as the finger moves', (await ttxt(d1)) === 'X' && (await ttxt(d2)) === 'X');
+    await touch('touchEnd', []);
+    ok('touch drag saved the next two days', await until(async () => (await stD(d1)) === 'X' && (await stD(d2)) === 'X', 60000));
+    await tctx.close();
+    await p.reload(); await p.waitForSelector('.tgrid tbody tr'); await p.waitForTimeout(1500);
+    for (const d of [d0, d1, d2]) { for (let k = 0; k < 3 && (await st(18, d)) !== 'E'; k++) { await cl(d).click(); await settle(p); } }   // back to E for the following checks
+  }
+}
+
 // ---- cycle stress: rapid clicks, several cells at once, a failed save (page.route) - the screen, the database and Undo must agree
 { const c20 = cell(p, 20, T);
   const paintedTxt = async (c) => (await c.textContent()).replace(/\d+$/, '').replace(/H$/, '');
