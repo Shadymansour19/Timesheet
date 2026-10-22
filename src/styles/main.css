@@ -388,3 +388,6 @@ a.btn.primary { color: #fff; }
 .install-text { flex: 1; display: grid; gap: 1px; min-width: 0; } .install-text small { color: var(--muted); }
 .install-x { background: none; border: 0; color: var(--muted); font-size: 1.1rem; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; }
 body.has-install .floating { inset-block-start: 68px; }
+
+/* drag-to-fill on the calendar: the finger drags over days instead of scrolling the page */
+.cal .grid .day { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }

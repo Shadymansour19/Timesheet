@@ -7,6 +7,7 @@ import { openDialog, confirmDialog } from '../components/dialog.js';
 import { choice } from '../components/choice.js';
 import { icon, INFO, DOWNLOAD, PRINT, TRASH } from '../components/icons.js';
 import { WEEK_START, nextStatus } from '../lib/core.js';
+import { enableDragFill } from '../lib/dragfill.js';
 import * as live from '../live.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
@@ -28,6 +29,8 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
   const confirmed = {};          // day -> status last confirmed by the server
   const want = {};               // day -> latest status the user asked for
   const busy = new Set();        // days with a request in flight
+  let dragging = false, pendingDraw = false;      // while a drag-fill gesture runs nothing is re-rendered (the gesture would be lost)
+  const redraw = () => { if (dragging) pendingDraw = true; else draw(); };
   let wver = 0;                  // bumped whenever a save starts or ends: a background read that overlapped one is stale and is dropped
 
   const todayStr = (() => { const n = new Date(); return ymd(n.getFullYear(), n.getMonth(), n.getDate()); })();
@@ -48,7 +51,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     if (quiet && sameMonth(fresh, data)) return;                      // nothing new
     data = fresh; editWindow = win;
     for (const [day, v] of Object.entries(data)) if (!busy.has(day)) confirmed[day] = v.status;
-    draw();
+    redraw();
   }
 
   const effOf = (status, holiday) => (status === 'E' ? 'E' : status + (holiday ? 'H' : ''));
@@ -56,10 +59,16 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
   // Serialise writes per day: tapping fast sends only the latest wanted value, one request at a time.
   async function change(day) {
     const cur = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
-    const next = nextStatus(cur.status, (admin ? person?.y_allowed : state.profile.y_allowed) !== false);
+    return setTo(day, nextStatus(cur.status, (admin ? person?.y_allowed : state.profile.y_allowed) !== false));
+  }
+
+  // set a day to a given status (optimistic, then saved in order); `patch` = update only that button in place (drag-fill)
+  async function setTo(day, next, patch = null) {
+    const cur = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
+    if (cur.status === next && !patch) return;
     data[day] = { ...cur, status: next, eff: effOf(next, cur.hol) };
     want[day] = next;
-    draw();
+    if (patch) patch(); else redraw();
     if (busy.has(day)) return;
     busy.add(day); wver++;
     try {
@@ -73,10 +82,10 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
           const v = data[day] ?? { ot: 0, hol: false };
           data[day] = { ...v, status: back, eff: effOf(back, v.hol) };
           want[day] = back;
-          toast(e.code === '42501' ? t('edit_denied') : t('save_failed'));
+          toast(e.code === '42501' ? t('edit_denied') : e.code === '22023' ? t('y_not_allowed') : t('save_failed'));
         }
       }
-    } finally { busy.delete(day); wver++; draw(); }
+    } finally { busy.delete(day); wver++; redraw(); }
   }
 
   // Help text lives behind the "i" button (keeps the calendar compact)
@@ -107,7 +116,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
       { danger: true, confirmLabel: t('clear'), detail: t('clear_detail') });
     if (!yes) return;
     days.forEach((d) => { busy.add(d); want[d] = 'E'; data[d] = { ...data[d], status: 'E', eff: 'E' }; });     // hold live refreshes, show it at once
-    wver++; draw();
+    wver++; redraw();
     try {
       if (admin) await setStatusRows(days.map((d) => ({ user: uid, day: d, status: 'E' })));                   // one transaction
       else { let i = 0; await Promise.all([0, 1, 2, 3].map(async () => { while (i < days.length) { const d = days[i++]; await setDayStatus(uid, d, 'E'); confirmed[d] = 'E'; } })); }
@@ -148,7 +157,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     const locked = lim !== null && day < lim;
     const cls = ['day', 's-' + v.eff.toLowerCase(), day === todayStr ? 'today' : '', v.hol ? 'holiday' : '', v.ot ? 'has-ot' : ''].join(' ');
     const label = `${fmt({ weekday: 'long', day: 'numeric', month: 'long' }, new Date(cursor.y, cursor.m, d))}: ${v.eff}${v.ot ? `, ${v.ot} ${t('overtime_h')}` : ''}`;
-    return h('button', { class: cls, type: 'button', disabled: locked, 'aria-label': label, onclick: () => (admin && mode === 'details' ? openDetails(day) : change(day)) },
+    return h('button', { class: cls, type: 'button', disabled: locked, 'data-d': day, 'aria-label': label, onclick: () => (admin && mode === 'details' ? openDetails(day) : change(day)) },
       h('span', { class: 'num' }, d),
       h('span', { class: 'st' }, v.eff),
       v.ot ? h('span', { class: 'ot' }, `+${v.ot}${t('hour_abbr')}`) : null);
@@ -169,7 +178,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     const go = (delta) => { shiftMonth(delta); load(); };
     const seg = admin ? h('div', { class: 'seg cal-mode', role: 'group', 'aria-label': t('tap_mode') },
       [['cycle', t('mode_cycle')], ['details', t('mode_details')]].map(([m, label]) =>
-        h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m), onclick: () => { mode = m; draw(); } }, label))) : null;
+        h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m), onclick: () => { mode = m; redraw(); } }, label))) : null;
 
     const tools = h('div', { class: 'cal-tools' },
       h('button', { type: 'button', class: 'btn small danger-outline', onclick: clearMonth }, icon(TRASH, 16), t('clear')),
@@ -185,6 +194,23 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
         ['X', 'Y', 'XH', 'YH'].map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
         h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`)));
   }
+
+  // drag-to-fill: press a day and drag over others -> they get the start day's status as you go (not in the admin's details mode)
+  enableDragFill(root, {
+    cellSelector: '.grid .day',
+    keyOf: (btn) => btn.dataset.d,
+    rowCells: () => [...root.querySelectorAll('.grid .day')],
+    statusOf: (btn) => data[btn.dataset.d]?.status ?? 'E',
+    canFill: (btn, status) => !btn.disabled && !(status === 'Y' && (admin ? person?.y_allowed : state.profile.y_allowed) === false),
+    fill: (btn, status) => {
+      const day = btn.dataset.d, d = Number(day.slice(8));
+      setTo(day, status, () => { const fresh = cell(d); btn.className = fresh.className; btn.replaceChildren(...fresh.childNodes); btn.setAttribute('aria-label', fresh.getAttribute('aria-label')); });
+    },
+    press: () => { dragging = true; },
+    release: () => { dragging = false; setTimeout(() => { if (pendingDraw && !dragging) { pendingDraw = false; draw(); } }, 0); },     // after the click event, which needs the pressed button to still be there
+    touchHold: 0,
+    enabled: () => !(admin && mode === 'details'),
+  });
 
   // live: refetch quietly when this person's days (or the department holidays) change somewhere else
   let timer;

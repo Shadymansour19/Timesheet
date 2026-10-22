@@ -242,6 +242,38 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   ok('...the screen shows only E and the overtime entries are kept', await eventually(async () => (await up2.locator('.day .st').allTextContents()).every((x) => x === 'E')) && Number(sql(`select count(*) from public.overtime where user_id='${u2}'`)) >= 2);
   await up2.click('.cal-tools button:has-text("Clear")'); ok('with nothing left, Clear only says so (no dialog)', await eventually(async () => (await up2.locator('.toast').allTextContents()).join('').includes('Nothing to clear')) && (await up2.locator('dialog[open]').count()) === 0);
   ok('own calendar: no page errors ' + JSON.stringify(up2.errs ?? []), true);
+  // ---- drag-to-fill on the calendar (mouse and touch): the days passed over get the START day's status while the button is still down
+  { const dayBtn = (pg, n) => pg.locator(`.cal .day[data-d="${sql("select to_char(date_trunc('month',current_date),'YYYY-MM')")}-${String(n).padStart(2, '0')}"]`);
+    const stAt = (n) => sql(`select coalesce((select status from public.day_status where user_id='${u2}' and day=date_trunc('month',current_date)::date + ${n - 1}),'E')`);
+    const centre = async (loc) => { const b = await loc.boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+    const txt = async (pg, n) => (await dayBtn(pg, n).locator('.st').textContent());
+    await up2.reload(); await up2.waitForSelector('.cal .day');
+    await dayBtn(up2, 5).click(); ok('drag setup: day 5 tapped to X', await eventually(() => stAt(5) === 'X'));
+    const [x3, y3] = await centre(dayBtn(up2, 5)); const [x4, y4] = await centre(dayBtn(up2, 6)); const [x6, y6] = await centre(dayBtn(up2, 8));
+    await up2.mouse.move(x3, y3); await up2.mouse.down(); await up2.mouse.move(x4, y4, { steps: 6 });
+    ok('mouse drag: day 4 is filled WHILE the button is still down', (await txt(up2, 6)) === 'X' && (await txt(up2, 7)) === 'E');
+    await up2.mouse.move(x6, y6, { steps: 10 });
+    ok('...and days 7 and 8 as the pointer reaches them', (await txt(up2, 7)) === 'X' && (await txt(up2, 8)) === 'X');
+    await up2.mouse.up();
+    ok('after release the drag saved days 5-8 as X and the release day did not cycle', await eventually(() => [5, 6, 7, 8].every((n) => stAt(n) === 'X'), 60000) && (await txt(up2, 8)) === 'X');
+    await dayBtn(up2, 6).click(); ok('a plain click still cycles (X -> E for a person without Y)', await eventually(() => stAt(6) === 'E', 30000));
+    const [x6b, y6b] = await centre(dayBtn(up2, 6));
+    await up2.mouse.move(x6b, y6b); await up2.mouse.down(); await up2.mouse.move(x6, y6, { steps: 8 }); await up2.mouse.up();
+    ok('dragging from an E day clears the days it passes (E fills too)', await eventually(() => stAt(7) === 'E' && stAt(8) === 'E' && stAt(5) === 'X', 60000));
+    // touch (a phone): drag at once, no hold needed; the page must not scroll
+    const ut = await b.newContext({ viewport: { width: 420, height: 800 }, hasTouch: true, isMobile: true }); const tp = await ut.newPage();
+    await tp.goto(BASE + '/'); await tp.fill('#username', 'xou2'); await tp.fill('#password', PW); await tp.click('button[type=submit]'); await tp.waitForSelector('.cal .day');
+    const cdp = await ut.newCDPSession(tp);
+    const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y })) });
+    await tp.waitForTimeout(500);
+    await tp.tap('.cal .day[data-d$="-12"]'); ok('touch setup: day 12 tapped to X', await eventually(() => stAt(12) === 'X', 30000));
+    const [t8x, t8y] = await centre(dayBtn(tp, 12)); const [t9x] = await centre(dayBtn(tp, 13)); const [t10x] = await centre(dayBtn(tp, 14));
+    await touch('touchStart', [[t8x, t8y]]); for (const x of [t8x + 10, t9x, t9x + 10, t10x]) { await touch('touchMove', [[x, t8y]]); await tp.waitForTimeout(40); }
+    ok('touch drag: days 13 and 14 are filled while the finger is still down', (await txt(tp, 13)) === 'X' && (await txt(tp, 14)) === 'X');
+    await touch('touchEnd', []);
+    ok('touch drag saved days 12-14 as X', await eventually(() => [12, 13, 14].every((n) => stAt(n) === 'X'), 60000));
+    await ut.close(); }
+
   // the admin clears a person's month from the person timesheet (one transaction)
   const u3 = sql(`select id from public.profiles where opr='XOT-903'`);
   const rows3 = () => Number(sql(`select count(*) from public.day_status where user_id='${u3}' and day >= ${mFirst} and day < ${mFirst} + interval '1 month'`));

@@ -3,6 +3,7 @@ import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective } from '../api/timesheet.js';
 import { WEEK_START, sameData, nextStatus } from '../lib/core.js';
+import { enableDragFill } from '../lib/dragfill.js';
 import * as live from '../live.js';
 import { fetchDeptPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
 import { explain } from '../api/errors.js';
@@ -81,13 +82,14 @@ export function teamView() {
   }
 
   // ---------- live updates ----------
+  let dragging = false, dragEndedAt = 0;      // a drag-fill gesture is running: no live redraw, no week swipe
   let writes = 0, writeEpoch = 0, liveTimer = null, livePeople = false;   // writeEpoch counts every write ever started
   const track = async (fn) => { writes++; writeEpoch++; try { return await fn(); } finally { writes--; } };   // refetches wait while our own writes are in flight
   function scheduleLive(people = false) {
     livePeople ||= people;
     clearTimeout(liveTimer);
     liveTimer = setTimeout(function run() {
-      if (writes > 0) { liveTimer = setTimeout(run, 500); return; }
+      if (writes > 0 || dragging) { liveTimer = setTimeout(run, 500); return; }
       const wp = livePeople; livePeople = false;
       load({ quiet: true, withPeople: wp });
     }, 350);
@@ -142,12 +144,16 @@ export function teamView() {
   }
 
   // ---------- painting / holiday / edit ----------
-  async function brush(uid, day, status, stroke = true) {
+  async function brush(uid, day, status, stroke = true, drag = null) {
     const prev = statusOf(uid, day);
     if (prev === status) return;
     if (status === 'Y' && !yOk(uid)) { toast(t('y_not_allowed')); return; }
-    setLocal(uid, day, status); updateRow(uid);
-    const entry = pushUndo({ type: 'cells', stroke, cells: [{ uid, day, prev, next: status }] });
+    setLocal(uid, day, status);
+    if (drag) { const td = el.table.querySelector(`td.c[data-u="${uid}"][data-d="${day}"]`); if (td) td.replaceWith(tdFor(people.find((x) => x.id === uid), day)); }   // drag-fill: patch only this cell, the row is rebuilt at the end
+    else updateRow(uid);
+    let entry;
+    if (drag?.entry) { entry = drag.entry; entry.cells.push({ uid, day, prev, next: status }); }          // one drag = ONE undo step
+    else { entry = pushUndo({ type: 'cells', stroke: stroke && !drag, cells: [{ uid, day, prev, next: status }] }); if (drag) drag.entry = entry; }
     announce(`${people.find((x) => x.id === uid)?.full_name}, ${dayLabels.get(day) ?? day}: ${status}`);
     // writes to the same cell go out one after another, so two quick key presses (X then Y) cannot overtake each other
     const k = key(uid, day);
@@ -373,15 +379,16 @@ export function teamView() {
     tr.append(h('th', { class: 'nm', scope: 'row', tabindex: mine && focusPos.day === null ? 0 : -1 },
       h('span', { class: 'nm-name' }, p.full_name),
       h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, (p.opr ?? '')), h('span', { class: 'tots' }, totalsLine(p.id)))));
-    const t0 = todayStr();
-    for (const day of days) {
-      const hol = data.holidays.has(day), ot = otOf(p.id, day);
-      const eff = effective(statusOf(p.id, day), hol);
-      tr.append(h('td', { class: `c s-${eff.toLowerCase()}${hol ? ' holiday' : ''}${ot ? ' has-ot' : ''}${day === t0 ? ' today' : ''}`, 'data-u': p.id, 'data-d': day,
-        tabindex: mine && focusPos.day === day ? 0 : -1, 'aria-label': `${p.full_name}, ${dayLabels.get(day) ?? day}: ${eff}${ot ? `, ${ot} ${t('overtime_h')}` : ''}` },
-        eff, ot ? h('sup', {}, ot) : null));
-    }
+    for (const day of days) tr.append(tdFor(p, day, mine && focusPos.day === day));
     return tr;
+  }
+  function tdFor(p, day, focusable = false) {
+    const t0 = todayStr();
+    const hol = data.holidays.has(day), ot = otOf(p.id, day);
+    const eff = effective(statusOf(p.id, day), hol);
+    return h('td', { class: `c s-${eff.toLowerCase()}${hol ? ' holiday' : ''}${ot ? ' has-ot' : ''}${day === t0 ? ' today' : ''}`, 'data-u': p.id, 'data-d': day,
+      tabindex: focusable ? 0 : -1, 'aria-label': `${p.full_name}, ${dayLabels.get(day) ?? day}: ${eff}${ot ? `, ${ot} ${t('overtime_h')}` : ''}` },
+      eff, ot ? h('sup', {}, ot) : null);
   }
   const rowEls = new Map();
   function updateRow(uid) {
@@ -482,12 +489,25 @@ export function teamView() {
       const nm = e.target.closest('tbody th.nm');                  // tap a name = open that person's timesheet
       if (nm) location.hash = '#/person/' + nm.closest('tr').dataset.u;
     });
+    // drag-to-fill: press a day, drag along the SAME person's days: each gets the start day's status as you go. Touch: press and hold first
+    // (a plain swipe still scrolls / changes the week).
+    enableDragFill(el.table, {
+      cellSelector: 'td.c',
+      keyOf: (td) => `${td.dataset.u}|${td.dataset.d}`,
+      rowCells: (c) => [...(el.table.querySelector(`tr[data-u="${c.dataset.u}"]`)?.querySelectorAll('td.c') ?? [])],
+      statusOf: (td) => statusOf(td.dataset.u, td.dataset.d),
+      canFill: (td, status) => !(status === 'Y' && !yOk(td.dataset.u)),
+      fill: (td, status, drag) => brush(td.dataset.u, td.dataset.d, status, false, drag),
+      press: () => { dragging = true; },
+      release: (drag) => { dragging = false; if (drag.active) { dragEndedAt = Date.now(); updateRow(drag.start.dataset.u); } },
+      touchHold: 350,
+    });
     el.wrap = h('div', { class: 'gridwrap' }, el.table);
     // swipe left/right = next/previous week (the week grid fits the screen, so a swipe is never a scroll)
     let sx = 0, sy = 0;
     el.wrap.addEventListener('touchstart', (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
     el.wrap.addEventListener('touchend', (e) => {
-      if (viewMode !== 'week') return;
+      if (viewMode !== 'week' || dragging || Date.now() - dragEndedAt < 500) return;
       const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
       if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) { weekStart = addDays(weekStart, dx < 0 ? 7 : -7); load(); }
     }, { passive: true });
