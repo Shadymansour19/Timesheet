@@ -286,7 +286,7 @@ export function teamView() {
   }
 
   const openInfo = () => openDialog({ title: t('info_title'), content: h('div', { class: 'form' },
-    h('p', {}, t('team_hint')), h('p', { class: 'muted' }, t('team_hint_views')),
+    h('p', {}, t('team_hint')), h('p', {}, t('hint_drag_grid')), h('p', { class: 'muted' }, t('team_hint_views')),
     h('h4', { class: 'kbd-title' }, t('kbd_title')), h('p', { class: 'muted' }, t('team_hint_keys'))), buttons: [{ label: t('close') }] });
 
   // Size the grid to the space left on screen so the pinned headcount row is always visible (never below the fold).

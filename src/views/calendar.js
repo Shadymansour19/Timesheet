@@ -90,7 +90,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
 
   // Help text lives behind the "i" button (keeps the calendar compact)
   const openHelp = () => openDialog({ title: t('help'), content: h('div', { class: 'form' },
-    ...(admin ? [h('p', {}, t('person_hint'))] : []), h('p', {}, `${t('legend')} ${t('legend_ot')}`),
+    ...(admin ? [h('p', {}, t('person_hint'))] : []), h('p', {}, `${t('legend')} ${t('legend_ot')}`), h('p', {}, t('hint_drag_cal')),
     ...(editWindow !== null && !admin ? [h('p', { class: 'muted' }, t('edit_window_note').replace('{n}', editWindow))] : [])), buttons: [{ label: t('close') }] });
 
   // Download THIS person's Monthly Time Report for the shown month (Excel or PDF)
