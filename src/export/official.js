@@ -124,7 +124,7 @@ function daySheet(wb, model, S, di, name, logos) {
     const r = D.first + i, c = e.cells[di];
     setCell(ws, r, D.no, i + 1, { bold: true, size: 8 });
     setCell(ws, r, D.name, e.fullName, { bold: true, size: 8, h: 'left', shrink: true });
-    setCell(ws, r, D.title, e.position, { bold: true, size: 8, shrink: true });
+    setCell(ws, r, D.title, e.jobTitle, { bold: true, size: 8, shrink: true });
     setCell(ws, r, D.level, e.levelText, { bold: true, size: 8 });
     setCell(ws, r, D.pr, e.payroll, { bold: true, size: 8 });
     setCell(ws, r, D.status, c.status, { bold: true, size: 11 });                  // X / Y / E (holidays are shown in the date line)
@@ -167,7 +167,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   // right block: header + 4 rows; left block: 4 rows
   lab(E.dept, 12, 15, 'Department code:', { h: 'center' }); val(E.dept, 16, 21, S.code);
   lab(E.name, 1, 2, 'Name:'); val(E.name, 3, 10, e.fullName);
-  lab(E.name + 1, 1, 2, 'Title:'); val(E.name + 1, 3, 10, e.position);
+  lab(E.name + 1, 1, 2, 'Title:'); val(E.name + 1, 3, 10, e.jobTitle);
   lab(E.name + 2, 1, 2, 'Level:'); val(E.name + 2, 3, 10, e.levelText);
   lab(E.name + 3, 1, 2, 'Location:'); val(E.name + 3, 3, 10, e.workLocation);
   lab(E.name, 12, 15, 'Month:'); val(E.name, 16, 21, monthDate, { numFmt: 'mmm-yy' });
@@ -305,7 +305,7 @@ function reviewSheet(wb, model, S, emps, name, logos) {
     const b = { bold: true, size: 8 };
     setCell(ws, r, V.no, i + 1, b);
     setCell(ws, r, V.name, e.fullName, { ...b, h: 'left', shrink: true });
-    setCell(ws, r, V.title, e.position, { ...b, shrink: true }); setCell(ws, r, V.level, e.levelText, b); setCell(ws, r, V.pr, e.payroll, b);
+    setCell(ws, r, V.title, e.jobTitle, { ...b, shrink: true }); setCell(ws, r, V.level, e.levelText, b); setCell(ws, r, V.pr, e.payroll, b);
     setCell(ws, r, V.x, fx(`${q}!${x.refs.X}+${q}!${x.refs.C}+${q}!${x.refs.Q}`, nx), b);
     setCell(ws, r, V.y, fx(`${q}!${x.refs.Y}+${q}!${x.refs.O}`, ny), b);
     setCell(ws, r, V.total, fx(`${addr(V.x, r, false)}+${addr(V.y, r, false)}`, nx + ny), { ...b, fill: GREY });

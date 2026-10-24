@@ -84,7 +84,7 @@ function dayPages(model, S, logos, newPage, doc) {
       for (let k = 0; k < n; k++, i++) {
         const e = model.employees[i], c = e.cells[di], r = y + k * RH, b = { ...TIMES, size: 7.5 };
         cell(doc, xs[0], r, cw[0], RH, String(i + 1), b); cell(doc, xs[1], r, cw[1], RH, e.fullName, { ...b, h: 'left' });
-        cell(doc, xs[2], r, cw[2], RH, e.position, b); cell(doc, xs[3], r, cw[3], RH, e.levelText, b); cell(doc, xs[4], r, cw[4], RH, e.payroll, b);
+        cell(doc, xs[2], r, cw[2], RH, e.jobTitle, b); cell(doc, xs[3], r, cw[3], RH, e.levelText, b); cell(doc, xs[4], r, cw[4], RH, e.payroll, b);
         cell(doc, xs[5], r, cw[5], RH, c.status, { ...b, size: 10 }); cell(doc, xs[6], r, cw[6], RH, '', b);
         cell(doc, xs[7], r, cw[7], RH, c.tin ? String(c.tin) : '', { ...b, size: 9 }); cell(doc, xs[8], r, cw[8], RH, c.tex ? String(c.tex) : '', { ...b, size: 9 });
         cell(doc, xs[9], r, cw[9], RH, c.ot ? String(c.ot) : '', { ...b, size: 9 }); cell(doc, xs[10], r, cw[10], RH, c.comment, { ...b, size: 9 });
@@ -133,7 +133,7 @@ function employeePage(model, S, logos, e, doc) {
   const RH = 13.4, mon = monthText(model);
   const info = (y0, x1, xl, x2, label, value) => { box(x1, y0, x2, y0 + RH); line(xl, y0, xl, y0 + RH); put(label, x1, y0, xl, y0 + RH, { ...T, h: 'left' }); put(value, xl, y0, x2, y0 + RH, { size: 7.5 }); };
   box(481, 205, 872, 219); line(652, 205, 652, 219); put('Department code:', 481, 205, 652, 219, T); put(S.code, 652, 205, 872, 219, { size: 7.5 });
-  [['Name:', e.fullName], ['Title:', e.position], ['Level:', e.levelText], ['Location:', e.workLocation]].forEach(([l, v], i) => info(220 + i * RH, 75, 155, 466, l, v));
+  [['Name:', e.fullName], ['Title:', e.jobTitle], ['Level:', e.levelText], ['Location:', e.workLocation]].forEach(([l, v], i) => info(220 + i * RH, 75, 155, 466, l, v));
   [['Month:', mon], ['Contr. No:', e.contractNo], ['Department:', S.printName], ['PAYROLL', e.payroll]].forEach(([l, v], i) => info(220 + i * RH, 481, 560, 872, l, v));
 
   // the two day tables
@@ -220,7 +220,7 @@ function reviewPages(model, S, logos, newPage, doc, sums) {
     for (let k = 0; k < n; k++, i++) {
       const e = model.employees[i], s = sums[i], r = y + k * RH, b = { ...TIMES, size: 7.5 };
       const nx = s.X + s.C + s.Q, ny = s.Y + s.O;
-      cell(doc, xs[0], r, cw[0], RH, String(i + 1), b); cell(doc, xs[1], r, cw[1], RH, e.fullName, { ...b, h: 'left' }); cell(doc, xs[2], r, cw[2], RH, e.position, b);
+      cell(doc, xs[0], r, cw[0], RH, String(i + 1), b); cell(doc, xs[1], r, cw[1], RH, e.fullName, { ...b, h: 'left' }); cell(doc, xs[2], r, cw[2], RH, e.jobTitle, b);
       cell(doc, xs[3], r, cw[3], RH, e.levelText, b); cell(doc, xs[4], r, cw[4], RH, e.payroll, b); cell(doc, xs[5], r, cw[5], RH, String(nx), b); cell(doc, xs[6], r, cw[6], RH, String(ny), b);
       cell(doc, xs[7], r, cw[7], RH, String(nx + ny), { ...b, fill: GREY }); cell(doc, xs[8], r, cw[8], RH, String(s.otN + s.otS), b);
       cell(doc, xs[9], r, cw[9], RH, String(s.tex), b); cell(doc, xs[10], r, cw[10], RH, String(s.tin), b); cell(doc, xs[11], r, cw[11], RH, '', b);

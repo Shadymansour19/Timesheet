@@ -91,7 +91,7 @@ const dv = d2.getCell('A6').value;
 ok('day sheet: the date is a real date; a holiday is tagged in its format, a normal day is not', dv instanceof Date && dv.toISOString().slice(0, 10) === '2028-10-02' && String(d2.getCell('A6').numFmt).includes('Holiday') && !String(day(5).getCell('A6').numFmt).includes('Holiday'));
 ok('day sheet: both company logos are embedded', d2.getImages().length === 2, String(d2.getImages().length));
 ok('day sheet: column headers', ['No.', 'Name', 'Title', 'Level', 'P/R', 'Status', 'Accom.', 'TRANS/IN', 'TRANS/EX', 'Over Time', 'Comments'].every((h, i) => d2.getCell(8, i + 1).value === h));
-ok('day sheet: name / title (= position) / level / P/R come from the data', d2.getCell(9, 2).value === 'Mohamed Salah Rashed' && d2.getCell(9, 3).value === 'Engineer' && d2.getCell(9, 4).value === 'Level 3' && d2.getCell(9, 5).value === 'EMC-444');
+ok('day sheet: name / title (= job title) / level / P/R come from the data', d2.getCell(9, 2).value === 'Mohamed Salah Rashed' && d2.getCell(9, 3).value === 'First Engineer' && d2.getCell(9, 4).value === 'Level 3' && d2.getCell(9, 5).value === 'EMC-444');
 let bad = [];
 for (let d = 1; d <= N; d++) for (let i = 0; i < nEmp; i++) {
   const ws = day(d), r = 9 + i, e = exp[i].days[d - 1];
@@ -114,7 +114,7 @@ ok('employee sheet: heading and both logos', ws1.getCell('A5').value === 'MONTHL
   ok('ordering: the position decides the group, not the job title', order([P('r', 'Rigger', 'Engineer', 'EMC-1'), P('t', 'Tech', 'Engineer II', 'EMC-2'), P('e', 'Engineer', 'Chief Technician', 'EMC-3')]) === 'e,t,r');
   ok('ordering: no number goes last inside its title, ties fall back to the name', order([P('x', 'Tech', 'T', 'NONE', 'Zed'), P('y', 'Tech', 'T', 'EMC-5', 'Bob'), P('z', 'Tech', 'T', 'EMC-5', 'Amy')]) === 'z,y,x'); }
 ok('level text: digits print as "Level N", other text as typed', model.employees.every((e, i) => e.levelText === (/^\d+$/.test(String(people[i].level)) ? `Level ${people[i].level}` : String(people[i].level ?? ''))) && buildModel({ sort: false, dept, people: [{ id: 'z', full_name: 'Z', username: 'z', level: '3A' }, { id: 'y', full_name: 'Y', username: 'y', level: ' 4 ' }, { id: 'x', full_name: 'X', username: 'x', level: null }], data: { status: new Map(), overtime: new Map(), holidays: new Set() }, year: 2028, month: 9 }).employees.map((e) => e.levelText).join('|') === '3A|Level 4|');
-ok('employee sheet: name, title, level, location the own location of the person; blank when none, no department fallback', ws1.getCell('C8').value === 'Mohamed Salah Rashed' && ws1.getCell('C9').value === 'Engineer' && ws1.getCell('C10').value === 'Level 3' && !ws1.getCell('C11').value);
+ok('employee sheet: name, title, level, location the own location of the person; blank when none, no department fallback', ws1.getCell('C8').value === 'Mohamed Salah Rashed' && ws1.getCell('C9').value === 'First Engineer' && ws1.getCell('C10').value === 'Level 3' && !ws1.getCell('C11').value);
 ok("employee sheet: a person's own work location wins over the department's", wb.getWorksheet(empNames[1]).getCell('C11').value === 'Abu Qir Site');
 ok('employee sheet: department code, month, contract number, department, payroll (OPR)', ws1.getCell('P7').value === '19' && ws1.getCell('P8').value instanceof Date && ws1.getCell('P8').value.toISOString().slice(0, 7) === '2028-10' && ws1.getCell('P9').value === '033/2019' && ws1.getCell('P10').value === 'TURBO (MAINT.)' && ws1.getCell('P11').value === 'EMC-444');
 ok('employee sheet: left table = days 1-15, right table = days 16-31 (the form splits at 15/16)', ws1.getCell('A15').value === 1 && ws1.getCell('A29').value === 15 && ws1.getCell('L15').value === 16 && ws1.getCell('L30').value === 31);
@@ -131,7 +131,7 @@ people.forEach((p, i) => {
 ok('employee sheet totals (X days, Y days, overtime, Transportation IN / EX) equal the independent calculation for every employee', badTot.length === 0, badTot.join(' ; '));
 ok('employee sheet: totals are COUNTIF / SUMIF / SUM formulas', f(ws1.getCell(T0 + 1, 5)).startsWith('COUNTIF(') && f(ws1.getCell(T0 + 4, 5)).includes('SUMIF(') && f(ws1.getCell(T0 + 6, 21)).startsWith('SUM('));
 ok('employee sheet: legends, totals boxes, notes and signature lines are present', ['Work Codes', 'Meal Codes', 'Codes of Normal Daily Rates', 'Codes of 1.2X Daily Rates', 'Total Meals', 'Transportation', 'Notes (Penalty):-', 'Signature Employee', 'Approval of Supervisor', 'Approval of Department GM'].every((t) => { let found = false; ws1.eachRow((r) => r.eachCell((c) => { if (c.value === t) found = true; })); return found; }));
-ok('employee sheet: a missing contract number prints as empty; the Title is the POSITION (job title is not used)', (wb.getWorksheet(empNames[2]).getCell('P9').value ?? '') === '' && wb.getWorksheet(empNames[5]).getCell('C9').value === 'Rigger Foreman' && wb.getWorksheet(empNames[0]).getCell('C9').value !== 'First Engineer');
+ok('employee sheet: a missing contract number / job title prints as empty (the Title is the JOB TITLE)', (wb.getWorksheet(empNames[2]).getCell('P9').value ?? '') === '' && (wb.getWorksheet(empNames[5]).getCell('C9').value ?? '') === '');
 
 // ---------- review sheet
 const rv = wb.getWorksheet('Review');
