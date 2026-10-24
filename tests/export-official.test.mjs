@@ -184,7 +184,7 @@ ok('overtime sheet: the three sign-offs (department AGM, Maintenance GM, DFGM) a
   const r = new ExcelJS.Workbook(); await r.xlsx.readFile(f2);
   ok('February 2028 (29 days, no overtime -> no Overtime sheet): sheets 1..29, 2 employees, Review, B2B Eng, B2B Tech; day 29 sits in the right table', r.worksheets.length === 29 + 2 + 3 &&  !r.getWorksheet('Overtime') && r.worksheets[28].name === '29' && r.worksheets[r.worksheets.length - 1].name === 'Closeout B2B Tech' && r.worksheets[29].getCell('L28').value === 29);
   ok('...defaults when nothing is configured: "<name> Dept." title, "<name> SH/DH" sign-off, default field and sector in the banner, no department code', r.getWorksheet('1').getCell('A4').value === 'Ops Dept. Daily Attendance Sheet' && (r.getWorksheet('1').getCell('C1').value.richText ?? []).map((x) => x.text).join('').includes('Maintenance Sector') && (r.worksheets[29].getCell('P7').value ?? '') === '');
-  ok('...an Overtime sheet with nobody in it is still created (title + sign-offs)', r.getWorksheet('Overtime').getCell('A1').value === 'Ops EMC overtime');
+  ok('...no Overtime sheet is created when nobody has overtime', !r.getWorksheet('Overtime'));
 }
 ok('report settings: banner defaults come from the form when the department has no field/sector', reportSettings({ department: 'X', report: {}, deptCode: '', sector: '', field: '' }, official).banner.join('|') === 'Rashid Petroleum & BURULLUS Gas Company|Operations [Fields]|Maintenance Sector');
 

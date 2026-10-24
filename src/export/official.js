@@ -152,7 +152,7 @@ const eCol = (base, k) => base + k;   // k: 0 day,1 work,2 B,3 L,4 D,5 acc,6 tin
 function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalone = false) {
   const ws = wb.addWorksheet(name);
   page(ws, { height: 1 });
-  [5, 6.5, 2.4, 2.4, 2.4, 3.6, 3.6, 3.6, 6.5, 19, 3.5, 5, 6.5, 2.4, 2.4, 2.4, 3.6, 3.6, 3.6, 6.5, 19].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  [5, 6.5, 2.4, 2.4, 2.4, 3.6, 3.6, 3.6, 6.5, 14, 6, 5, 6.5, 2.4, 2.4, 2.4, 3.6, 3.6, 3.6, 6.5, 14].forEach((w, i) => { ws.getColumn(i + 1).width = w; });   // the comment columns are 14 wide and the spacer 6: the three legend blocks below then come out equal
   // top: logos, captions, title
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 19;
   logoIn(ws, logos, 'left', 1, 6, 1, 3, 130, 70); logoIn(ws, logos, 'right', 17, 21, 1, 3, 70, 70);
@@ -211,7 +211,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
       put(6, `IFERROR(${idx('H', ds)},0)`, c.tin, c.tin);
       put(7, `IFERROR(${idx('I', ds)},0)`, c.tex, c.tex);
       put(8, `IFERROR(${idx('J', ds)},0)`, c.ot, c.ot);
-      put(9, `IFERROR(${idx('K', ds)}&"","")`, c.comment, c.comment, { size: 9 });
+      put(9, `IFERROR(${idx('K', ds)}&"","")`, c.comment, c.comment, { size: 9, shrink: true });
       ws.getRow(r).height = 15;
     }
   }
@@ -226,9 +226,10 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   merge(ws, L0 + 2, 1, L0 + 2, 2, 'Meal Codes', { font: AR, bold: true, size: 9, underline: true });
   [['X', 'Work Onshore', 'Y', 'Day/Night Shift(1.2X)', 'O', 'Work Offshore'], ['C', 'Work at Cairo', 'Q', 'Work At Abo Qir', 'E', 'Vacation'], ['B', 'Breakfast', 'L', 'Lunch', 'D', 'Dinner']].forEach((row, i) => {
     const r = L0 + i;
-    setCell(ws, r, 3, row[0], { font: AR, bold: true, size: 9 }); merge(ws, r, 4, r, 9, row[1], { font: AR, size: 9 });
-    merge(ws, r, 11, r, 12, row[2], { font: AR, bold: true, size: 9 }); merge(ws, r, 13, r, 17, row[3], { font: AR, size: 9, shrink: true });
-    setCell(ws, r, 20, row[4], { font: AR, bold: true, size: 9 }); setCell(ws, r, 21, row[5], { font: AR, size: 9 });
+    // three EQUAL blocks (29.5 / 29.5 / 29.3 characters wide) with equal gaps: cols 1-8 | 10-13 | 17-21
+    setCell(ws, r, 3, row[0], { font: AR, bold: true, size: 9 }); merge(ws, r, 4, r, 8, row[1], { font: AR, size: 9 });
+    setCell(ws, r, 10, row[2], { font: AR, bold: true, size: 9 }); merge(ws, r, 11, r, 13, row[3], { font: AR, size: 9, shrink: true });
+    setCell(ws, r, 17, row[4], { font: AR, bold: true, size: 9 }); merge(ws, r, 18, r, 21, row[5], { font: AR, size: 9 });
   });
 
   // totals
@@ -238,14 +239,14 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   const cnt = (code) => cells.filter((x) => x.work === code).length;
   const otOf = (codes) => cells.filter((x) => codes.includes(x.work)).reduce((a, x) => a + x.ot, 0);
   const box = (r, c1, c2, text) => merge(ws, r, c1, r, c2, text, { font: AR, bold: true, size: 10, underline: true });
-  box(T0, 1, 9, 'Codes of Normal Daily Rates'); box(T0, 12, 20, 'Codes of 1.2X Daily Rates');
+  box(T0, 1, 8, 'Codes of Normal Daily Rates'); box(T0, 12, 20, 'Codes of 1.2X Daily Rates');
   // label right-aligned, value centred; the small "Total Overtime Hours" label is left-aligned; no inner lines (one outer frame per box)
   const tot = (r, label, c1, c2, v1, v2, formula, result, small = false) => { merge(ws, r, c1, r, c2, label, { font: AR, size: small ? 8 : 10, h: small ? 'left' : 'right' }); merge(ws, r, v1, r, v2, fx(formula, result), { font: AR, size: 10 }); };
   const refs = {};
-  tot(T0 + 1, 'Total (X) Days:', 1, 4, 5, 9, count('X'), cnt('X')); refs.X = addr(5, T0 + 1);
-  tot(T0 + 2, 'Total (C) Days:', 1, 4, 5, 9, count('C'), cnt('C')); refs.C = addr(5, T0 + 2);
-  tot(T0 + 3, 'Total (Q) Days:', 1, 4, 5, 9, count('Q'), cnt('Q')); refs.Q = addr(5, T0 + 3);
-  tot(T0 + 4, 'Total Overtime Hours', 1, 4, 5, 9, sum(NORMAL), otOf(NORMAL), true); refs.otNormal = addr(5, T0 + 4);
+  tot(T0 + 1, 'Total (X) Days:', 1, 4, 5, 8, count('X'), cnt('X')); refs.X = addr(5, T0 + 1);
+  tot(T0 + 2, 'Total (C) Days:', 1, 4, 5, 8, count('C'), cnt('C')); refs.C = addr(5, T0 + 2);
+  tot(T0 + 3, 'Total (Q) Days:', 1, 4, 5, 8, count('Q'), cnt('Q')); refs.Q = addr(5, T0 + 3);
+  tot(T0 + 4, 'Total Overtime Hours', 1, 4, 5, 8, sum(NORMAL), otOf(NORMAL), true); refs.otNormal = addr(5, T0 + 4);
   tot(T0 + 1, 'Total (Y) Days:', 12, 16, 17, 20, count('Y'), cnt('Y')); refs.Y = addr(17, T0 + 1);
   tot(T0 + 2, 'Total (O) Days:', 12, 16, 17, 20, count('O'), cnt('O')); refs.O = addr(17, T0 + 2);
   tot(T0 + 3, 'Total Overtime Hours', 12, 16, 17, 20, sum(SHIFT), otOf(SHIFT), true); refs.otShift = addr(17, T0 + 3);
@@ -262,7 +263,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   merge(ws, M0 + 2, 18, M0 + 2, 19, fx(sumCol(5), 0), lo);
   setCell(ws, M0 + 2, 20, fx(sumCol(7), sumVal(7)), lo); setCell(ws, M0 + 2, 21, fx(sumCol(6), sumVal(6)), lo);
   // every cell of the totals tables has thin lines (as in the PDF); each table also gets a medium outer line
-  frame(ws, T0, 1, T0 + 4, 9, MED); frame(ws, T0, 12, T0 + 3, 20, MED); frame(ws, M0, 12, M0 + 2, 21, MED);
+  frame(ws, T0, 1, T0 + 4, 8, MED); frame(ws, T0, 12, T0 + 3, 20, MED); frame(ws, M0, 12, M0 + 2, 21, MED);
   for (let r = M0; r <= M0 + 2; r++) { for (const c of [17, 19]) { const cell = ws.getCell(r, c), bd = { ...(cell.border ?? {}) }; bd.right = thin; cell.border = bd; } }
   refs.ex = addr(20, M0 + 2); refs.in = addr(21, M0 + 2);
 

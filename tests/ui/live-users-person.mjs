@@ -135,7 +135,7 @@ ok('after reconnecting, the grid catches up on what it missed (resync)', await e
 await A.goto('http://localhost:4173/#/users'); await A.waitForSelector('.person');
 const total = await A.locator('.person').count();
 ok(`users list shows the department (${total} active people)`, total === 6);
-ok('role filter chips carry counts (All 6 / Users 4 / Admins 2)', (await A.locator('.team-row > .seg').textContent()).replace(/\s+/g, ' ').includes('All 6') && (await A.locator('.team-row > .seg').textContent()).includes('Users 4') && (await A.locator('.team-row > .seg').textContent()).includes('Admins 2'));
+ok('role filter chips carry counts (All 6 / Users 4 / Admins 2)', (await A.locator('.team-row > .seg:not(.view-seg)').textContent()).replace(/\s+/g, ' ').includes('All 6') && (await A.locator('.team-row > .seg:not(.view-seg)').textContent()).includes('Users 4') && (await A.locator('.team-row > .seg:not(.view-seg)').textContent()).includes('Admins 2'));
 await A.fill('.team-search', 'lu2'); await A.waitForTimeout(400);
 ok('search by username narrows to 1 and shows the counter 1/6', (await A.locator('.person').count()) === 1 && (await A.textContent('.team-count')) === '1/6');
 await A.fill('.team-search', 'OPR-lu'); await A.waitForTimeout(400);
