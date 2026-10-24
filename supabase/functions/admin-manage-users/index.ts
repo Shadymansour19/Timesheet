@@ -88,13 +88,12 @@ Deno.serve(async (req) => {
         const pw = password(body.password);
         const fullName = str(body.full_name, "full_name");
         const opr = str(body.opr, "opr", 50);
-        const level = body.level === null || body.level === undefined ? null : Number(body.level);
-        if (level !== null && (!Number.isInteger(level) || level < 0)) throw new HttpError(400, "invalid level");
         const optional = (v: unknown, name: string, max: number) => {   // optional free text, '' / missing = none
           if (v === null || v === undefined || v === "") return null;
           if (typeof v !== "string" || v.length > max) throw new HttpError(400, `invalid ${name}`);
           return v.trim() || null;
         };
+        const level = optional(typeof body.level === "number" ? String(body.level) : body.level, "level", 50);   // free text (3, 3A, Senior ...)
         const jobTitle = optional(body.job_title, "job_title", 100);
         const contractNo = optional(body.contract_no, "contract_no", 50);
         const workLocation = optional(body.work_location, "work_location", 100);

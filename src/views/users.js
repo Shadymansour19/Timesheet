@@ -21,7 +21,7 @@ export function personFields(initial = {}, { withLogin = false, isNew = false } 
     password: withLogin ? field(t('temp_password'), { type: 'text', required: true, minlength: 8, autocomplete: 'off', value: randomPassword() }) : null,
     full_name: field(t('full_name'), { required: true, value: initial.full_name ?? '' }),
     opr: field(t('opr'), { required: true, value: initial.opr ?? '' }),
-    level: field(t('level'), { type: 'number', min: 0, step: 1, inputmode: 'numeric', value: initial.level ?? '' }),
+    level: field(t('level'), { maxlength: 50, value: initial.level ?? '', placeholder: '3' }),
     job_title: field(t('job_title'), { maxlength: 100, value: initial.job_title ?? '' }),
     contract_no: field(t('contract_no'), { maxlength: 50, value: initial.contract_no ?? (isNew ? DEFAULT_CONTRACT_NO : '') }),
     work_location: field(t('work_location'), { maxlength: 100, value: initial.work_location ?? '' }),
@@ -36,7 +36,7 @@ export function personFields(initial = {}, { withLogin = false, isNew = false } 
   f.y_allowed = { row: yAllowed.row, input: yAllowed };
   f.position.row.append(h('datalist', { id: 'position-list' }, h('option', { value: 'Engineer' }), h('option', { value: 'Tech' })));   // suggestions only: the position is free text
   const rows = Object.values(f).filter(Boolean).map((x) => x.row);
-  const level = () => (f.level.input.value === '' ? null : Number(f.level.input.value));
+  const level = () => f.level.input.value.trim() || null;
   return { f, rows, level };
 }
 

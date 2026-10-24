@@ -45,7 +45,7 @@ export function buildModel({ dept, people, data, year, month, departureRule = DE
     return {
       id: p.id, fullName: p.full_name, username: p.username, payroll: p.payroll ?? '', level: p.level ?? '', cells, totals,
       jobTitle: p.job_title ?? '', contractNo: p.contract_no ?? '', workLocation: p.work_location ?? '', residence: p.residence ?? '', position: p.position ?? '',
-      levelText: p.level === null || p.level === undefined || p.level === '' ? '' : `Level ${p.level}`,
+      levelText: p.level === null || p.level === undefined || String(p.level).trim() === '' ? '' : /^\d+$/.test(String(p.level).trim()) ? `Level ${String(p.level).trim()}` : String(p.level).trim(),   // digits -> "Level 3"; any other text as typed
     };
   });
   return {

@@ -18,6 +18,9 @@ export const COLUMNS = [
 ];
 const YES = ['yes', 'y', 'true', '1'], NO = ['no', 'n', 'false', '0'];
 const USERNAME = /^[a-z0-9._-]{3,32}$/;
+const plain = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');       // English letters and numbers only
+// username: the one in the sheet, else the PAYROLL reduced to letters and numbers (EMC-123 -> emc123), else the OPR the same way
+export const usernameOf = (r) => (r.username ? r.username.toLowerCase() : plain(r.payroll) || plain(r.opr));
 
 const cellText = (c) => {
   let v = c?.value;
@@ -50,7 +53,10 @@ export async function templateFile() {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Users');
   ws.addRow(COLUMNS.map(([, label]) => label)).font = { bold: true };
-  ws.addRow(['Ahmed Ali Hassan', 'OPRCTR123', 'EMC-123', '', '', 3, 'Engineer', '033/2019', 'IDKU Site', 'Engineer', 'inside']);
+  // three rows showing the possible values: empty username / password (-> payroll letters+numbers / random), Y allowed yes | no, residence inside | outside
+  ws.addRow(['Ahmed Ali Hassan', 'OPRCTR123', 'EMC-123', '', '', '3', 'Engineer', '033/2019', 'IDKU Site', 'Engineer', 'inside', 'yes']);
+  ws.addRow(['Sara Mahmoud Ibrahim', 'OPRCTR124', 'EMC-124', 'sara.m', 'Pass-12345', '3A', 'Technician', '033/2019', 'IDKU Site', 'Tech', 'outside', 'no']);
+  ws.addRow(['Omar Khaled Samir', 'OPRCTR125', 'EMC-125', '', 'Temp-Pass-9', 'Senior', 'Supervisor', '', '', 'Engineer', '', 'yes']);
   COLUMNS.forEach((_, i) => { ws.getColumn(i + 1).width = 18; });
   return wb.xlsx.writeBuffer();
 }
@@ -72,13 +78,12 @@ async function resultsFile(results) {
 
 // one row -> create_user (validation first, so a bad row costs no request)
 async function createRow(r, dupError = '') {
-  const out = { ...r, username: (r.username || r.opr).toLowerCase(), password: r.password || randomPassword(), ok: false, error: dupError };
-  const level = r.level === '' ? null : Number(r.level);
+  const out = { ...r, username: usernameOf(r), password: r.password || randomPassword(), ok: false, error: dupError };
+  const level = r.level.trim() || null;                 // free text
   if (out.error) return out;
   if (!r.full_name || !r.opr) out.error = t('bulk_err_required');
   else if (!USERNAME.test(out.username)) out.error = t('bulk_err_username');
   else if (out.password.length < 8 || out.password.length > 72) out.error = t('bulk_err_password');
-  else if (level !== null && (!Number.isInteger(level) || level < 0)) out.error = t('bulk_err_level');
   else if (r.residence && !['inside', 'outside'].includes(r.residence.toLowerCase())) out.error = t('bulk_err_residence');
   else if (r.y_allowed && !YES.includes(r.y_allowed.toLowerCase()) && !NO.includes(r.y_allowed.toLowerCase())) out.error = t('bulk_err_y');
   if (out.error) return out;
@@ -117,7 +122,7 @@ export function openBulkAdd({ onDone }) {
     body.replaceChildren(table);
     // the same username / OPR / payroll twice in the file: only the first row is created (parallel creation would make it random)
     const seen = { u: new Set(), o: new Set(), p: new Set() };
-    const dups = rows.map((r) => { const u = (r.username || r.opr).toLowerCase(); const d = seen.u.has(u) || (r.opr && seen.o.has(r.opr)) || (r.payroll && seen.p.has(r.payroll)); seen.u.add(u); if (r.opr) seen.o.add(r.opr); if (r.payroll) seen.p.add(r.payroll); return d ? t('bulk_err_dup') : ''; });
+    const dups = rows.map((r) => { const u = usernameOf(r); const d = seen.u.has(u) || (r.opr && seen.o.has(r.opr)) || (r.payroll && seen.p.has(r.payroll)); seen.u.add(u); if (r.opr) seen.o.add(r.opr); if (r.payroll) seen.p.add(r.payroll); return d ? t('bulk_err_dup') : ''; });
     let next = 0, done = 0;
     const worker = async () => {
       while (next < rows.length) {

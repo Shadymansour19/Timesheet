@@ -191,7 +191,7 @@ export default {
   switch: "Switch",
   payroll: "Payroll number (P/R in reports)",
   bulk_add: "Bulk add (Excel)",
-  bulk_hint: "Excel columns (first row = headers): Full name*, OPR*, Payroll, Username, Password, Level, Job title, Contract no, Work location, Position, Residence (inside / outside), Y allowed (yes / no). Empty username = the OPR; empty password = a random one.",
+  bulk_hint: "Excel columns (first row = headers): Full name*, OPR*, Payroll, Username, Password, Level, Job title, Contract no, Work location, Position, Residence (inside / outside), Y allowed (yes / no). Empty username = the payroll with only English letters and numbers kept (EMC-123 -> emc123); empty password = a random one.",
   bulk_template: "Download the template",
   bulk_file: "Excel file (.xlsx)",
   bulk_import: "Create users",

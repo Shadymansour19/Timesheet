@@ -80,10 +80,11 @@ ok('the user card shows only the main data (name, OPR, position), the rest is in
 await p.locator('.person', { hasText: 'XO Brand New' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
 ok('Edit data shows the stored values', (await dlg(p).getByLabel('Job title').inputValue()) === 'Certified Rigger' && (await dlg(p).getByLabel('Contract no.').inputValue()) === '202/2024');
 ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).locator('.choice:has-text("Lives in") input:checked').inputValue()) === 'outside');
-await dlg(p).getByLabel('Position').fill('Engineer'); await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill(''); await dlg(p).locator('label.choice-card:has(input[value="inside"])').click();
+await dlg(p).getByLabel('Position').fill('Engineer'); await dlg(p).getByLabel('Level').fill('3A'); await dlg(p).getByLabel('Job title').fill('Senior Rigger'); await dlg(p).getByLabel('Contract no.').fill(''); await dlg(p).locator('label.choice-card:has(input[value="inside"])').click();
 await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 ok('editing saves the new job title and clearing the contract number empties it', await eventually(() => sql(`select job_title||'|'||coalesce(contract_no,'NULL') from public.profiles where username='xonew'`) === 'Senior Rigger|NULL'));
 ok('position edit is saved', await eventually(() => sql(`select position from public.profiles where username='xonew'`) === 'Engineer'));
+ok('level is free text: 3A is stored as typed', await eventually(() => sql(`select level from public.profiles where username='xonew'`) === '3A'));
 ok('residence edit is saved', await eventually(() => sql(`select residence from public.profiles where username='xonew'`) === 'inside'));
 
 // ---- B. report settings
@@ -183,15 +184,19 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   await dlg(p).locator('button:text-is("Create users")').click();
   ok('bulk add: result says 2 created, 2 failed', await eventually(async () => (await dlg(p).textContent()).includes('Created: 2 · Failed: 2'), 120000));
   const rowsTxt = await dlg(p).locator('.bulk-table tbody tr').allTextContents();
-  ok('bulk add: empty username = the OPR (lower-case) with a generated password (8+ chars), given username/password kept', rowsTxt[0].includes('oprctr9001') && /[A-Za-z0-9]{8,}/.test(rowsTxt[0].replace('XO Bulk One', '').replace('oprctr9001', '').replace('Created', '')) && rowsTxt[1].includes('xobulk2') && rowsTxt[1].includes('Bulk-Pass-1234'), rowsTxt.join(' | '));
+  ok('bulk add: empty username = the PAYROLL with only letters and numbers (XOT-9001 -> xot9001) with a generated password (8+ chars), given username/password kept', rowsTxt[0].includes('xot9001') && /[A-Za-z0-9]{8,}/.test(rowsTxt[0].replace('XO Bulk One', '').replace('xot9001', '').replace('Created', '')) && rowsTxt[1].includes('xobulk2') && rowsTxt[1].includes('Bulk-Pass-1234'), rowsTxt.join(' | '));
   ok('bulk add: the duplicate and the row without OPR are reported as failed', rowsTxt[2].includes('Repeated in the file') && rowsTxt[2].includes('XO Bulk Dup') && rowsTxt[3].includes('required'), rowsTxt.slice(2).join(' | '));
-  ok('bulk add: users are in the database with payroll / OPR exactly as typed (no prefix added) in the acting department', sql(`select username||'|'||opr||'|'||payroll||'|'||coalesce(position,'')||'|'||department_id from public.profiles where username='oprctr9001'`) === `oprctr9001|OPRCTR9001|XOT-9001|Engineer|${DA}` && sql(`select count(*) from public.profiles where username in ('oprctr9001','xobulk2')`) === '2');
+  ok('bulk add: users are in the database with payroll / OPR exactly as typed (no prefix added) in the acting department', sql(`select username||'|'||opr||'|'||payroll||'|'||coalesce(position,'')||'|'||department_id from public.profiles where username='xot9001'`) === `xot9001|OPRCTR9001|XOT-9001|Engineer|${DA}` && sql(`select count(*) from public.profiles where username in ('xot9001','xobulk2')`) === '2');
   const [dlr] = await Promise.all([p.waitForEvent('download'), dlg(p).locator('#bulk-download').click()]);
   await dlr.saveAs(S + '/xo-bulk-result.xlsx'); const rw = new ExcelJS.Workbook(); await rw.xlsx.readFile(S + '/xo-bulk-result.xlsx'); const rs = rw.worksheets[0];
-  ok('bulk add: the result downloads as Excel with usernames and passwords', rs.getCell('E2').value === 'oprctr9001' && String(rs.getCell('F2').value).length >= 8 && rs.getCell('E3').value === 'xobulk2' && rs.getCell('F3').value === 'Bulk-Pass-1234' && rs.getCell('G2').value === 'Created' && dlr.suggestedFilename() === 'users_created.xlsx');
+  ok('bulk add: the result downloads as Excel with usernames and passwords', rs.getCell('E2').value === 'xot9001' && String(rs.getCell('F2').value).length >= 8 && rs.getCell('E3').value === 'xobulk2' && rs.getCell('F3').value === 'Bulk-Pass-1234' && rs.getCell('G2').value === 'Created' && dlr.suggestedFilename() === 'users_created.xlsx');
   await p.keyboard.press('Escape');
   const tmpl = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Bulk add (Excel)")'); await p.waitForSelector('dialog[open]'); await dlg(p).locator('button:text-is("Download the template")').click(); })()]);
-  ok('bulk add: the template downloads', tmpl[0].suggestedFilename() === 'users_template.xlsx'); await p.keyboard.press('Escape'); }
+  await tmpl[0].saveAs(S + '/xo-template.xlsx'); const tw = new ExcelJS.Workbook(); await tw.xlsx.readFile(S + '/xo-template.xlsx'); const tws = tw.worksheets[0];
+  const col = (name) => { let c = 0; tws.getRow(1).eachCell((cell, i) => { if (cell.value === name) c = i; }); return c; };
+  const vals = (name) => [2, 3, 4].map((r) => String(tws.getCell(r, col(name)).value ?? ''));
+  ok('bulk add: the template downloads with at least two example rows showing the possible values (Y allowed yes / no, residence inside / outside, empty username and password)', tmpl[0].suggestedFilename() === 'users_template.xlsx' && tws.rowCount >= 3 && vals('Y allowed').includes('yes') && vals('Y allowed').includes('no') && vals('Residence').includes('inside') && vals('Residence').includes('outside') && vals('Username').includes('') && vals('Password').includes('') && vals('Level').includes('3A'), JSON.stringify([vals('Y allowed'), vals('Residence'), vals('Level')]));
+  await p.keyboard.press('Escape'); }
 
 // ---- F3. a person who may not have Y: admin switches it off, the cycle becomes E -> X -> E everywhere
 { await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');

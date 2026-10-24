@@ -125,6 +125,7 @@ ok('the › button also advances a week', (await days(p))[0] === plus(first, 7))
 await p.click('.cal-head button >> nth=2'); await waitFirst(p, first);
 ok('Today returns to the current week', (await days(p))[0] === first && (await p.locator('th.dh.today').count()) === 1);
 
+ok('the employee name cell shows a hand cursor (clicking it opens the timesheet)', await p.locator('tbody th.nm').first().evaluate((e) => getComputedStyle(e).cursor) === 'pointer');
 // ---- drag-to-fill in the grid: mouse (at once) and touch (press and hold first); along one person's row; one Undo step
 { await p.reload(); await p.waitForSelector('.tgrid tbody tr'); await p.waitForTimeout(1500);
   const vis = await p.locator('th.dh').evaluateAll((els) => els.map((e) => e.dataset.d));       // the days on screen (week view on the phone): the first four
