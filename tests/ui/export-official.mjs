@@ -113,7 +113,7 @@ const off = await doExport(p, {});
 const wb = off.wb, names = wb.worksheets.map((w) => w.name);
 const emps = JSON.parse(sql(`select coalesce(json_agg(json_build_object('id', id, 'name', full_name, 'opr', payroll, 'title', job_title, 'position', position, 'contract', contract_no, 'level', level) order by full_name),'[]') from public.profiles where department_id='${DA}' and active`)).sort((a, b) => comparePeople({ position: a.position, job_title: a.title, payroll: a.opr, full_name: a.name }, { position: b.position, job_title: b.title, payroll: b.opr, full_name: b.name }));   // the report order: engineers, techs, ..., payroll number
 ok(`download is named for the department and month`, off.name === `timesheet_XO_Alpha_${month}.xlsx`, off.name);
-ok(`sheets: ${nDays} day sheets (1..${nDays}), ${emps.length} employee sheets, Review, Overtime`, names.length === nDays + emps.length + 2 && names.slice(0, nDays).every((n, i) => n === String(i + 1)) && names[names.length - 2] === 'Review', names.slice(0, 3).join(',') + '...' + names.slice(-3).join(','));
+ok(`sheets: ${nDays} day sheets (1..${nDays}), ${emps.length} employee sheets, Review, Overtime, 2 closeout B2B sheets`, names.length === nDays + emps.length + 4 && names.slice(0, nDays).every((n, i) => n === String(i + 1)) && names[names.length - 4] === 'Review', names.slice(0, 3).join(',') + '...' + names.slice(-3).join(','));
 ok('employee sheets are named "<name> <payroll>" in the report order (engineers, techs, payroll number)', names.slice(nDays, nDays + emps.length).every((n, i) => n === `${emps[i].name} ${emps[i].opr}`.slice(0, 31) || n.endsWith(emps[i].opr)), names.slice(nDays, nDays + emps.length).join(' | '));
 { await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr'); const rowNames = await p.locator('.tgrid tbody th.nm .nm-name').allTextContents();
   ok('the department grid lists people in the SAME order as the reports', JSON.stringify(rowNames) === JSON.stringify(emps.map((e) => e.name)), rowNames.join(' | ')); }
@@ -157,11 +157,11 @@ ok('review sheet: engineer days (SUMIF by position) = 3 + 1 = 4', res(rv.getCell
 // ---- D. simple format still available
 const simple = await doExport(p, { format: 'simple' });
 ok('Simple grid format: the original one-grid workbook (grid sheet + overtime sheet)', simple.wb.worksheets.length === 2 && simple.wb.worksheets[1].name === 'Overtime');
-ok('official workbook ends with the Overtime summary sheet', names[names.length - 1] === 'Overtime' || names[names.length - 2] === 'Review' && names[names.length - 1] === 'Overtime', names.slice(-3).join(','));
+ok('official workbook ends with Review, Overtime, Closeout B2B Eng, Closeout B2B Tech', names.slice(-4).join('|') === 'Review|Overtime|Closeout B2B Eng|Closeout B2B Tech', names.slice(-3).join(','));
 
 // ---- E. another month
 const other = await doExport(p, { monthValue: '2030-02' });
-ok('another month (Feb 2030, 28 days): 28 day sheets, the employees, Review; file named for that month', other.wb.worksheets.length === 28 + emps.length + 2 && other.name === 'timesheet_XO_Alpha_2030-02.xlsx' && other.wb.worksheets[27].name === '28');
+ok('another month (Feb 2030, 28 days): 28 day sheets, the employees, Review; file named for that month', other.wb.worksheets.length === 28 + emps.length + 4 && other.name === 'timesheet_XO_Alpha_2030-02.xlsx' && other.wb.worksheets[27].name === '28');
 
 // ---- F. Arabic UI, English workbook
 await p.click('text=العربية'); await p.waitForSelector('.tgrid tbody tr');
@@ -314,7 +314,7 @@ sql(`insert into public.day_status (user_id, day, status) select p.id, d::date, 
 const big = await login('xoladm');
 await big.goto(BASE + '/#/team'); await big.waitForSelector('.tgrid tbody tr');
 const t0 = Date.now(); const bigOut = await doExport(big, {}); const secs = (Date.now() - t0) / 1000;
-ok(`40 employees: ${nDays + 40 + 2} sheets generated and downloaded in ${secs.toFixed(1)} s (limit 90 s)`, bigOut.wb.worksheets.length === nDays + 40 + 2 && secs < 90, `${bigOut.wb.worksheets.length} sheets, ${secs}s`);
+ok(`40 employees: ${nDays + 40 + 4} sheets generated and downloaded in ${secs.toFixed(1)} s (limit 90 s)`, bigOut.wb.worksheets.length === nDays + 40 + 4 && secs < 90, `${bigOut.wb.worksheets.length} sheets, ${secs}s`);
 const names2 = bigOut.wb.worksheets.map((w) => w.name);
 ok('...every sheet name valid (<=31 chars, unique, no forbidden characters) despite long names', names2.every((n) => n.length <= 31 && !/[\\/?*[\]:']/.test(n)) && new Set(names2.map((n) => n.toLowerCase())).size === names2.length);
 ok('...day sheets list all 40 employees', bigOut.wb.getWorksheet('3').getCell(9 + 39, 5).value?.toString().startsWith('XOT-') && !bigOut.wb.getWorksheet('3').getCell(9 + 40, 5).value);

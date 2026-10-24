@@ -73,9 +73,9 @@ ok('rule: rest days (E) have no marks', mc(5, 10).comment === '' && mc(5, 10).tr
 ok('rule (alternative, as in the sample sheets): "rest-day" puts Departure on the first rest day', (() => { const m = buildModel({ sort: false, dept, people, data: { status, overtime, holidays: new Set() }, year: 2028, month: 9, departureRule: 'rest-day' }); return byId(m, 'e1').cells[3].departure === false && byId(m, 'e1').cells[3].comment === 'night shift' ? false : byId(m, 'e1').cells[3].departure === false && byId(m, 'e1').cells[3].status === 'E' ? false : true; })() || (() => { const m = buildModel({ sort: false, dept, people, data: { status, overtime, holidays: new Set() }, year: 2028, month: 9, departureRule: 'rest-day' }); return byId(m, 'e1').cells[3].departure && byId(m, 'e1').cells[3].status === 'E'; })());
 
 // ---------- sheet structure
-ok(`sheet count = ${N} days + ${nEmp} employees + Review + Overtime`, names.length === N + nEmp + 2, String(names.length));
+ok(`sheet count = ${N} days + ${nEmp} employees + Review + Overtime + 2 closeout B2B sheets`, names.length === N + nEmp + 4, String(names.length));
 ok('the first sheets are the month days, named 1, 2, 3 ... 31 in order', names.slice(0, N).every((n, i) => n === String(i + 1)));
-ok('the last two sheets are Review and Overtime', names[names.length - 2] === 'Review' && names[names.length - 1] === 'Overtime');
+ok('the last four sheets are Review, Overtime, Closeout B2B Eng, Closeout B2B Tech', names.slice(-4).join('|') === 'Review|Overtime|Closeout B2B Eng|Closeout B2B Tech', names.slice(-4).join('|'));
 const empNames = names.slice(N, N + nEmp);
 ok('employee sheets come after the days, in employee order, named "<name> <OPR>"', empNames[0] === 'Mohamed Salah Rashed EMC-444' && empNames[4] === 'Hamdy Mahmoud Abdelnabi EMC-102' && empNames[5] === 'Khaled Orabi Ali EMC-074', empNames.join(' | '));
 ok('every sheet name is at most 31 characters, has no forbidden character (\\ / ? * [ ] : \') and is unique', names.every((n) => n.length <= 31 && !/[\\/?*[\]:']/.test(n)) && new Set(names.map((n) => n.toLowerCase())).size === names.length);
@@ -109,7 +109,8 @@ ok('employee sheet: heading and both logos', ws1.getCell('A5').value === 'MONTHL
 { const P = (id, position, job_title, payroll, name) => ({ id, username: id, full_name: name ?? id, position, job_title, payroll });
   const order = (arr) => buildModel({ dept, people: arr, data: { status: new Map(), overtime: new Map(), holidays: new Set() }, year: 2028, month: 9 }).employees.map((e) => e.id).join(',');
   ok('ordering: engineers first, then techs, then others', order([P('o', 'Rigger', 'Rigger', 'EMC-1'), P('t', 'Tech', 'Technician', 'EMC-2'), P('e', 'Engineer', 'Engineer', 'EMC-3')]) === 'e,t,o');
-  ok('ordering: the same job title is sorted by the payroll NUMBER (95 before 1000, not as text)', order([P('c', 'Engineer', 'Engineer', 'EMC-1000'), P('a', 'Engineer', 'Engineer', 'EMC-95'), P('b', 'Engineer', 'Engineer', 'OPR-300')]) === 'a,b,c');
+  ok('ordering: the same position is sorted by the payroll NUMBER (95 before 300 before 1000, not as text) and the job title is ignored', order([P('c', 'Engineer', 'Zeta title', 'EMC-1000'), P('a', 'Engineer', 'Omega title', 'EMC-95'), P('b', 'Engineer', 'Alpha title', 'OPR-300')]) === 'a,b,c');
+  ok('ordering: the position decides the group, not the job title', order([P('r', 'Rigger', 'Engineer', 'EMC-1'), P('t', 'Tech', 'Engineer II', 'EMC-2'), P('e', 'Engineer', 'Chief Technician', 'EMC-3')]) === 'e,t,r');
   ok('ordering: no number goes last inside its title, ties fall back to the name', order([P('x', 'Tech', 'T', 'NONE', 'Zed'), P('y', 'Tech', 'T', 'EMC-5', 'Bob'), P('z', 'Tech', 'T', 'EMC-5', 'Amy')]) === 'z,y,x'); }
 ok('level text: digits print as "Level N", other text as typed', model.employees.every((e, i) => e.levelText === (/^\d+$/.test(String(people[i].level)) ? `Level ${people[i].level}` : String(people[i].level ?? ''))) && buildModel({ sort: false, dept, people: [{ id: 'z', full_name: 'Z', username: 'z', level: '3A' }, { id: 'y', full_name: 'Y', username: 'y', level: ' 4 ' }, { id: 'x', full_name: 'X', username: 'x', level: null }], data: { status: new Map(), overtime: new Map(), holidays: new Set() }, year: 2028, month: 9 }).employees.map((e) => e.levelText).join('|') === '3A|Level 4|');
 ok('employee sheet: name, title, level, location the own location of the person; blank when none, no department fallback', ws1.getCell('C8').value === 'Mohamed Salah Rashed' && ws1.getCell('C9').value === 'Engineer' && ws1.getCell('C10').value === 'Level 3' && !ws1.getCell('C11').value);
@@ -146,6 +147,17 @@ ok('review: Total Engineer / Technition Days = SUMIF on the POSITION (hidden col
 ok('review: Total Approved values come from the department data (264 / 295)', rv.getCell(T, 12).value === 264 && rv.getCell(T + 2, 12).value === 295);
 ok('review: "Total Approved" labels and sign-offs', rv.getCell(T, 5).value === 'Total Approved (Engineer)' && rv.getCell(T + 2, 5).value === 'Total Approved (Tech)' && [...Array(8)].some((_, i) => rv.getCell(T + 5 + i, 1).value === 'Turbo-Machinery SH/DH') && [...Array(8)].some((_, i) => rv.getCell(T + 5 + i, 9).value === 'Turbo-Machinery AGM'));
 
+// ---------- closeout B2B sheets (engineers / techs)
+for (const [sheet, kind, re, approved] of [['Closeout B2B Eng', 'eng', /engineer/i, 264], ['Closeout B2B Tech', 'tech', /tech/i, 295]]) {
+  const ws = wb.getWorksheet(sheet), who = people.filter((p) => re.test(p.position ?? ''));
+  const rowsGot = []; for (let r = 11; r < 11 + who.length; r++) rowsGot.push(ws.getCell(r, 2).value);
+  ok(`${sheet}: title, header groups and only the ${kind === 'eng' ? 'engineers' : 'techs'} in report order`, ws.getCell('D4').value === 'MONTHLY TIME SHEET REPORT (For Back to Back)' && ws.getCell('E9').value === 'Days No' && ws.getCell('J9').value === 'Over time' && ws.getCell('M9').value === 'Meals' && ws.getCell('P9').value === 'Transportation' && JSON.stringify(rowsGot) === JSON.stringify(who.map((p) => p.payroll)) && !ws.getCell(11 + who.length, 2).value, JSON.stringify(rowsGot));
+  let bad = []; who.forEach((p, k) => { const r = 11 + k, x = exp[people.indexOf(p)]; const got = [res(ws.getCell(r, 6)), res(ws.getCell(r, 7)), res(ws.getCell(r, 18))]; const want = [x.xdays ?? null]; void want; const days = Number(res(ws.getCell(r, 6))) + Number(res(ws.getCell(r, 7))); if (days !== x.x + x.y || got[2] !== x.x + x.y || !f(ws.getCell(r, 6)).includes("'")) bad.push(p.payroll + ' ' + got); });
+  ok(`${sheet}: X / Y days and the total per person equal the independent calculation and read the employee sheets`, bad.length === 0, bad.join(' ; '));
+  const actual = who.reduce((a, p) => { const x = exp[people.indexOf(p)]; return a + x.x + x.y; }, 0);
+  ok(`${sheet}: Actual No. of days = the sum of the totals (formula), Total No. B/B days = the approved total of the department (${approved})`, (who.length ? res(ws.getCell(11, 19)) === actual && f(ws.getCell(11, 19)).startsWith('SUM(') : true) && ws.getCell(11, 20).value === approved, `${res(ws.getCell(11, 19))}/${actual} ${ws.getCell(11, 20).value}`);
+  ok(`${sheet}: header block (month, location, department, code) and the sign-offs`, ws.getCell('F5').value instanceof Date && ws.getCell('N7').value === 'Turbo-Machinery' && ws.getCell('S7').value === 'Department Code: 19' && [...Array(12)].some((_, i) => ws.getCell(11 + who.length + 2 + i, 1).value === 'Approval of Department AGM'));
+}
 // ---------- overtime summary
 const ov = wb.getWorksheet('Overtime');
 const withOt = exp.filter((x) => x.ot > 0);
@@ -169,7 +181,7 @@ ok('overtime sheet: the three sign-offs (department AGM, Maintenance GM, DFGM) a
   const m2 = buildModel({ sort: false, dept: { name: 'Ops' }, people: people.slice(0, 2), data: { status: new Map(), overtime: new Map(), holidays: new Set() }, year: 2028, month: 1 });   // Feb 2028 = 29 days
   const w = await buildOfficialWorkbook(m2, official, ExcelJS); const f2 = join(dir, 'feb.xlsx'); await w.xlsx.writeFile(f2);
   const r = new ExcelJS.Workbook(); await r.xlsx.readFile(f2);
-  ok('February 2028 (29 days): sheets 1..29, 2 employees, Review, Overtime; day 29 sits in the right table', r.worksheets.length === 29 + 2 + 2 && r.worksheets[28].name === '29' && r.worksheets[r.worksheets.length - 1].name === 'Overtime' && r.worksheets[29].getCell('L28').value === 29);
+  ok('February 2028 (29 days): sheets 1..29, 2 employees, Review, Overtime; day 29 sits in the right table', r.worksheets.length === 29 + 2 + 4 && r.worksheets[28].name === '29' && r.worksheets[r.worksheets.length - 1].name === 'Closeout B2B Tech' && r.worksheets[29].getCell('L28').value === 29);
   ok('...defaults when nothing is configured: "<name> Dept." title, "<name> SH/DH" sign-off, default field and sector in the banner, no department code', r.getWorksheet('1').getCell('A4').value === 'Ops Dept. Daily Attendance Sheet' && (r.getWorksheet('1').getCell('C1').value.richText ?? []).map((x) => x.text).join('').includes('Maintenance Sector') && (r.worksheets[29].getCell('P7').value ?? '') === '');
   ok('...an Overtime sheet with nobody in it is still created (title + sign-offs)', r.getWorksheet('Overtime').getCell('A1').value === 'Ops EMC overtime');
 }

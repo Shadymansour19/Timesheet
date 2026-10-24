@@ -364,6 +364,69 @@ function overtimeSheet(wb, model, S, emps, name) {
   merge(ws, sig + 1, 1, sig + 2, Math.max(totalCol, 4), null, {});
 }
 
+// ---------- closeout back-to-back (B2B) sheets: one for the engineers, one for the techs ----------
+// Per person: days by work code, overtime by code, meals, transportation and the total of days, all read from the employee
+// sheets. "Actual No. of days" = the sum of the total column; "Total No. B/B days" = the approved total of the department data.
+function b2bSheet(wb, model, S, emps, name, logos, kind) {
+  const ws = wb.addWorksheet(name);
+  page(ws, { landscape: true, height: 0 });
+  [5, 12, 28, 10, 5, 5, 5, 5, 5, 9, 9, 9, 5, 5, 5, 6, 6, 9, 9, 10, 34].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  const mine = model.employees.map((e, i) => ({ e, i })).filter(({ e }) => (kind === 'eng' ? /engineer/i.test(e.position) : /tech/i.test(e.position)));
+  const approved = kind === 'eng' ? model.approvedEngineer : model.approvedTech;
+  for (let r = 1; r <= 3; r++) ws.getRow(r).height = 20;
+  logoAt(ws, logos, 'left', 1.1, 0.1, 118, 56); logoAt(ws, logos, 'right', 17.9, 0.05, 62, 62);
+  merge(ws, 4, 4, 4, 14, 'MONTHLY TIME SHEET REPORT (For Back to Back)', { font: CAL, size: 9, underline: true, border: false }); ws.getRow(4).height = 18;
+  merge(ws, 5, 1, 5, 3, S.captionLeft, { font: CAL, size: 9, h: 'left', border: false });
+  merge(ws, 5, 4, 5, 5, 'Month:', { font: CAL, size: 11, bold: true, h: 'left', border: false });
+  merge(ws, 5, 6, 5, 9, new Date(Date.UTC(model.year, model.month, 1)), { font: CAL, size: 9, underline: true, numFmt: 'mmm-yy', border: false });
+  merge(ws, 5, 17, 5, 21, S.captionRight, { font: CAL, size: 9, border: false }); ws.getRow(5).height = 24;
+  const loc = mine.map(({ e }) => e.workLocation).find((v) => v) ?? '';
+  merge(ws, 7, 1, 7, 2, 'Location:', { font: CAL, size: 8, h: 'left' }); merge(ws, 7, 3, 7, 4, loc, { font: CAL, size: 8, bold: true });
+  merge(ws, 7, 11, 7, 13, 'Department:', { font: CAL, size: 8 }); merge(ws, 7, 14, 7, 17, S.deptName, { font: CAL, size: 8, bold: true });
+  merge(ws, 7, 19, 7, 21, `Department Code: ${S.code}`, { font: CAL, size: 8, bold: true, h: 'left' }); ws.getRow(7).height = 18;
+  // headers
+  const hd = { font: CAL, size: 8, bold: true, wrap: true };
+  [['Ser', 1], ['Payroll', 2], ['Name', 3], ['Level', 4], ['Total No. of days', 18], ['Actual No. of days', 19], ['Total No. B/B days', 20], ['Comments', 21]].forEach(([t, c]) => merge(ws, 9, c, 10, c, t, hd));
+  merge(ws, 9, 5, 9, 9, 'Days No', hd); ['C', 'X', 'Y', 'O', 'Q'].forEach((t, i) => setCell(ws, 10, 5 + i, t, hd));
+  merge(ws, 9, 10, 9, 12, 'Over time', hd); ['X_overtime', 'Y_overtime', 'O_overtime'].forEach((t, i) => setCell(ws, 10, 10 + i, t, { ...hd, size: 7 }));
+  merge(ws, 9, 13, 9, 15, 'Meals', hd); ['B', 'L', 'D'].forEach((t, i) => setCell(ws, 10, 13 + i, t, hd));
+  merge(ws, 9, 16, 9, 17, 'Transportation', { ...hd, size: 7 }); ['In', 'Ex'].forEach((t, i) => setCell(ws, 10, 16 + i, t, hd));
+  ws.getRow(9).height = 16; ws.getRow(10).height = 24;
+  const first = 11, last = first + Math.max(mine.length, 1) - 1, hide = '0;-0;;@';
+  let actual = 0;
+  const body = { font: CAL, size: 9 };
+  for (let k = 0; k < Math.max(mine.length, 1); k++) {
+    const r = first + k, m = mine[k];
+    ws.getRow(r).height = 24;
+    if (!m) { for (let c = 1; c <= 21; c++) setCell(ws, r, c, null); continue; }
+    const { e, i } = m, x = emps[i], q = quote(x.sheet), t = x.totals;
+    const days = t.X + t.C + t.Q + t.Y + t.O; actual += days;
+    setCell(ws, r, 1, k + 1, body); setCell(ws, r, 2, e.payroll, body); setCell(ws, r, 3, e.fullName, { ...body, shrink: true }); setCell(ws, r, 4, e.levelText, body);
+    const ref = (a) => `${q}!${a}`;
+    setCell(ws, r, 5, fx(ref(x.refs.C), t.C), { ...body, numFmt: hide });
+    setCell(ws, r, 6, fx(ref(x.refs.X), t.X), body);
+    setCell(ws, r, 7, fx(ref(x.refs.Y), t.Y), body);
+    setCell(ws, r, 8, fx(ref(x.refs.O), t.O), { ...body, numFmt: hide });
+    setCell(ws, r, 9, fx(ref(x.refs.Q), t.Q), { ...body, numFmt: hide });
+    setCell(ws, r, 10, fx(ref(x.refs.otNormal), t.otNormal), body);      // overtime on X (normal-rate) days
+    setCell(ws, r, 11, fx(ref(x.refs.otShift), t.otShift), body);        // overtime on Y (1.2X) days
+    setCell(ws, r, 12, null, body);                                      // O_overtime: the app records no offshore work
+    for (const c of [13, 14, 15]) setCell(ws, r, c, null, body);          // meals are not recorded
+    setCell(ws, r, 16, fx(ref(x.refs.in), t.in), { ...body, numFmt: hide });
+    setCell(ws, r, 17, fx(ref(x.refs.ex), t.ex), { ...body, numFmt: hide });
+    setCell(ws, r, 18, fx(`SUM(${addr(5, r, false)}:${addr(9, r, false)})`, days), body);
+    setCell(ws, r, 21, null, body);
+  }
+  merge(ws, first, 19, last, 19, mine.length ? fx(`SUM(${addr(18, first, false)}:${addr(18, last, false)})`, actual) : null, { font: CAL, size: 10 });
+  merge(ws, first, 20, last, 20, approved, { font: CAL, size: 10 });
+  const sg = last + 3, sgo = { font: CAL, size: 9, bold: true, h: 'left', border: false };
+  merge(ws, sg, 1, sg, 5, 'Approval of Department AGM', sgo); merge(ws, sg + 1, 1, sg + 1, 5, '------------------------------', { ...sgo, bold: false, v: 'top' });
+  merge(ws, sg, 11, sg, 17, 'Approval of Department GM', sgo); merge(ws, sg + 1, 11, sg + 1, 17, '------------------------------', { ...sgo, bold: false, v: 'top' });
+  merge(ws, sg + 3, 11, sg + 3, 17, 'Approval of DFGM', sgo); merge(ws, sg + 4, 11, sg + 4, 17, '------------------------------', { ...sgo, bold: false, v: 'top' });
+  [sg + 1, sg + 4].forEach((r) => { ws.getRow(r).height = 22; });
+  return { rows: mine.length, actual };
+}
+
 // ---------- entry points ----------
 async function loadLogos(wb, tpl, loadAsset) {
   const logos = { left: null, right: null };
@@ -388,6 +451,8 @@ export async function buildOfficialWorkbook(model, tpl, ExcelJS, { loadAsset, ca
   const emps = model.employees.map((e) => employeeSheet(wb, model, S, e, employeeSheetName(e.fullName, e.payroll, used), dayNames, dayLast, logos));
   reviewSheet(wb, model, S, emps, uniqueSheetName('Review', used), logos);
   overtimeSheet(wb, model, S, emps, uniqueSheetName('Overtime', used));
+  b2bSheet(wb, model, S, emps, uniqueSheetName('Closeout B2B Eng', used), logos, 'eng');      // the last two sheets: back-to-back closeout for engineers / techs
+  b2bSheet(wb, model, S, emps, uniqueSheetName('Closeout B2B Tech', used), logos, 'tech');
   return wb;
 }
 
