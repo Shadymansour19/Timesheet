@@ -1,3 +1,4 @@
+import { comparePeople } from '../lib/core.js';
 import { supabase } from '../supabase.js';
 import { fetchAll } from './timesheet.js';
 
@@ -29,11 +30,11 @@ export const renameDepartment = (id, name) => rpc('rename_department', { p_id: i
 const PEOPLE_COLS = 'id,username,full_name,opr,level,role,department_id,job_title,contract_no,work_location,residence,position,payroll,y_allowed';
 
 export const fetchDeptPeople = (deptId) => fetchAll(() =>
-  supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).eq('department_id', deptId).order('full_name').order('id'));
+  supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).eq('department_id', deptId).order('full_name').order('id')).then((r) => r.sort(comparePeople));   // engineers, techs, ... payroll number order
 
 // super_admin only (RLS): every active admin/user with their department.
 export const fetchAllPeople = () => fetchAll(() =>
-  supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).neq('role', 'super_admin').order('full_name').order('id'));
+  supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).neq('role', 'super_admin').order('full_name').order('id')).then((r) => r.sort(comparePeople));
 
 export async function fetchDepartments() {
   const { data, error } = await supabase.from('departments').select('id,name,code,sector,field,report,approved_engineer,approved_tech').order('name');

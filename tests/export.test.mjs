@@ -31,7 +31,7 @@ const data = {
 const model = buildModel({ dept: { name: 'Operations' }, people, data, year: 2028, month: 1 });
 
 ok('model has 29 days', model.days.length === 29);
-ok('model: alice totals', JSON.stringify(model.employees[0].totals) === JSON.stringify({ X: 1, Y: 1, XH: 1, YH: 1, E: 25, ot: 26 }), JSON.stringify(model.employees[0].totals));
+ok('model: alice totals', JSON.stringify(model.employees[0].totals) === JSON.stringify({ X: 1, Y: 1, XH: 1, YH: 1, E: 25, ot: 26, tin: 4, tex: 0 }), JSON.stringify(model.employees[0].totals));
 ok('model: every employee has 29 cells that sum to 29', model.employees.every((e) => e.cells.length === 29 && e.totals.X + e.totals.Y + e.totals.XH + e.totals.YH + e.totals.E === 29));
 
 for (const lang of ['en', 'ar']) {

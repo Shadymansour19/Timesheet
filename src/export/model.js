@@ -1,4 +1,4 @@
-import { ymd, daysIn, effective } from '../lib/core.js';
+import { ymd, daysIn, effective, comparePeople } from '../lib/core.js';
 
 // ---- Arrival / Departure rules (official report) -----------------------------------------------------------------
 // Work day = status X or Y. Rest day = E (also "no record").
@@ -16,13 +16,13 @@ const shift = (y, m, d, n) => { const dt = new Date(Date.UTC(y, m, d + n)); retu
 // dept:   { name, code, sector, field, report }
 // data:   { status: Map('user|day' -> 'X'|'Y'), overtime: Map('user|day' -> {hours, note}), holidays: Set(day) }
 //         (status should also contain the day before the first and the day after the last day of the month, for Arrival / Departure)
-export function buildModel({ dept, people, data, year, month, departureRule = DEPARTURE_RULE }) {
+export function buildModel({ dept, people, data, year, month, departureRule = DEPARTURE_RULE, sort = true }) {   // sort = false keeps the given order (layout tests)
   const days = [];
   for (let d = 1; d <= daysIn(year, month); d++) {
     const date = ymd(year, month, d);
     days.push({ day: d, date, weekday: new Date(year, month, d).getDay(), holiday: data.holidays.has(date) });
   }
-  const employees = people.map((p) => {
+  const employees = (sort ? [...people].sort(comparePeople) : people).map((p) => {
     const statusAt = (date) => data.status.get(`${p.id}|${date}`) ?? 'E';
     const outside = p.residence === 'outside';
     const cells = days.map((dy) => {

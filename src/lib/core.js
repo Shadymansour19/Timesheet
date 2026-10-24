@@ -24,3 +24,15 @@ export function sameData(a, b) {
 
 // Click / Enter cycle of a day: E -> X -> Y -> E; a person who may not have Y goes E -> X -> E.
 export const nextStatus = (cur, yAllowed = true) => (cur === 'E' ? 'X' : cur === 'X' ? (yAllowed ? 'Y' : 'E') : 'E');
+
+// Order of people everywhere (pages and exports): engineers first, then techs, then everybody else; inside that by job title;
+// inside the same job title by PAYROLL NUMBER as a number (EMC-95 before EMC-1000); no number = last; then payroll text, then name.
+const group = (p) => { const s = `${p.position || p.job_title || ''}`; return /engineer/i.test(s) ? 0 : /tech/i.test(s) ? 1 : 2; };
+const payrollNo = (p) => { const m = /\d+/.exec(String(p.payroll ?? '')); return m ? Number(m[0]) : Infinity; };
+export function comparePeople(a, b) {
+  return group(a) - group(b)
+    || String(a.job_title ?? '').localeCompare(String(b.job_title ?? ''), 'en', { sensitivity: 'base' })
+    || (payrollNo(a) === payrollNo(b) ? 0 : payrollNo(a) < payrollNo(b) ? -1 : 1)
+    || String(a.payroll ?? '').localeCompare(String(b.payroll ?? ''), 'en')
+    || String(a.full_name ?? '').localeCompare(String(b.full_name ?? ''));
+}

@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import ExcelJS from 'exceljs';
+import { comparePeople } from '../../src/lib/core.js';
 const S = process.argv[2] ?? tmpdir();
 const BASE = process.env.BASE_URL ?? 'http://localhost:4173';
 const sql = (q) => execSync(`psql "$TS_DB_URL" -X -q -At -c "${q.replace(/"/g, '\\"')}"`, { encoding: 'utf8' }).trim();
@@ -110,10 +111,12 @@ ok('the other department is unaffected', sql(`select report::text from public.de
 // ---- C. official export vs the database
 const off = await doExport(p, {});
 const wb = off.wb, names = wb.worksheets.map((w) => w.name);
-const emps = JSON.parse(sql(`select coalesce(json_agg(json_build_object('id', id, 'name', full_name, 'opr', payroll, 'title', job_title, 'contract', contract_no, 'level', level) order by full_name),'[]') from public.profiles where department_id='${DA}' and active`));
+const emps = JSON.parse(sql(`select coalesce(json_agg(json_build_object('id', id, 'name', full_name, 'opr', payroll, 'title', job_title, 'position', position, 'contract', contract_no, 'level', level) order by full_name),'[]') from public.profiles where department_id='${DA}' and active`)).sort((a, b) => comparePeople({ position: a.position, job_title: a.title, payroll: a.opr, full_name: a.name }, { position: b.position, job_title: b.title, payroll: b.opr, full_name: b.name }));   // the report order: engineers, techs, ..., payroll number
 ok(`download is named for the department and month`, off.name === `timesheet_XO_Alpha_${month}.xlsx`, off.name);
 ok(`sheets: ${nDays} day sheets (1..${nDays}), ${emps.length} employee sheets, Review, Overtime`, names.length === nDays + emps.length + 2 && names.slice(0, nDays).every((n, i) => n === String(i + 1)) && names[names.length - 2] === 'Review', names.slice(0, 3).join(',') + '...' + names.slice(-3).join(','));
-ok('employee sheets are named "<name> <payroll>" in alphabetical order', names.slice(nDays, nDays + emps.length).every((n, i) => n === `${emps[i].name} ${emps[i].opr}`.slice(0, 31) || n.endsWith(emps[i].opr)), names.slice(nDays, nDays + emps.length).join(' | '));
+ok('employee sheets are named "<name> <payroll>" in the report order (engineers, techs, payroll number)', names.slice(nDays, nDays + emps.length).every((n, i) => n === `${emps[i].name} ${emps[i].opr}`.slice(0, 31) || n.endsWith(emps[i].opr)), names.slice(nDays, nDays + emps.length).join(' | '));
+{ await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr'); const rowNames = await p.locator('.tgrid tbody th.nm .nm-name').allTextContents();
+  ok('the department grid lists people in the SAME order as the reports', JSON.stringify(rowNames) === JSON.stringify(emps.map((e) => e.name)), rowNames.join(' | ')); }
 const d1 = wb.getWorksheet('1');
 ok('settings are applied: title line and sign-offs on a day sheet', d1.getCell('A4').value === 'XO Alpha Dept. Daily Attendance Sheet' && tx(d1.getCell('C1')).includes('Maintenance Sector X') && tx(d1.getCell('C1')).includes('Operations [Fields] X') && d1.getCell(9 + emps.length + 1, 1).value === 'XO Alpha SH/DH' && d1.getCell(9 + emps.length + 1, 8).value === 'XO Alpha AGM', '');
 // every cell of every day sheet equals the database
