@@ -245,8 +245,9 @@ const PH_L = 595.28;
 
 // ---------- overtime page ----------
 function overtimePage(model, S, newPage, doc, sums) {
-  newPage('landscape');
   const W = 841.89 - 2 * M, who = model.employees.map((e, i) => ({ e, i })).filter(({ e }) => e.totals.ot > 0);
+  if (!who.length) return;                                  // no overtime in the month: no overtime page
+  newPage('landscape');
   tx(doc, S.otTitle, M + W / 2, 44, { size: 16, bold: true, align: 'center', maxW: W });
   const xs = [M + 80, M + 130, M + 440, M + 590], RH = 24;
   let y = 70;
@@ -259,7 +260,8 @@ function overtimePage(model, S, newPage, doc, sums) {
     y += RH;
   });
   y += 36;
-  tx(doc, S.signRight, xs[1], y, { size: 11, bold: true }); tx(doc, S.otMiddle, xs[2], y, { size: 11, bold: true }); tx(doc, S.otRight, xs[3] + 50, y, { size: 11, bold: true, align: 'center' });
+  const tx0 = xs[0], tw = xs[3] + 100 - xs[0];            // the three sign-offs in three EQUAL parts of the table width (no borders)
+  [S.signRight, S.otMiddle, S.otRight].forEach((t, k) => tx(doc, t, tx0 + tw * (2 * k + 1) / 6, y, { size: 11, bold: true, align: 'center' }));
 }
 
 function sumsOf(e) {

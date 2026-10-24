@@ -161,7 +161,7 @@ ok('official workbook ends with Review, Overtime, Closeout B2B Eng, Closeout B2B
 
 // ---- E. another month
 const other = await doExport(p, { monthValue: '2030-02' });
-ok('another month (Feb 2030, 28 days): 28 day sheets, the employees, Review; file named for that month', other.wb.worksheets.length === 28 + emps.length + 4 && other.name === 'timesheet_XO_Alpha_2030-02.xlsx' && other.wb.worksheets[27].name === '28');
+ok('another month (Feb 2030, 28 days): 28 day sheets, the employees, Review; file named for that month', other.wb.worksheets.length === 28 + emps.length + 3 && other.name === 'timesheet_XO_Alpha_2030-02.xlsx' && other.wb.worksheets[27].name === '28');
 
 // ---- F. Arabic UI, English workbook
 await p.click('text=العربية'); await p.waitForSelector('.tgrid tbody tr');
@@ -314,7 +314,7 @@ sql(`insert into public.day_status (user_id, day, status) select p.id, d::date, 
 const big = await login('xoladm');
 await big.goto(BASE + '/#/team'); await big.waitForSelector('.tgrid tbody tr');
 const t0 = Date.now(); const bigOut = await doExport(big, {}); const secs = (Date.now() - t0) / 1000;
-ok(`40 employees: ${nDays + 40 + 4} sheets generated and downloaded in ${secs.toFixed(1)} s (limit 90 s)`, bigOut.wb.worksheets.length === nDays + 40 + 4 && secs < 90, `${bigOut.wb.worksheets.length} sheets, ${secs}s`);
+ok(`40 employees: ${nDays + 40 + 3} sheets generated and downloaded in ${secs.toFixed(1)} s (limit 90 s)`, bigOut.wb.worksheets.length === nDays + 40 + 3 && secs < 90, `${bigOut.wb.worksheets.length} sheets, ${secs}s`);
 const names2 = bigOut.wb.worksheets.map((w) => w.name);
 ok('...every sheet name valid (<=31 chars, unique, no forbidden characters) despite long names', names2.every((n) => n.length <= 31 && !/[\\/?*[\]:']/.test(n)) && new Set(names2.map((n) => n.toLowerCase())).size === names2.length);
 ok('...day sheets list all 40 employees', bigOut.wb.getWorksheet('3').getCell(9 + 39, 5).value?.toString().startsWith('XOT-') && !bigOut.wb.getWorksheet('3').getCell(9 + 40, 5).value);

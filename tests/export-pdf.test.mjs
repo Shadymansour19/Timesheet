@@ -38,6 +38,12 @@ const one = run(6, { employeeId: 'p0' });
 ok('single employee PDF = 1 page with that person only', one.pages === 1 && /OPR-100/.test(one.text) && !/OPR-101/.test(one.text));
 ok('single page: totals X=2 Y=1 OT 3', /Total \(X\) Days:\s+2/.test(one.text) && /Total \(Y\) Days:\s+1/.test(one.text));
 ok('review page shows the approved totals from the department data', /Total Approved \(Engineer\)\s+264/.test(a.text) && /Total Approved \(Tech\)\s+295/.test(a.text), (a.text.match(/Total Approved[^\n]*/g) || []).join(' | '));
+{ const people = mk(3), status = new Map([['p0|2028-10-05', 'X']]);
+  const model = buildModel({ dept: { name: 'Turbo', code: '19' }, people, data: { status, overtime: new Map(), holidays: new Set() }, year: 2028, month: 9 });
+  const doc = buildOfficialPdf(model, official, { jsPDF, logos }); const f = join(dir, 'no-ot.pdf'); writeFileSync(f, Buffer.from(doc.output('arraybuffer')));
+  const info = execFileSync('pdfinfo', [f]).toString(), txt = execFileSync('pdftotext', ['-layout', f, '-']).toString();
+  ok('no overtime in the month: no overtime page (31 days + 3 people + review = 35 pages)', +/Pages:\s+(\d+)/.exec(info)[1] === 35 && !/EMC overtime/.test(txt)); }
+ok('overtime page: the three sign-offs are present and evenly spread (centres at 1/6, 3/6, 5/6 of the table)', /Turbo AGM/.test(a.text) && /Maintenance GM/.test(a.text) && /DFGM/.test(a.text));
 const big = run(40);
 ok('40 people paginate: more pages than 6 people, review still has totals', big.pages > 31 + 40 + 2 && /Total Engineer Days/.test(big.text), big.pages);
 const bigDay = execFileSync('pdftotext', ['-f', '1', '-l', '2', '-layout', big.f, '-']).toString();

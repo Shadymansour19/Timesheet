@@ -25,14 +25,20 @@ export function sameData(a, b) {
 // Click / Enter cycle of a day: E -> X -> Y -> E; a person who may not have Y goes E -> X -> E.
 export const nextStatus = (cur, yAllowed = true) => (cur === 'E' ? 'X' : cur === 'X' ? (yAllowed ? 'Y' : 'E') : 'E');
 
-// Order of people everywhere (pages and exports): by POSITION - engineers first, then techs, then every other position; inside the same
-// position by PAYROLL NUMBER as a number (EMC-95 before EMC-1000; no number = last), then payroll text, then name. The job title is not used.
+// Order of people everywhere (pages and exports). Comparing two people a and b:
+//   - different position: the ENGINEER goes first (position contains "engineer"); then techs (position contains "tech"); then every other position
+//   - same position (engineers among themselves, techs among themselves): the LOWER PAYROLL NUMBER goes first, compared as an integer
+//     (EMC-95 before EMC-1000; no number = last); then payroll text, then name
+//   - two people of different "other" positions are grouped by the position text (A-Z), then by payroll number
+// The job title is never used.
 const group = (p) => { const s = `${p.position ?? ''}`; return /engineer/i.test(s) ? 0 : /tech/i.test(s) ? 1 : 2; };
 const payrollNo = (p) => { const m = /\d+/.exec(String(p.payroll ?? '')); return m ? Number(m[0]) : Infinity; };
 export function comparePeople(a, b) {
-  return group(a) - group(b)
-    || String(a.position ?? '').trim().localeCompare(String(b.position ?? '').trim(), 'en', { sensitivity: 'base' })
-    || (payrollNo(a) === payrollNo(b) ? 0 : payrollNo(a) < payrollNo(b) ? -1 : 1)
+  const ga = group(a), gb = group(b);
+  if (ga !== gb) return ga - gb;
+  if (ga === 2) { const c = String(a.position ?? '').trim().localeCompare(String(b.position ?? '').trim(), 'en', { sensitivity: 'base' }); if (c) return c; }
+  const na = payrollNo(a), nb = payrollNo(b);
+  return (na === nb ? 0 : na < nb ? -1 : 1)
     || String(a.payroll ?? '').localeCompare(String(b.payroll ?? ''), 'en')
     || String(a.full_name ?? '').localeCompare(String(b.full_name ?? ''));
 }

@@ -71,9 +71,20 @@ function merge(ws, r1, c1, r2, c2, value, o = {}) {
   if (o.border !== false) for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) ws.getCell(r, c).border = typeof o.border === 'object' ? o.border : BORDER;   // merged cells need every edge cell
 }
 // logo images (optional): place(ws, imageId, { col, row }, widthPx, heightPx)
-function logoAt(ws, logos, side, col, row, w, h) {
-  const id = logos?.[side];
-  if (id !== null && id !== undefined) ws.addImage(id, { tl: { col, row }, ext: { width: w, height: h } });
+// Place a logo CENTRED inside the block of cells c1..c2 x r1..r2 (call after the column widths / row heights are set), scaled to fit
+// maxW x maxH (and the block) with its own proportions.
+const colPx = (ws, c) => (ws.getColumn(c).width ?? 9) * 7 + 5;
+const rowPx = (ws, r) => ((ws.getRow(r).height ?? 15) * 4) / 3;
+function logoIn(ws, logos, side, c1, c2, r1, r2, maxW, maxH) {
+  const lg = logos?.[side];
+  if (!lg) return;
+  let bw = 0, bh = 0;
+  for (let c = c1; c <= c2; c++) bw += colPx(ws, c);
+  for (let r = r1; r <= r2; r++) bh += rowPx(ws, r);
+  const k = Math.min(maxW / lg.w, maxH / lg.h, (bw - 6) / lg.w, (bh - 4) / lg.h);
+  const dw = lg.w * k, dh = lg.h * k;
+  const place = (from, to, total, d, px) => { const x0 = (total - d) / 2; let acc = 0; for (let i = from; i <= to; i++) { const w = px(i); if (x0 < acc + w || i === to) return i - 1 + (x0 - acc) / w; acc += w; } return from - 1; };
+  ws.addImage(lg.id, { tl: { col: place(c1, c2, bw, dw, (c) => colPx(ws, c)), row: place(r1, r2, bh, dh, (r) => rowPx(ws, r)) }, ext: { width: dw, height: dh } });
 }
 // The three-line blue banner (the company's WordArt look is approximated with a bold condensed font)
 function bannerText(S) {
@@ -85,10 +96,10 @@ function page(ws, { landscape = false, height = 0 } = {}) {
   ws.views = [{ showGridLines: false }];
 }
 // outer frame only (no inner lines) around a block of cells
-function frame(ws, r1, c1, r2, c2) {
+function frame(ws, r1, c1, r2, c2, style = thin) {
   for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) {
     const cell = ws.getCell(r, c), b = { ...(cell.border ?? {}) };
-    if (r === r1) b.top = thin; if (r === r2) b.bottom = thin; if (c === c1) b.left = thin; if (c === c2) b.right = thin;
+    if (r === r1) b.top = style; if (r === r2) b.bottom = style; if (c === c1) b.left = style; if (c === c2) b.right = style;
     cell.border = b;
   }
 }
@@ -102,7 +113,7 @@ function daySheet(wb, model, S, di, name, logos) {
   // banner box: logo | blue title | logo
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 25;
   merge(ws, 1, 1, 3, 2, null); merge(ws, 1, 3, 3, 9, bannerText(S), { wrap: true }); merge(ws, 1, 10, 3, 11, null);
-  logoAt(ws, logos, 'left', 0.15, 0.1, 118, 70); logoAt(ws, logos, 'right', 9.45, 0.05, 74, 74);
+  logoIn(ws, logos, 'left', 1, 2, 1, 3, 150, 86); logoIn(ws, logos, 'right', 10, 11, 1, 3, 88, 88);
   const day = model.days[di];
   const line = (r, v, o = {}) => { merge(ws, r, 1, r, D.cols, v, { bold: true, size: 9, border: false, ...o }); ws.getRow(r).height = 21; };
   line(4, `${S.deptTitle} Daily Attendance Sheet`); line(5, S.manpower);
@@ -131,7 +142,6 @@ function daySheet(wb, model, S, di, name, logos) {
   merge(ws, sig, 1, sig, 5, S.signLeft, { bold: true, size: 8, h: 'left', border: false });
   merge(ws, sig, 6, sig, 7, null, { border: false });
   merge(ws, sig, 8, sig, 11, S.signRight, { bold: true, size: 8, h: 'right', border: false });
-  frame(ws, sig, 1, sig, 11);
   return { last: end };
 }
 
@@ -145,9 +155,9 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   [5, 6.5, 2.4, 2.4, 2.4, 3.6, 3.6, 3.6, 6.5, 19, 3.5, 5, 6.5, 2.4, 2.4, 2.4, 3.6, 3.6, 3.6, 6.5, 19].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   // top: logos, captions, title
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 19;
-  logoAt(ws, logos, 'left', 0.25, 0.1, 104, 61); logoAt(ws, logos, 'right', 18.1, 0.1, 62, 62);
-  merge(ws, 4, 1, 4, 10, S.captionLeft, { bold: true, size: 8, h: 'left', border: false });
-  merge(ws, 4, 12, 4, 21, S.captionRight, { bold: true, size: 8, h: 'right', border: false });
+  logoIn(ws, logos, 'left', 1, 6, 1, 3, 130, 70); logoIn(ws, logos, 'right', 17, 21, 1, 3, 70, 70);
+  merge(ws, 4, 1, 4, 6, S.captionLeft, { bold: true, size: 8, h: 'center', border: false });        // each caption is centred under its logo
+  merge(ws, 4, 17, 4, 21, S.captionRight, { bold: true, size: 8, h: 'center', border: false });
   ws.getRow(4).height = 16;
   merge(ws, 5, 1, 5, 21, 'MONTHLY TIME REPORT', { bold: true, size: 9, underline: true, border: false }); ws.getRow(5).height = 18;
   ws.getRow(6).height = 8;
@@ -209,20 +219,16 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   const rng = (c) => `${addr(c, E.first)}:${addr(c, lastRow)}`;
   const workL = rng(eCol(E.left, 1)), workR = rng(eCol(E.right, 1)), otL = rng(eCol(E.left, 8)), otR = rng(eCol(E.right, 8));
 
-  // legend: three blocks, as on the form
-  const L0 = lastRow + 2;
-  const legend = [
-    [['Work Codes', 'X', 'Work Onshore'], ['Y', 'Day/Night Shift(1.2X)'], ['O', 'Work Offshore']],
-    [[null, 'C', 'Work at Cairo'], ['Q', 'Work At Abo Qir'], ['E', 'Vacation']],
-    [['Meal Codes', 'B', 'Breakfast'], ['L', 'Lunch'], ['D', 'Dinner']],
-  ];
-  merge(ws, L0, 1, L0 + 1, 2, 'Work Codes', { bold: true, size: 8, underline: true });
-  merge(ws, L0 + 2, 1, L0 + 2, 2, 'Meal Codes', { bold: true, size: 8, underline: true });
-  legend.forEach((row, i) => {
+  // legend: three separate bordered blocks (Work Codes | Y Q L | O E D), Arial, as on the form
+  const L0 = lastRow + 2, AR = 'Arial', MED = { style: 'medium', color: { argb: 'FF000000' } };
+  for (let r = L0; r <= L0 + 2; r++) ws.getRow(r).height = 17;
+  merge(ws, L0, 1, L0 + 1, 2, 'Work Codes', { font: AR, bold: true, size: 9, underline: true });
+  merge(ws, L0 + 2, 1, L0 + 2, 2, 'Meal Codes', { font: AR, bold: true, size: 9, underline: true });
+  [['X', 'Work Onshore', 'Y', 'Day/Night Shift(1.2X)', 'O', 'Work Offshore'], ['C', 'Work at Cairo', 'Q', 'Work At Abo Qir', 'E', 'Vacation'], ['B', 'Breakfast', 'L', 'Lunch', 'D', 'Dinner']].forEach((row, i) => {
     const r = L0 + i;
-    setCell(ws, r, 3, row[0][1], { bold: true, size: 8 }); merge(ws, r, 4, r, 8, row[0][2], { font: CAL, size: 8 });
-    setCell(ws, r, 9, row[1][0], { bold: true, size: 8 }); merge(ws, r, 10, r, 12, row[1][1], { font: CAL, size: 8 });
-    setCell(ws, r, 18, row[2][0], { bold: true, size: 8 }); merge(ws, r, 19, r, 21, row[2][1], { font: CAL, size: 8 });
+    setCell(ws, r, 3, row[0], { font: AR, bold: true, size: 9 }); merge(ws, r, 4, r, 9, row[1], { font: AR, size: 9 });
+    merge(ws, r, 11, r, 12, row[2], { font: AR, bold: true, size: 9 }); merge(ws, r, 13, r, 17, row[3], { font: AR, size: 9, shrink: true });
+    setCell(ws, r, 20, row[4], { font: AR, bold: true, size: 9 }); setCell(ws, r, 21, row[5], { font: AR, size: 9 });
   });
 
   // totals
@@ -231,14 +237,15 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   const sum = (codes) => codes.map((c) => `SUMIF(${workL},"${c}",${otL})+SUMIF(${workR},"${c}",${otR})`).join('+');
   const cnt = (code) => cells.filter((x) => x.work === code).length;
   const otOf = (codes) => cells.filter((x) => codes.includes(x.work)).reduce((a, x) => a + x.ot, 0);
-  const box = (r, c1, c2, text) => merge(ws, r, c1, r, c2, text, { bold: true, size: 8, underline: true });
-  box(T0, 1, 8, 'Codes of Normal Daily Rates'); box(T0, 12, 20, 'Codes of 1.2X Daily Rates');
-  const tot = (r, label, c1, c2, v1, v2, formula, result, small = false) => { merge(ws, r, c1, r, c2, label, { font: CAL, size: small ? 7 : 9, h: 'right' }); merge(ws, r, v1, r, v2, fx(formula, result), { font: CAL, size: 9 }); };
+  const box = (r, c1, c2, text) => merge(ws, r, c1, r, c2, text, { font: AR, bold: true, size: 10, underline: true, border: false });
+  box(T0, 1, 9, 'Codes of Normal Daily Rates'); box(T0, 12, 20, 'Codes of 1.2X Daily Rates');
+  // label right-aligned, value centred; the small "Total Overtime Hours" label is left-aligned; no inner lines (one outer frame per box)
+  const tot = (r, label, c1, c2, v1, v2, formula, result, small = false) => { merge(ws, r, c1, r, c2, label, { font: AR, size: small ? 8 : 10, h: small ? 'left' : 'right', border: false }); merge(ws, r, v1, r, v2, fx(formula, result), { font: AR, size: 10, border: false }); };
   const refs = {};
-  tot(T0 + 1, 'Total (X) Days:', 1, 4, 5, 8, count('X'), cnt('X')); refs.X = addr(5, T0 + 1);
-  tot(T0 + 2, 'Total (C) Days:', 1, 4, 5, 8, count('C'), cnt('C')); refs.C = addr(5, T0 + 2);
-  tot(T0 + 3, 'Total (Q) Days:', 1, 4, 5, 8, count('Q'), cnt('Q')); refs.Q = addr(5, T0 + 3);
-  tot(T0 + 4, 'Total Overtime Hours', 1, 4, 5, 8, sum(NORMAL), otOf(NORMAL), true); refs.otNormal = addr(5, T0 + 4);
+  tot(T0 + 1, 'Total (X) Days:', 1, 4, 5, 9, count('X'), cnt('X')); refs.X = addr(5, T0 + 1);
+  tot(T0 + 2, 'Total (C) Days:', 1, 4, 5, 9, count('C'), cnt('C')); refs.C = addr(5, T0 + 2);
+  tot(T0 + 3, 'Total (Q) Days:', 1, 4, 5, 9, count('Q'), cnt('Q')); refs.Q = addr(5, T0 + 3);
+  tot(T0 + 4, 'Total Overtime Hours', 1, 4, 5, 9, sum(NORMAL), otOf(NORMAL), true); refs.otNormal = addr(5, T0 + 4);
   tot(T0 + 1, 'Total (Y) Days:', 12, 16, 17, 20, count('Y'), cnt('Y')); refs.Y = addr(17, T0 + 1);
   tot(T0 + 2, 'Total (O) Days:', 12, 16, 17, 20, count('O'), cnt('O')); refs.O = addr(17, T0 + 2);
   tot(T0 + 3, 'Total Overtime Hours', 12, 16, 17, 20, sum(SHIFT), otOf(SHIFT), true); refs.otShift = addr(17, T0 + 3);
@@ -246,13 +253,18 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   const sumCol = (k) => `SUM(${rng(eCol(E.left, k))})+SUM(${rng(eCol(E.right, k))})`;
   const sumVal = (k) => e.cells.reduce((a, c) => a + (k === 6 ? c.tin : k === 7 ? c.tex : 0), 0);
   const M0 = T0 + 4;
-  merge(ws, M0, 12, M0, 17, 'Total Meals', { bold: true, size: 8, underline: true }); merge(ws, M0, 18, M0 + 1, 19, 'Accomd', { bold: true, size: 8, underline: true });
-  merge(ws, M0, 20, M0, 21, 'Transportation', { bold: true, size: 8, underline: true });
-  [['B', 12, 13], ['L', 14, 15], ['D', 16, 17]].forEach(([m, a, b]) => merge(ws, M0 + 1, a, M0 + 1, b, m, { bold: true, size: 8 }));
-  setCell(ws, M0 + 1, 20, 'EX', { font: CAL, size: 8 }); setCell(ws, M0 + 1, 21, 'IN', { font: CAL, size: 8 });
-  [[12, 13, 2], [14, 15, 3], [16, 17, 4]].forEach(([a, b, k]) => merge(ws, M0 + 2, a, M0 + 2, b, fx(sumCol(k), 0), { font: CAL, size: 8 }));
-  merge(ws, M0 + 2, 18, M0 + 2, 19, fx(sumCol(5), 0), { font: CAL, size: 8 });
-  setCell(ws, M0 + 2, 20, fx(sumCol(7), sumVal(7)), { font: CAL, size: 8 }); setCell(ws, M0 + 2, 21, fx(sumCol(6), sumVal(6)), { font: CAL, size: 8 });
+  const lo = { font: AR, size: 8, border: false }, lh = { font: AR, bold: true, size: 9, underline: true, border: false };
+  merge(ws, M0, 12, M0, 17, 'Total Meals', lh); merge(ws, M0, 18, M0 + 1, 19, 'Accomd', lh);
+  merge(ws, M0, 20, M0, 21, 'Transportation', lh);
+  [['B', 12, 13], ['L', 14, 15], ['D', 16, 17]].forEach(([m, a, b]) => merge(ws, M0 + 1, a, M0 + 1, b, m, { ...lo, bold: true }));
+  setCell(ws, M0 + 1, 20, 'EX', lo); setCell(ws, M0 + 1, 21, 'IN', lo);
+  [[12, 13, 2], [14, 15, 3], [16, 17, 4]].forEach(([a, b, k]) => merge(ws, M0 + 2, a, M0 + 2, b, fx(sumCol(k), 0), lo));
+  merge(ws, M0 + 2, 18, M0 + 2, 19, fx(sumCol(5), 0), lo);
+  setCell(ws, M0 + 2, 20, fx(sumCol(7), sumVal(7)), lo); setCell(ws, M0 + 2, 21, fx(sumCol(6), sumVal(6)), lo);
+  // frames: thin lines round the legend blocks are already there; the totals get ONE medium outer line each, the lower table also
+  // separates Total Meals | Accomd | Transportation
+  frame(ws, T0, 1, T0 + 4, 9, MED); frame(ws, T0, 12, T0 + 3, 20, MED); frame(ws, M0, 12, M0 + 2, 21, MED);
+  for (let r = M0; r <= M0 + 2; r++) { for (const c of [17, 19]) { const cell = ws.getCell(r, c), bd = { ...(cell.border ?? {}) }; bd.right = thin; cell.border = bd; } }
   refs.ex = addr(20, M0 + 2); refs.in = addr(21, M0 + 2);
 
   // notes + signatures
@@ -281,7 +293,7 @@ function reviewSheet(wb, model, S, emps, name, logos) {
   [5, 36, 17, 10, 11, 10, 10, 11, 9, 9, 9, 30].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 22;
   merge(ws, 1, 1, 3, 2, null); merge(ws, 1, 3, 3, 10, bannerText(S), { wrap: true }); merge(ws, 1, 11, 3, 12, null);
-  logoAt(ws, logos, 'left', 0.15, 0.1, 118, 62); logoAt(ws, logos, 'right', 10.2, 0.05, 66, 66);
+  logoIn(ws, logos, 'left', 1, 2, 1, 3, 150, 80); logoIn(ws, logos, 'right', 11, 12, 1, 3, 80, 80);
   const line = (r, v) => { merge(ws, r, 1, r, V.cols, v, { bold: true, size: 9, border: false }); ws.getRow(r).height = 16; };
   line(4, `${S.deptTitle} Monthly Attendance Sheet Review`); line(5, S.manpower); line(6, 'Closeout Calculation Sheet');
   ws.getRow(7).height = 5;
@@ -335,9 +347,9 @@ function overtimeSheet(wb, model, S, emps, name) {
   const who = model.employees.map((e, i) => ({ e, i })).filter(({ e }) => e.totals.ot > 0);
   const dates = model.days.filter((d, di) => who.some(({ e }) => e.cells[di].ot > 0));
   const dateCols = dates.length, totalCol = 4 + dateCols;
-  ws.getColumn(1).width = 6; ws.getColumn(2).width = 36; ws.getColumn(3).width = 18;
+  ws.getColumn(1).width = 8; ws.getColumn(2).width = 30; ws.getColumn(3).width = 38;       // 38 + 38 + 38: three equal parts for the sign-offs below
   dates.forEach((_, k) => { ws.getColumn(4 + k).width = 8; ws.getColumn(4 + k).hidden = true; });
-  ws.getColumn(totalCol).width = 14;
+  ws.getColumn(totalCol).width = 38;
   const span = totalCol;
   ws.getRow(1).height = 30;
   merge(ws, 1, 1, 1, Math.max(span, 4), S.otTitle, { font: CAL, bold: true, size: 16, border: false });
@@ -359,9 +371,8 @@ function overtimeSheet(wb, model, S, emps, name) {
   if (!who.length) { ['', '', '', ...Array(dateCols)].forEach((_, c) => setCell(ws, 4, c + 1, null)); setCell(ws, 4, totalCol, null); }
   const sig = end + 3;
   ws.getRow(sig).height = 24;
-  const sg = { font: 'Arial', bold: true, size: 11, border: false };
-  setCell(ws, sig, 2, S.signRight, sg); setCell(ws, sig, 3, S.otMiddle, sg); setCell(ws, sig, totalCol, S.otRight, sg);
-  merge(ws, sig + 1, 1, sig + 2, Math.max(totalCol, 4), null, {});
+  const sg = { font: 'Arial', bold: true, size: 11, border: false };      // the three sign-offs sit in three EQUAL parts of the table width, no borders
+  merge(ws, sig, 1, sig, 2, S.signRight, sg); setCell(ws, sig, 3, S.otMiddle, sg); setCell(ws, sig, totalCol, S.otRight, sg);
 }
 
 // ---------- closeout back-to-back (B2B) sheets: one for the engineers, one for the techs ----------
@@ -374,7 +385,7 @@ function b2bSheet(wb, model, S, emps, name, logos, kind) {
   const mine = model.employees.map((e, i) => ({ e, i })).filter(({ e }) => (kind === 'eng' ? /engineer/i.test(e.position) : /tech/i.test(e.position)));
   const approved = kind === 'eng' ? model.approvedEngineer : model.approvedTech;
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 20;
-  logoAt(ws, logos, 'left', 1.1, 0.1, 118, 56); logoAt(ws, logos, 'right', 17.9, 0.05, 62, 62);
+  logoIn(ws, logos, 'left', 1, 3, 1, 3, 140, 70); logoIn(ws, logos, 'right', 17, 21, 1, 3, 72, 72);
   merge(ws, 4, 4, 4, 14, 'MONTHLY TIME SHEET REPORT (For Back to Back)', { font: CAL, size: 9, underline: true, border: false }); ws.getRow(4).height = 18;
   merge(ws, 5, 1, 5, 3, S.captionLeft, { font: CAL, size: 9, h: 'left', border: false });
   merge(ws, 5, 4, 5, 5, 'Month:', { font: CAL, size: 11, bold: true, h: 'left', border: false });
@@ -432,7 +443,14 @@ async function loadLogos(wb, tpl, loadAsset) {
   const logos = { left: null, right: null };
   if (!loadAsset) return logos;
   for (const side of ['left', 'right']) {
-    try { const buf = await loadAsset(`${tpl.logoBase}-${side}.png`); if (buf) logos[side] = wb.addImage({ buffer: buf, extension: 'png' }); } catch { /* no logo: captions only */ }
+    try {
+      const buf = await loadAsset(`${tpl.logoBase}-${side}.png`);
+      if (buf) {
+        const u = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(buf.buffer, buf.byteOffset, buf.length);
+        const dim = (i) => ((u[i] << 24) | (u[i + 1] << 16) | (u[i + 2] << 8) | u[i + 3]) >>> 0;       // PNG header: width, height
+        logos[side] = { id: wb.addImage({ buffer: buf, extension: 'png' }), w: dim(16), h: dim(20) };
+      }
+    } catch { /* no logo: captions only */ }
   }
   return logos;
 }
@@ -450,7 +468,7 @@ export async function buildOfficialWorkbook(model, tpl, ExcelJS, { loadAsset, ca
   dayLast = Math.max(dayLast, D.first);
   const emps = model.employees.map((e) => employeeSheet(wb, model, S, e, employeeSheetName(e.fullName, e.payroll, used), dayNames, dayLast, logos));
   reviewSheet(wb, model, S, emps, uniqueSheetName('Review', used), logos);
-  overtimeSheet(wb, model, S, emps, uniqueSheetName('Overtime', used));
+  if (model.employees.some((e) => e.totals.ot > 0)) overtimeSheet(wb, model, S, emps, uniqueSheetName('Overtime', used));      // no overtime in the month: no overtime form
   b2bSheet(wb, model, S, emps, uniqueSheetName('Closeout B2B Eng', used), logos, 'eng');      // the last two sheets: back-to-back closeout for engineers / techs
   b2bSheet(wb, model, S, emps, uniqueSheetName('Closeout B2B Tech', used), logos, 'tech');
   return wb;

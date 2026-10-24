@@ -105,11 +105,12 @@ ok('day sheet: sign-off box carries the department name', [...Array(6)].some((_,
 // ---------- employee sheets
 const rows = Math.max(15, N - 15), lastRow = 15 + rows - 1, L0 = lastRow + 2, T0 = L0 + 4;   // 16 rows for a 31-day month
 const ws1 = wb.getWorksheet(empNames[0]);
-ok('employee sheet: heading and both logos', ws1.getCell('A5').value === 'MONTHLY TIME REPORT' && ws1.getImages().length === 2 && ws1.getCell('A4').value === 'Egyptian Maintenance Company' && ws1.getCell('L4').value === 'Burullus Gas Company');
+ok('employee sheet: heading and both logos', ws1.getCell('A5').value === 'MONTHLY TIME REPORT' && ws1.getImages().length === 2 && ws1.getCell('A4').value === 'Egyptian Maintenance Company' && ws1.getCell('Q4').value === 'Burullus Gas Company');
 { const P = (id, position, job_title, payroll, name) => ({ id, username: id, full_name: name ?? id, position, job_title, payroll });
   const order = (arr) => buildModel({ dept, people: arr, data: { status: new Map(), overtime: new Map(), holidays: new Set() }, year: 2028, month: 9 }).employees.map((e) => e.id).join(',');
   ok('ordering: engineers first, then techs, then others', order([P('o', 'Rigger', 'Rigger', 'EMC-1'), P('t', 'Tech', 'Technician', 'EMC-2'), P('e', 'Engineer', 'Engineer', 'EMC-3')]) === 'e,t,o');
   ok('ordering: the same position is sorted by the payroll NUMBER (95 before 300 before 1000, not as text) and the job title is ignored', order([P('c', 'Engineer', 'Zeta title', 'EMC-1000'), P('a', 'Engineer', 'Omega title', 'EMC-95'), P('b', 'Engineer', 'Alpha title', 'OPR-300')]) === 'a,b,c');
+  ok('ordering: all engineers are one group sorted by payroll number even when their position text differs (Engineer / Sr. Engineer)', order([P('c', 'Sr. Engineer', 'x', 'EMC-300'), P('a', 'Engineer', 'x', 'EMC-95'), P('b', 'engineer', 'x', 'EMC-120')]) === 'a,b,c');
   ok('ordering: the position decides the group, not the job title', order([P('r', 'Rigger', 'Engineer', 'EMC-1'), P('t', 'Tech', 'Engineer II', 'EMC-2'), P('e', 'Engineer', 'Chief Technician', 'EMC-3')]) === 'e,t,r');
   ok('ordering: no number goes last inside its title, ties fall back to the name', order([P('x', 'Tech', 'T', 'NONE', 'Zed'), P('y', 'Tech', 'T', 'EMC-5', 'Bob'), P('z', 'Tech', 'T', 'EMC-5', 'Amy')]) === 'z,y,x'); }
 ok('level text: digits print as "Level N", other text as typed', model.employees.every((e, i) => e.levelText === (/^\d+$/.test(String(people[i].level)) ? `Level ${people[i].level}` : String(people[i].level ?? ''))) && buildModel({ sort: false, dept, people: [{ id: 'z', full_name: 'Z', username: 'z', level: '3A' }, { id: 'y', full_name: 'Y', username: 'y', level: ' 4 ' }, { id: 'x', full_name: 'X', username: 'x', level: null }], data: { status: new Map(), overtime: new Map(), holidays: new Set() }, year: 2028, month: 9 }).employees.map((e) => e.levelText).join('|') === '3A|Level 4|');
@@ -166,7 +167,7 @@ const dateDays = [...new Set(people.flatMap((p) => exp[people.indexOf(p)].days.m
 const totalCol = 4 + dateDays.length;
 ok('overtime sheet: one DATE column per date that had overtime (hidden, as on the printed form), then Total', ov.getCell(3, totalCol).value === 'Total' && dateDays.every((d, k) => ov.getCell(3, 4 + k).value instanceof Date && ov.getCell(3, 4 + k).value.getUTCDate() === d && ov.getColumn(4 + k).hidden), `${dateDays}`);
 ok('overtime sheet: each cell holds that person\'s hours on that date and Total reads the employee sheet (formula) with the right result', withOt.every((x, k) => dateDays.every((d, c) => (ov.getCell(4 + k, 4 + c).value ?? 0) === x.days[d - 1].ot) && res(ov.getCell(4 + k, totalCol)) === x.ot && f(ov.getCell(4 + k, totalCol)).includes(`'${empNames[people.indexOf(x.p)]}'!`)));
-ok('overtime sheet: the three sign-offs (department AGM, Maintenance GM, DFGM) and the stamp box', (() => { let found = 0; ov.eachRow((r) => r.eachCell((c) => { if (c.value === 'Turbo-Machinery AGM' || c.value === 'Maintenance GM' || c.value === 'DFGM') found++; })); return found === 3; })());
+ok('overtime sheet: the three sign-offs (department AGM, Maintenance GM, DFGM) and the stamp box', (() => { const found = new Set(); ov.eachRow((r) => r.eachCell((c) => { if (c.value === 'Turbo-Machinery AGM' || c.value === 'Maintenance GM' || c.value === 'DFGM') found.add(c.value); })); return found.size === 3; })());
 
 // ---------- stand-alone employee workbook (a person's own download)
 {
@@ -181,7 +182,7 @@ ok('overtime sheet: the three sign-offs (department AGM, Maintenance GM, DFGM) a
   const m2 = buildModel({ sort: false, dept: { name: 'Ops' }, people: people.slice(0, 2), data: { status: new Map(), overtime: new Map(), holidays: new Set() }, year: 2028, month: 1 });   // Feb 2028 = 29 days
   const w = await buildOfficialWorkbook(m2, official, ExcelJS); const f2 = join(dir, 'feb.xlsx'); await w.xlsx.writeFile(f2);
   const r = new ExcelJS.Workbook(); await r.xlsx.readFile(f2);
-  ok('February 2028 (29 days): sheets 1..29, 2 employees, Review, Overtime; day 29 sits in the right table', r.worksheets.length === 29 + 2 + 4 && r.worksheets[28].name === '29' && r.worksheets[r.worksheets.length - 1].name === 'Closeout B2B Tech' && r.worksheets[29].getCell('L28').value === 29);
+  ok('February 2028 (29 days, no overtime -> no Overtime sheet): sheets 1..29, 2 employees, Review, B2B Eng, B2B Tech; day 29 sits in the right table', r.worksheets.length === 29 + 2 + 3 &&  !r.getWorksheet('Overtime') && r.worksheets[28].name === '29' && r.worksheets[r.worksheets.length - 1].name === 'Closeout B2B Tech' && r.worksheets[29].getCell('L28').value === 29);
   ok('...defaults when nothing is configured: "<name> Dept." title, "<name> SH/DH" sign-off, default field and sector in the banner, no department code', r.getWorksheet('1').getCell('A4').value === 'Ops Dept. Daily Attendance Sheet' && (r.getWorksheet('1').getCell('C1').value.richText ?? []).map((x) => x.text).join('').includes('Maintenance Sector') && (r.worksheets[29].getCell('P7').value ?? '') === '');
   ok('...an Overtime sheet with nobody in it is still created (title + sign-offs)', r.getWorksheet('Overtime').getCell('A1').value === 'Ops EMC overtime');
 }
