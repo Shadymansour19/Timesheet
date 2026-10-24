@@ -213,6 +213,27 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   ok('a click outside the dialog (on the dimmed page) cancels it', (await p.locator('dialog[open]').count()) === 0);
   ok('the users list shows the PAYROLL number on the cards, not the OPR', (await p.locator('.person', { hasText: 'XO Engineer One' }).textContent()).includes('XOT-901') && !(await p.locator('.person', { hasText: 'XO Engineer One' }).textContent()).includes('OPRCTR')); }
 
+// ---- F2c. users: icon toggle between cards and a table; table: double-click edits, right-click opens the card's actions
+{ await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
+  ok('users: two icon-only view buttons (cards, table); cards by default', (await p.locator('.view-seg button').count()) === 2 && (await p.locator('.view-seg button').allTextContents()).join('').trim() === '' && (await p.locator('.plist').isVisible()));
+  await p.click('.view-seg button[data-view="table"]'); await p.waitForSelector('.utable tbody tr.urow');
+  ok('table view: a row per person with payroll, position and job title columns; the cards are hidden', (await p.locator('.plist').isHidden()) && (await p.locator('.utable tbody tr.urow').count()) >= 5 && (await p.locator('.utable thead th').allTextContents()).join('|').includes('Payroll'));
+  const row = p.locator('.utable tbody tr.urow', { hasText: 'XO Engineer Two' });
+  await row.dblclick(); await p.waitForSelector('dialog[open]');
+  ok('table view: double-click opens Edit data of that person', (await dlg(p).textContent()).includes('XO Engineer Two') && (await dlg(p).getByLabel('Full name').inputValue()) === 'XO Engineer Two');
+  await p.keyboard.press('Escape'); await p.waitForSelector('dialog[open]', { state: 'detached' });
+  await row.click({ button: 'right' }); await p.waitForSelector('.ctx-menu');
+  const items = await p.locator('.ctx-menu .ctx-item').allTextContents();
+  ok('table view: right-click opens a menu with the same actions as the card (Timesheet, Edit data, Reset password, Make admin / user, Delete)', ['Timesheet', 'Edit data', 'Reset password', 'Delete'].every((x) => items.includes(x)) && items.length >= 5, items.join('|'));
+  await p.locator('.ctx-menu .ctx-item', { hasText: 'Edit data' }).click(); await p.waitForSelector('dialog[open]');
+  ok('...choosing Edit data from the menu opens the same dialog', (await dlg(p).getByLabel('Full name').inputValue()) === 'XO Engineer Two'); await p.keyboard.press('Escape'); await p.waitForSelector('dialog[open]', { state: 'detached' });
+  await row.click({ button: 'right' }); await p.waitForSelector('.ctx-menu'); await p.mouse.click(3, 3); await p.waitForTimeout(200);
+  ok('the menu closes when clicking elsewhere', (await p.locator('.ctx-menu').count()) === 0);
+  await p.reload(); await p.waitForSelector('.person, .utable tbody tr.urow');
+  ok('the chosen view is remembered after a reload', (await p.locator('.utable tbody tr.urow').count()) >= 5);
+  await p.click('.view-seg button[data-view="cards"]'); await p.waitForSelector('.person.card');
+  ok('toggling back shows the cards again', (await p.locator('.utable-wrap').isHidden()) && (await p.locator('.person.card').count()) >= 5); }
+
 // ---- F3. a person who may not have Y: admin switches it off, the cycle becomes E -> X -> E everywhere
 { await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
   await p.locator('.person', { hasText: 'XO Engineer Two' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');

@@ -237,10 +237,10 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   const sum = (codes) => codes.map((c) => `SUMIF(${workL},"${c}",${otL})+SUMIF(${workR},"${c}",${otR})`).join('+');
   const cnt = (code) => cells.filter((x) => x.work === code).length;
   const otOf = (codes) => cells.filter((x) => codes.includes(x.work)).reduce((a, x) => a + x.ot, 0);
-  const box = (r, c1, c2, text) => merge(ws, r, c1, r, c2, text, { font: AR, bold: true, size: 10, underline: true, border: false });
+  const box = (r, c1, c2, text) => merge(ws, r, c1, r, c2, text, { font: AR, bold: true, size: 10, underline: true });
   box(T0, 1, 9, 'Codes of Normal Daily Rates'); box(T0, 12, 20, 'Codes of 1.2X Daily Rates');
   // label right-aligned, value centred; the small "Total Overtime Hours" label is left-aligned; no inner lines (one outer frame per box)
-  const tot = (r, label, c1, c2, v1, v2, formula, result, small = false) => { merge(ws, r, c1, r, c2, label, { font: AR, size: small ? 8 : 10, h: small ? 'left' : 'right', border: false }); merge(ws, r, v1, r, v2, fx(formula, result), { font: AR, size: 10, border: false }); };
+  const tot = (r, label, c1, c2, v1, v2, formula, result, small = false) => { merge(ws, r, c1, r, c2, label, { font: AR, size: small ? 8 : 10, h: small ? 'left' : 'right' }); merge(ws, r, v1, r, v2, fx(formula, result), { font: AR, size: 10 }); };
   const refs = {};
   tot(T0 + 1, 'Total (X) Days:', 1, 4, 5, 9, count('X'), cnt('X')); refs.X = addr(5, T0 + 1);
   tot(T0 + 2, 'Total (C) Days:', 1, 4, 5, 9, count('C'), cnt('C')); refs.C = addr(5, T0 + 2);
@@ -253,7 +253,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   const sumCol = (k) => `SUM(${rng(eCol(E.left, k))})+SUM(${rng(eCol(E.right, k))})`;
   const sumVal = (k) => e.cells.reduce((a, c) => a + (k === 6 ? c.tin : k === 7 ? c.tex : 0), 0);
   const M0 = T0 + 4;
-  const lo = { font: AR, size: 8, border: false }, lh = { font: AR, bold: true, size: 9, underline: true, border: false };
+  const lo = { font: AR, size: 8 }, lh = { font: AR, bold: true, size: 9, underline: true };
   merge(ws, M0, 12, M0, 17, 'Total Meals', lh); merge(ws, M0, 18, M0 + 1, 19, 'Accomd', lh);
   merge(ws, M0, 20, M0, 21, 'Transportation', lh);
   [['B', 12, 13], ['L', 14, 15], ['D', 16, 17]].forEach(([m, a, b]) => merge(ws, M0 + 1, a, M0 + 1, b, m, { ...lo, bold: true }));
@@ -261,8 +261,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   [[12, 13, 2], [14, 15, 3], [16, 17, 4]].forEach(([a, b, k]) => merge(ws, M0 + 2, a, M0 + 2, b, fx(sumCol(k), 0), lo));
   merge(ws, M0 + 2, 18, M0 + 2, 19, fx(sumCol(5), 0), lo);
   setCell(ws, M0 + 2, 20, fx(sumCol(7), sumVal(7)), lo); setCell(ws, M0 + 2, 21, fx(sumCol(6), sumVal(6)), lo);
-  // frames: thin lines round the legend blocks are already there; the totals get ONE medium outer line each, the lower table also
-  // separates Total Meals | Accomd | Transportation
+  // every cell of the totals tables has thin lines (as in the PDF); each table also gets a medium outer line
   frame(ws, T0, 1, T0 + 4, 9, MED); frame(ws, T0, 12, T0 + 3, 20, MED); frame(ws, M0, 12, M0 + 2, 21, MED);
   for (let r = M0; r <= M0 + 2; r++) { for (const c of [17, 19]) { const cell = ws.getCell(r, c), bd = { ...(cell.border ?? {}) }; bd.right = thin; cell.border = bd; } }
   refs.ex = addr(20, M0 + 2); refs.in = addr(21, M0 + 2);

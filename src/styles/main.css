@@ -394,3 +394,17 @@ body.has-install .floating { inset-block-start: 68px; }
 
 /* the employee name opens that person's timesheet */
 .tgrid tbody th.nm { cursor: pointer; }
+
+/* Users: table view + right-click menu */
+.view-seg .btn.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.utable-wrap { overflow-x: auto; margin-block-start: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.utable { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.utable th, .utable td { text-align: start; padding: 8px 12px; border-block-end: 1px solid var(--line); white-space: nowrap; }
+.utable thead th { position: sticky; inset-block-start: 0; background: var(--card); color: var(--muted); font-weight: 600; font-size: .8rem; }
+.utable tbody tr.urow { cursor: default; user-select: none; } .utable tbody tr.urow:hover { background: color-mix(in srgb, var(--brand) 7%, var(--card)); }
+.utable tbody tr.urow:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.ctx-menu { position: fixed; z-index: 60; min-width: 190px; display: grid; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, .25); }
+.ctx-title { margin: 2px 8px 6px; font-weight: 600; font-size: .85rem; color: var(--muted); }
+.ctx-item { display: block; text-align: start; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; cursor: pointer; text-decoration: none; }
+.ctx-item:hover, .ctx-item:focus-visible { background: color-mix(in srgb, var(--brand) 12%, var(--card)); outline: none; }
+.ctx-item.danger { color: var(--danger); }

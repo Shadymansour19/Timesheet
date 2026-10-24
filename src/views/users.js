@@ -8,7 +8,7 @@ import { explain } from '../api/errors.js';
 import { openDialog, confirmDialog } from '../components/dialog.js';
 import { field, randomPassword } from '../components/form.js';
 import { toast } from '../components/toast.js';
-import { icon, SEARCH } from '../components/icons.js';
+import { icon, SEARCH, GRID, LIST } from '../components/icons.js';
 import * as live from '../live.js';
 
 // Shared by the admin (own department) and the super admin (admins of any department).
@@ -68,6 +68,8 @@ export function usersView() {
   const me = state.profile;
   const root = h('section', { class: 'users' });
   let people = [], query = '', roleFilter = 'all';
+  const VKEY = 'ts.usersView';
+  let view = (() => { try { return localStorage.getItem(VKEY) === 'table' ? 'table' : 'cards'; } catch { return 'cards'; } })();   // grid of cards | table, remembered on this device
   let built = false;
   const el = {};
 
@@ -108,6 +110,49 @@ export function usersView() {
     });
   }
 
+  // the actions of one person: the buttons of a card AND the right-click menu of a table row
+  function actionsOf(p) {
+    const self = p.id === me.id;
+    return [
+      { label: t('timesheet'), kind: 'primary', href: '#/person/' + p.id },
+      { label: t('edit_data'), run: () => editUser(p) },
+      ...(self ? [] : [{ label: t('reset_password'), run: () => resetPasswordDialog(p) }]),
+      ...(p.role === 'user' ? [{ label: t('promote'), run: () => changeRole(p, 'admin', load) }] : []),
+      ...(p.role === 'admin' && !self ? [{ label: t('demote'), run: () => changeRole(p, 'user', load) }] : []),
+      ...(self ? [] : [{ label: t('delete'), kind: 'danger', run: () => deletePerson(p, load) }]),
+    ];
+  }
+
+  // right-click menu (one at a time)
+  let menu = null;
+  const closeMenu = () => { if (menu) { menu.remove(); menu = null; } };
+  function openMenu(e, p) {
+    e.preventDefault(); closeMenu();
+    menu = h('div', { class: 'ctx-menu', role: 'menu', 'aria-label': p.full_name },
+      h('p', { class: 'ctx-title' }, p.full_name),
+      ...actionsOf(p).map((a) => (a.href
+        ? h('a', { class: 'ctx-item', role: 'menuitem', href: a.href, onclick: closeMenu }, a.label)
+        : h('button', { type: 'button', class: 'ctx-item' + (a.kind === 'danger' ? ' danger' : ''), role: 'menuitem', onclick: () => { closeMenu(); a.run(); } }, a.label))));
+    document.body.append(menu);
+    const r = menu.getBoundingClientRect();
+    const x = e.clientX || 20, y = e.clientY || 20;
+    menu.style.left = `${Math.max(4, Math.min(x, innerWidth - r.width - 4))}px`; menu.style.top = `${Math.max(4, Math.min(y, innerHeight - r.height - 4))}px`;
+    menu.querySelector('.ctx-item')?.focus();
+  }
+  const outside = (e) => { if (menu && !menu.contains(e.target)) closeMenu(); };
+  document.addEventListener('pointerdown', outside, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+  window.addEventListener('resize', closeMenu); window.addEventListener('scroll', closeMenu, true);
+
+  function row(p) {
+    return h('tr', { class: 'urow', 'data-u': p.id, tabindex: 0, title: t('users_table_hint'),
+      ondblclick: () => editUser(p), oncontextmenu: (e) => openMenu(e, p),
+      onkeydown: (e) => { if (e.key === 'Enter') editUser(p); } },
+      h('th', { scope: 'row' }, p.full_name),
+      h('td', {}, p.payroll ?? ''), h('td', {}, p.opr ?? ''), h('td', {}, p.position ?? ''), h('td', {}, p.job_title ?? ''), h('td', {}, p.level ?? ''),
+      h('td', {}, h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role))), h('td', {}, p.work_location ?? ''));
+  }
+
   function card(p) {
     const self = p.id === me.id;
     return h('li', { class: 'person card', 'data-u': p.id },
@@ -115,12 +160,7 @@ export function usersView() {
         h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
         h('span', { class: 'muted' }, `${p.payroll || '-'}${p.position ? ' · ' + p.position : ''}`)),   // everything else is in Edit data
       h('div', { class: 'pactions' },
-        h('a', { class: 'btn small primary', href: '#/person/' + p.id }, t('timesheet')),
-        h('button', { class: 'btn small', onclick: () => editUser(p) }, t('edit_data')),
-        self ? null : h('button', { class: 'btn small', onclick: () => resetPasswordDialog(p) }, t('reset_password')),
-        p.role === 'user' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'admin', load) }, t('promote')) : null,
-        p.role === 'admin' && !self ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'user', load) }, t('demote')) : null,
-        self ? null : h('button', { class: 'btn small danger', onclick: () => deletePerson(p, load) }, t('delete'))));
+        ...actionsOf(p).map((a) => (a.href ? h('a', { class: 'btn small' + (a.kind ? ' ' + a.kind : ''), href: a.href }, a.label) : h('button', { class: 'btn small' + (a.kind ? ' ' + a.kind : ''), onclick: a.run }, a.label)))));
   }
 
   const matches = (p) => (roleFilter === 'all' || p.role === roleFilter)
@@ -134,11 +174,15 @@ export function usersView() {
     el.count = h('span', { class: 'muted team-count' });
     el.seg = h('div', { class: 'seg', role: 'group', 'aria-label': t('role_filter_all') });
     el.list = h('ul', { class: 'plist' });
+    el.tableWrap = h('div', { class: 'utable-wrap', hidden: true }, h('table', { class: 'utable' },
+      h('thead', {}, h('tr', {}, [t('full_name'), t('payroll_short'), t('opr'), t('position_short'), t('job_title'), t('level'), t('role'), t('work_location_short')].map((x) => h('th', { scope: 'col' }, x)))), h('tbody', {})));
+    el.hint = h('p', { class: 'muted', hidden: true }, t('users_table_hint'));
+    el.views = h('div', { class: 'seg view-seg', role: 'group', 'aria-label': t('users_view') });
     el.empty = h('div', { class: 'empty card', hidden: true });
     root.replaceChildren(
       h('div', { class: 'cal-head' }, el.title, h('div', { class: 'actions' }, h('button', { class: 'btn small', onclick: () => openBulkAdd({ onDone: load }) }, t('bulk_add')), h('button', { class: 'btn small primary', onclick: addUser }, t('add_user')))),
-      h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), el.search, el.count), el.seg),
-      el.list, el.empty);
+      h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), el.search, el.count), el.seg, el.views),
+      el.hint, el.list, el.tableWrap, el.empty);
     built = true;
   }
 
@@ -149,7 +193,12 @@ export function usersView() {
     el.count.textContent = query || roleFilter !== 'all' ? `${visible.length}/${people.length}` : '';
     el.seg.replaceChildren(...[['all', t('role_filter_all'), people.length], ['user', t('role_filter_user'), nUsers], ['admin', t('role_filter_admin'), nAdmins]].map(([r, label, n]) =>
       h('button', { type: 'button', class: 'btn small' + (roleFilter === r ? ' on' : ''), 'aria-pressed': String(roleFilter === r), onclick: () => { roleFilter = r; update(); } }, `${label} ${n}`)));
-    el.list.replaceChildren(...visible.map(card));
+    el.views.replaceChildren(...[['cards', GRID, t('view_cards')], ['table', LIST, t('view_table')]].map(([v, ic, label]) =>
+      h('button', { type: 'button', class: 'btn small icon-only' + (view === v ? ' on' : ''), 'aria-pressed': String(view === v), 'aria-label': label, title: label, 'data-view': v,
+        onclick: () => { view = v; try { localStorage.setItem(VKEY, v); } catch { /* ignore */ } closeMenu(); update(); } }, icon(ic, 18))));
+    el.list.hidden = view !== 'cards'; el.tableWrap.hidden = view !== 'table'; el.hint.hidden = view !== 'table';
+    el.list.replaceChildren(...(view === 'cards' ? visible.map(card) : []));
+    el.tableWrap.querySelector('tbody').replaceChildren(...(view === 'table' ? visible.map(row) : []));
     // empty states: nobody to show -> say why and what to do
     const none = visible.length === 0;
     el.empty.hidden = !(none || nUsers === 0);
