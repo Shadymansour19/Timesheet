@@ -19,7 +19,7 @@ export function personView(personId) {
         h('span', { class: 'avatar big' }, initials(p.full_name)),
         h('div', { class: 'acct-text' },
           h('strong', {}, p.full_name),
-          h('span', { class: 'muted' }, `${t('role_' + p.role)} · ${p.username} · ${t('opr')} ${p.opr || '-'} · ${t('level')} ${p.level ?? '-'}`))),
+          h('span', { class: 'muted' }, `${t('role_' + p.role)} · ${p.username} · ${t('payroll_short')} ${p.payroll || '-'} · ${t('level')} ${p.level ?? '-'}`))),
       calendarView({ userId: p.id, admin: true, person: p }));
   })();
   return root;

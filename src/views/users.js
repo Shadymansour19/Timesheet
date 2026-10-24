@@ -113,7 +113,7 @@ export function usersView() {
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
         h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.opr || '-'}${p.position ? ' · ' + p.position : ''}`)),   // everything else is in Edit data
+        h('span', { class: 'muted' }, `${p.payroll || '-'}${p.position ? ' · ' + p.position : ''}`)),   // everything else is in Edit data
       h('div', { class: 'pactions' },
         h('a', { class: 'btn small primary', href: '#/person/' + p.id }, t('timesheet')),
         h('button', { class: 'btn small', onclick: () => editUser(p) }, t('edit_data')),
@@ -124,7 +124,7 @@ export function usersView() {
   }
 
   const matches = (p) => (roleFilter === 'all' || p.role === roleFilter)
-    && (!query || `${p.full_name} ${p.username} ${p.opr ?? ''}`.toLowerCase().includes(query));
+    && (!query || `${p.full_name} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query));
 
   function build() {
     el.title = h('h2', {});

@@ -69,7 +69,7 @@ export function teamView() {
     // write's announcement triggers a fresh refetch afterwards)
     if (quiet && (writes > 0 || writeEpoch !== epoch)) { scheduleLive(false); return; }
     if (quiet && built) {
-      const samePeople = !p || JSON.stringify(p.map((x) => [x.id, x.full_name, x.opr, x.level, x.role])) === JSON.stringify(people.map((x) => [x.id, x.full_name, x.opr, x.level, x.role]));
+      const samePeople = !p || JSON.stringify(p.map((x) => [x.id, x.full_name, x.payroll, x.level, x.role])) === JSON.stringify(people.map((x) => [x.id, x.full_name, x.payroll, x.level, x.role]));
       const sameRange = days.length === rd.length && days[0] === rd[0];   // a view / month change must always redraw
       if (sameRange && samePeople && sameData(data, d)) return;
     }
@@ -378,7 +378,7 @@ export function teamView() {
     const mine = focusPos && focusPos.uid === p.id;
     tr.append(h('th', { class: 'nm', scope: 'row', tabindex: mine && focusPos.day === null ? 0 : -1 },
       h('span', { class: 'nm-name' }, p.full_name),
-      h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, (p.opr ?? '')), h('span', { class: 'tots' }, totalsLine(p.id)))));
+      h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, (p.payroll ?? '')), h('span', { class: 'tots' }, totalsLine(p.id)))));
     for (const day of days) tr.append(tdFor(p, day, mine && focusPos.day === day));
     return tr;
   }
@@ -414,7 +414,7 @@ export function teamView() {
   }
   function updateFoot() { const old = el.table.querySelector('tfoot'); if (old) old.replaceChildren(footRow()); }
 
-  function matches(p) { return !query || `${p.full_name} ${p.opr ?? ''} ${p.username}`.toLowerCase().includes(query); }
+  function matches(p) { return !query || `${p.full_name} ${p.payroll ?? ''} ${p.opr ?? ''} ${p.username}`.toLowerCase().includes(query); }
 
   function drawGrid() {
     const t0 = todayStr();

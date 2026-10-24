@@ -46,7 +46,7 @@ export function departmentsView() {
   function row(p) {
     return h('li', { class: 'person' },
       h('div', { class: 'pinfo' }, h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
-        h('span', { class: 'muted' }, `${p.username} · ${t('opr')} ${p.opr || '-'}`)),
+        h('span', { class: 'muted' }, `${p.username} · ${t('payroll_short')} ${p.payroll || '-'}`)),
       h('div', { class: 'pactions' },
         p.role === 'user' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'admin', load) }, t('promote')) : null,
         p.role === 'admin' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'user', load) }, t('demote')) : null,

@@ -76,7 +76,7 @@ await p.waitForSelector('dialog[open]', { state: 'detached', timeout: 60000 });
 ok('the new person is created WITH job title and contract number (Edge Function)', await eventually(() => sql(`select job_title||'|'||contract_no from public.profiles where username='xonew'`) === 'Certified Rigger|202/2024'));
 ok('position is stored (Edge Function)', await eventually(() => sql(`select position from public.profiles where username='xonew'`) === 'Tech'));
 ok('work location and residence are stored (Edge Function)', await eventually(() => sql(`select work_location||'|'||residence from public.profiles where username='xonew'`) === 'Abu Qir Site|outside'));
-ok('the user card shows only the main data (name, OPR, position), the rest is in Edit data', await eventually(async () => { const c = await p.locator('.person', { hasText: 'XO Brand New' }).textContent(); return c.includes('XOT-999') && c.includes('Tech') && !c.includes('Certified Rigger') && !c.includes('xonew') && !c.includes('Level') && !c.includes('Abu Qir'); }));
+ok('the user card shows only the main data (name, PAYROLL instead of OPR, position), the rest is in Edit data', await eventually(async () => { const c = await p.locator('.person', { hasText: 'XO Brand New' }).textContent(); return c.includes('PR-999') && !c.includes('XOT-999') && c.includes('Tech') && !c.includes('Certified Rigger') && !c.includes('xonew') && !c.includes('Level') && !c.includes('Abu Qir'); }));
 await p.locator('.person', { hasText: 'XO Brand New' }).locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
 ok('Edit data shows the stored values', (await dlg(p).getByLabel('Job title').inputValue()) === 'Certified Rigger' && (await dlg(p).getByLabel('Contract no.').inputValue()) === '202/2024');
 ok('Edit data shows work location and residence', (await dlg(p).getByLabel('Work location (site)').inputValue()) === 'Abu Qir Site' && (await dlg(p).locator('.choice:has-text("Lives in") input:checked').inputValue()) === 'outside');
@@ -197,6 +197,18 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   const vals = (name) => [2, 3, 4].map((r) => String(tws.getCell(r, col(name)).value ?? ''));
   ok('bulk add: the template downloads with at least two example rows showing the possible values (Y allowed yes / no, residence inside / outside, empty username and password)', tmpl[0].suggestedFilename() === 'users_template.xlsx' && tws.rowCount >= 3 && vals('Y allowed').includes('yes') && vals('Y allowed').includes('no') && vals('Residence').includes('inside') && vals('Residence').includes('outside') && vals('Username').includes('') && vals('Password').includes('') && vals('Level').includes('3A'), JSON.stringify([vals('Y allowed'), vals('Residence'), vals('Level')]));
   await p.keyboard.press('Escape'); }
+
+// ---- F2b. a click outside a dialog cancels it
+{ await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
+  await p.click('button:text-is("Add user")'); await p.waitForSelector('dialog[open]');
+  const bx = await dlg(p).boundingBox();
+  await p.mouse.click(bx.x + 6, bx.y + 6); await p.waitForTimeout(300);
+  ok('a click on the dialog\'s own padding does not close it', (await p.locator('dialog[open]').count()) === 1);
+  await p.mouse.move(bx.x + 40, bx.y + 40); await p.mouse.down(); await p.mouse.move(3, 3, { steps: 4 }); await p.mouse.up(); await p.waitForTimeout(300);
+  ok('pressing inside and releasing outside (text selection) does not close it', (await p.locator('dialog[open]').count()) === 1);
+  await p.mouse.click(4, 4); await p.waitForTimeout(400);
+  ok('a click outside the dialog (on the dimmed page) cancels it', (await p.locator('dialog[open]').count()) === 0);
+  ok('the users list shows the PAYROLL number on the cards, not the OPR', (await p.locator('.person', { hasText: 'XO Engineer One' }).textContent()).includes('XOT-901') && !(await p.locator('.person', { hasText: 'XO Engineer One' }).textContent()).includes('OPRCTR')); }
 
 // ---- F3. a person who may not have Y: admin switches it off, the cycle becomes E -> X -> E everywhere
 { await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
