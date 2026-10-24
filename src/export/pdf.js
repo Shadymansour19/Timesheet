@@ -264,6 +264,57 @@ function overtimePage(model, S, newPage, doc, sums) {
   [S.signRight, S.otMiddle, S.otRight].forEach((t, k) => tx(doc, t, tx0 + tw * (2 * k + 1) / 6, y, { size: 11, bold: true, align: 'center' }));
 }
 
+// ---------- closeout back-to-back (B2B) pages: engineers / techs (same content as the Excel sheets) ----------
+const BW = [5, 12, 28, 10, 5, 5, 5, 5, 5, 9, 9, 9, 5, 5, 5, 6, 6, 12, 12, 12, 26];
+function b2bPages(model, S, logos, newPage, doc, sums, kind) {
+  const W = 841.89 - 2 * M, u = W / BW.reduce((a, b) => a + b, 0), cw = BW.map((w) => w * u);
+  const xs = cw.map((_, i) => M + cw.slice(0, i).reduce((a, b) => a + b, 0)), xe = M + W;
+  const mine = model.employees.map((e, i) => ({ e, i })).filter(({ e }) => (kind === 'eng' ? /engineer/i.test(e.position) : /tech/i.test(e.position)));
+  const approved = kind === 'eng' ? model.approvedEngineer : model.approvedTech;
+  const actual = mine.reduce((a, { i }) => { const x = sums[i]; return a + x.X + x.C + x.Q + x.Y + x.O; }, 0);
+  const RH = 22, HEADY = 128, TOPY = HEADY + 40, per = Math.max(1, Math.floor((PH_L - M - 60 - TOPY) / RH));
+  const pages = Math.max(1, Math.ceil(mine.length / per));
+  const hide = (n) => (n ? String(n) : '');
+  const loc = mine.map(({ e }) => e.workLocation).find((v) => v) ?? '';
+  for (let pg = 0; pg < pages; pg++) {
+    newPage('landscape');
+    logo(doc, logos, 'left', M + 6, 24, 130, 64); logo(doc, logos, 'right', xe - 90, 22, 72, 68);
+    tx(doc, 'MONTHLY TIME SHEET REPORT (For Back to Back)', M + W / 2, 52, { size: 9, align: 'center', underline: true });
+    tx(doc, S.captionLeft, M + 70, 96, { size: 8.5, align: 'center' }); tx(doc, S.captionRight, xe - 54, 96, { size: 8.5, align: 'center' });
+    tx(doc, 'Month:', xs[3], 96, { size: 10, bold: true }); tx(doc, monthText(model), xs[5], 96, { size: 9, underline: true });
+    const by = 106;
+    cell(doc, xs[0], by, cw[0] + cw[1], 16, 'Location:', { size: 7.5, h: 'left' }); cell(doc, xs[2], by, cw[2] + cw[3], 16, loc, { size: 7.5, bold: true });
+    cell(doc, xs[10], by, cw[10] + cw[11] + cw[12], 16, 'Department:', { size: 7.5 }); cell(doc, xs[13], by, cw[13] + cw[14] + cw[15] + cw[16], 16, S.deptName, { size: 7.5, bold: true });
+    cell(doc, xs[18], by, xe - xs[18], 16, `Department Code: ${S.code}`, { size: 7.5, bold: true, h: 'left' });
+    // header (two rows)
+    let y = HEADY;
+    const H = 16, hd = { bold: true, size: 7, fill: undefined };
+    [['Ser', 0], ['Payroll', 1], ['Name', 2], ['Level', 3], ['Total No. of days', 17], ['Actual No. of days', 18], ['Total No. B/B days', 19], ['Comments', 20]].forEach(([t, c]) => cell(doc, xs[c], y, cw[c], H * 2, t, hd));
+    const group = (t, c1, c2) => cell(doc, xs[c1], y, xs[c2 + 1 > 20 ? 20 : c2 + 1] - xs[c1] || cw[c2], H, t, hd);
+    group('Days No', 4, 8); group('Over time', 9, 11); group('Meals', 12, 14); group('Transportation', 15, 16);
+    ['C', 'X', 'Y', 'O', 'Q'].forEach((t, k) => cell(doc, xs[4 + k], y + H, cw[4 + k], H, t, hd));
+    ['X_overtime', 'Y_overtime', 'O_overtime'].forEach((t, k) => cell(doc, xs[9 + k], y + H, cw[9 + k], H, t, { ...hd, size: 5.5 }));
+    ['B', 'L', 'D'].forEach((t, k) => cell(doc, xs[12 + k], y + H, cw[12 + k], H, t, hd));
+    ['In', 'Ex'].forEach((t, k) => cell(doc, xs[15 + k], y + H, cw[15 + k], H, t, hd));
+    y += H * 2;
+    const rows = mine.slice(pg * per, (pg + 1) * per), n = Math.max(rows.length, 1);
+    for (let k = 0; k < n; k++) {
+      const m = rows[k], r = y + k * RH, b = { size: 8 };
+      for (let c = 0; c < 21; c++) if (![18, 19].includes(c)) cell(doc, xs[c], r, cw[c], RH, '', b);
+      if (!m) continue;
+      const x = sums[m.i], total = x.X + x.C + x.Q + x.Y + x.O;
+      const vals = [String(pg * per + k + 1), m.e.payroll, m.e.fullName, m.e.levelText, hide(x.C), String(x.X), String(x.Y), hide(x.O), hide(x.Q), String(x.otN), String(x.otS), '', '', '', '', hide(x.tin), hide(x.tex), String(total)];
+      vals.forEach((v, c) => cell(doc, xs[c], r, cw[c], RH, v, b));
+    }
+    cell(doc, xs[18], y, cw[18], n * RH, mine.length ? String(actual) : '', { size: 9 });
+    cell(doc, xs[19], y, cw[19], n * RH, approved === null || approved === undefined ? '' : String(approved), { size: 9 });
+    const sy = y + n * RH + 26;
+    tx(doc, 'Approval of Department AGM', xs[0], sy, { size: 8.5, bold: true }); tx(doc, '------------------------------', xs[0], sy + 14, { size: 7 });
+    tx(doc, 'Approval of Department GM', xs[10], sy, { size: 8.5, bold: true }); tx(doc, '------------------------------', xs[10], sy + 14, { size: 7 });
+    tx(doc, 'Approval of DFGM', xs[10], sy + 48, { size: 8.5, bold: true }); tx(doc, '------------------------------', xs[10], sy + 62, { size: 7 });
+  }
+}
+
 function sumsOf(e) {
   const a = { X: 0, C: 0, Q: 0, Y: 0, O: 0, otN: 0, otS: 0, tin: 0, tex: 0 };
   for (const c of e.cells) { if (a[c.status] !== undefined) a[c.status]++; if (NORMAL.includes(c.status)) a.otN += c.ot; else if (SHIFT.includes(c.status)) a.otS += c.ot; a.tin += c.tin; a.tex += c.tex; }
@@ -287,5 +338,7 @@ export function buildOfficialPdf(model, tpl, { jsPDF, logos = {}, employeeId = n
   model.employees.forEach((e) => { newPage('portrait'); employeePage(model, S, logos, e, doc); });
   reviewPages(model, S, logos, newPage, doc, sums);
   overtimePage(model, S, newPage, doc, sums);
+  b2bPages(model, S, logos, newPage, doc, sums, 'eng');       // the last two pages: back-to-back closeout, engineers / techs
+  b2bPages(model, S, logos, newPage, doc, sums, 'tech');
   return doc;
 }

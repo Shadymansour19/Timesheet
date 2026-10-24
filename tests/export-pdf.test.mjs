@@ -27,7 +27,7 @@ const run = (n, extra = {}) => {
 };
 
 const a = run(6);
-ok('6 people: 31 day pages + 6 employee pages + review + overtime = 39 pages', a.pages === 39, a.pages);
+ok('6 people: 31 day pages + 6 employee pages + review + overtime + 2 B2B pages = 41 pages', a.pages === 41, a.pages);
 ok('banner, title, manpower', /Rashid Petroleum & BURULLUS Gas Company/.test(a.text) && /Turbo Dept\. Daily Attendance Sheet/.test(a.text) && /EMC MANPOWER/.test(a.text));
 ok('employee page labels', /MONTHLY TIME REPORT/.test(a.text) && /Contr\. No:/.test(a.text) && /PAYROLL/.test(a.text) && /033\/2019/.test(a.text));
 ok('review + overtime titles', /Monthly Attendance Sheet Review/.test(a.text) && /Turbo EMC overtime/.test(a.text) && /Turbo SH\/DH/.test(a.text) && /Turbo AGM/.test(a.text));
@@ -42,8 +42,9 @@ ok('review page shows the approved totals from the department data', /Total Appr
   const model = buildModel({ dept: { name: 'Turbo', code: '19' }, people, data: { status, overtime: new Map(), holidays: new Set() }, year: 2028, month: 9 });
   const doc = buildOfficialPdf(model, official, { jsPDF, logos }); const f = join(dir, 'no-ot.pdf'); writeFileSync(f, Buffer.from(doc.output('arraybuffer')));
   const info = execFileSync('pdfinfo', [f]).toString(), txt = execFileSync('pdftotext', ['-layout', f, '-']).toString();
-  ok('no overtime in the month: no overtime page (31 days + 3 people + review = 35 pages)', +/Pages:\s+(\d+)/.exec(info)[1] === 35 && !/EMC overtime/.test(txt)); }
+  ok('no overtime in the month: no overtime page (31 days + 3 people + review + 2 B2B = 37 pages)', +/Pages:\s+(\d+)/.exec(info)[1] === 37 && !/EMC overtime/.test(txt)); }
 ok('overtime page: the three sign-offs are present and evenly spread (centres at 1/6, 3/6, 5/6 of the table)', /Turbo AGM/.test(a.text) && /Maintenance GM/.test(a.text) && /DFGM/.test(a.text));
+ok('B2B pages (engineers and techs) are in the PDF: title, headers, approved totals, sign-offs', (a.text.match(/MONTHLY TIME SHEET REPORT \(For Back to Back\)/g) || []).length === 2 && /Total No\. B\/B days/.test(a.text) && /Over time/.test(a.text) && /Approval of DFGM/.test(a.text) && /\b264\b/.test(a.text) && /\b295\b/.test(a.text));
 const big = run(40);
 ok('40 people paginate: more pages than 6 people, review still has totals', big.pages > 31 + 40 + 2 && /Total Engineer Days/.test(big.text), big.pages);
 const bigDay = execFileSync('pdftotext', ['-f', '1', '-l', '2', '-layout', big.f, '-']).toString();

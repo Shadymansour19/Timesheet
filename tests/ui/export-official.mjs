@@ -151,7 +151,7 @@ ok('review sheet: engineer days (SUMIF by position) = 3 + 1 = 4', res(rv.getCell
   await dlp.saveAs(S + '/xo.pdf');
   const txt = execSync(`pdftotext -layout "${S}/xo.pdf" -`, { encoding: 'utf8' }), pages = Number(/Pages:\s+(\d+)/.exec(execSync(`pdfinfo "${S}/xo.pdf"`, { encoding: 'utf8' }))[1]);
   ok('PDF download: named for the department and month, .pdf', dlp.suggestedFilename() === `timesheet_XO_Alpha_${month}.pdf`, dlp.suggestedFilename());
-  ok(`PDF: ${nDays} day pages + ${emps.length} employee pages + review + overtime`, pages === nDays + emps.length + 2, String(pages));
+  ok(`PDF: ${nDays} day pages + ${emps.length} employee pages + review + overtime + 2 B2B`, pages === nDays + emps.length + 4, String(pages));
   ok('PDF text: department title, an employee name, the review title, the printed department name', txt.includes('XO Alpha Dept. Daily Attendance Sheet') && txt.includes('XO Engineer One') && txt.includes('Monthly Attendance Sheet Review') && txt.includes('TURBO (MAINT.)')); }
 
 // ---- D. simple format still available
