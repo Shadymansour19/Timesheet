@@ -139,10 +139,10 @@ for (let i = 0; i < emps.length; i++) {
 ok('review sheet: X days, Y days, total and overtime for every employee equal the database', rvOk, rvMsg);
 ok('review sheet: engineer days (SUMIF by position) = 3 + 1 = 4', res(rv.getCell(9 + emps.length + 2, 4)) === 4, String(res(rv.getCell(9 + emps.length + 2, 4))));
 
-// ---- C2. arrival / departure / transport in the downloaded file (xou3 works alone on day 5 -> both marks, residence unset = IN)
-{ const d5 = wb.getWorksheet(String(Number(sql("select extract(day from date_trunc('month',current_date)::date+4)")))); let row = null;
+// ---- C2. arrival / departure / transport in the downloaded file (xou3 works alone on day 5: Arrival on day 5, Departure on the first REST day = day 6; residence unset = IN)
+{ const dn = Number(sql("select extract(day from date_trunc('month',current_date)::date+4)")); const d5 = wb.getWorksheet(String(dn)), d6 = wb.getWorksheet(String(dn + 1)); let row = null;
   for (let r = 9; r < 9 + emps.length; r++) if (d5.getCell(r, 5).value === 'XOT-903') row = r;
-  ok('an isolated work day is both Arrival and Departure: 2 trips in TRANS/IN (residence unspecified), comment says so', row && Number(d5.getCell(row, 8).value) === 2 && /Arrival/.test(d5.getCell(row, 11).value) && /Departure/.test(d5.getCell(row, 11).value), row && `${d5.getCell(row, 8).value} ${d5.getCell(row, 11).value}`); }
+  ok('an isolated work day: Arrival on it and Departure on the FIRST REST DAY after it (1 trip each, TRANS/IN as residence is unspecified)', row && Number(d5.getCell(row, 8).value) === 1 && /Arrival/.test(d5.getCell(row, 11).value) && !/Departure/.test(d5.getCell(row, 11).value) && Number(d6.getCell(row, 8).value) === 1 && /Departure/.test(d6.getCell(row, 11).value), row && `${d5.getCell(row, 8).value} ${d5.getCell(row, 11).value} / ${d6.getCell(row, 8).value} ${d6.getCell(row, 11).value}`); }
 
 // ---- C3. PDF
 { await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
@@ -283,6 +283,28 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   ok('...the screen shows only E and the overtime entries are kept', await eventually(async () => (await up2.locator('.day .st').allTextContents()).every((x) => x === 'E')) && Number(sql(`select count(*) from public.overtime where user_id='${u2}'`)) >= 2);
   await up2.click('.cal-tools button:has-text("Clear")'); ok('with nothing left, Clear only says so (no dialog)', await eventually(async () => (await up2.locator('.toast').allTextContents()).join('').includes('Nothing to clear')) && (await up2.locator('dialog[open]').count()) === 0);
   ok('own calendar: no page errors ' + JSON.stringify(up2.errs ?? []), true);
+  // ---- departure on the calendar: the days around the month are shown, the departure tag sits on the first rest day and can be moved
+  { const mf = "date_trunc('month', current_date)::date";
+    sql(`delete from public.day_status where user_id='${u2}' and day >= ${mf} - 1 and day <= ${mf} + interval '1 month'`);
+    sql(`insert into public.day_status (user_id, day, status) values ('${u2}', ${mf} - 1, 'X'), ('${u2}', ${mf} + 19, 'X'), ('${u2}', ${mf} + 20, 'X'), ('${u2}', ${mf} + 21, 'X')`);   // prev-month last day, days 20-22 (rest on 23)
+    const dayStr = (n) => sql(`select to_char(${mf} + ${n}, 'YYYY-MM-DD')`);
+    const dep = (n) => up2.locator(`.cal .day[data-d="${dayStr(n)}"] .dep`);
+    const mvRows = () => sql(`select coalesce(string_agg(to_char(work_day,'DD'), ',' order by work_day), '') from public.departure_moves where user_id='${u2}'`);
+    await up2.reload(); await up2.waitForSelector('.cal .day');
+    const ctx = await up2.locator('.cal .day.ctx').evaluateAll((els) => els.map((e) => [e.dataset.ctx, e.textContent]));
+    ok('calendar: the last day of the previous month and the first day of the next month are shown (dimmed, view only)', ctx.length === 2 && ctx[0][0] === sql(`select to_char(${mf} - 1, 'YYYY-MM-DD')`) && ctx[1][0] === sql(`select to_char(date_trunc('month', current_date)::date + interval '1 month', 'YYYY-MM-DD')`) && /X/.test(ctx[0][1]), JSON.stringify(ctx));
+    ok('calendar: the previous month\'s last day is X and day 1 is a rest day, so the departure tag of that block sits on day 1 (first rest day)', (await up2.locator(`.cal .day[data-d="${dayStr(0)}"] .dep.dep-rest`).count()) === 1);
+    ok('calendar: the departure tag sits on the FIRST REST DAY after the working period (day 23), not on the last working day', (await dep(22).count()) === 1 && (await dep(21).count()) === 0 && (await dep(22).getAttribute('class')).includes('dep-rest'));
+    await dep(22).click(); await up2.waitForTimeout(300);
+    ok('tapping the tag moves it onto the last working day (22) and stores the move', (await dep(21).count()) === 1 && (await dep(22).count()) === 0 && await eventually(() => mvRows() === '22', 30000), mvRows());
+    const adm = await p.context().newPage(); await adm.goto(BASE + '/#/person/' + u2); await adm.waitForSelector('.cal .day');
+    ok('the ADMIN sees the same departure tag (on day 22) in the person timesheet', (await adm.locator(`.cal .day[data-d="${dayStr(21)}"] .dep.dep-work`).count()) === 1);
+    await adm.locator(`.cal .day[data-d="${dayStr(21)}"] .dep`).click(); await adm.waitForTimeout(300);
+    ok('the admin can put it back on the rest day', (await adm.locator(`.cal .day[data-d="${dayStr(22)}"] .dep.dep-rest`).count()) === 1 && await eventually(() => mvRows() === '', 30000));
+    await adm.close();
+    sql(`delete from public.day_status where user_id='${u2}' and day >= ${mf} - 1 and day <= ${mf} + interval '1 month'`); sql(`delete from public.departure_moves where user_id='${u2}'`);
+    await up2.reload(); await up2.waitForSelector('.cal .day'); }
+
   // ---- drag-to-fill on the calendar (mouse and touch): the days passed over get the START day's status while the button is still down
   { const dayBtn = (pg, n) => pg.locator(`.cal .day[data-d="${sql("select to_char(date_trunc('month',current_date),'YYYY-MM')")}-${String(n).padStart(2, '0')}"]`);
     const stAt = (n) => sql(`select coalesce((select status from public.day_status where user_id='${u2}' and day=date_trunc('month',current_date)::date + ${n - 1}),'E')`);

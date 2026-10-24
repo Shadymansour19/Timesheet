@@ -222,9 +222,9 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .gridwrap { max-height: calc(100dvh - 230px); min-height: 300px; transition: opacity .15s; }
 .gridwrap.loading { opacity: .55; pointer-events: none; }
 .tgrid.month .nm { min-width: 170px; max-width: 210px; }
-.tgrid.month { width: 100%; min-width: calc(260px + 30px * 31); table-layout: fixed; }  /* fills the tab; day columns are fixed, the name column takes the rest (never sized by its content) */
+.tgrid.month { width: 100%; min-width: calc(260px + 29px * 33); table-layout: fixed; }  /* fills the tab; day columns are fixed, the name column takes the rest (never sized by its content) */
 .tgrid.month th.nm { width: 260px; min-width: 260px; max-width: 260px; }
-.tgrid.month th.dh, .tgrid.month td.c, .tgrid.month td.hc { min-width: 30px; }   /* day columns share the free width equally: all cells the same size whatever they hold */
+.tgrid.month th.dh, .tgrid.month td.c, .tgrid.month td.hc { min-width: 29px; }   /* day columns share the free width equally: all cells the same size whatever they hold */
 .tgrid.month .tot { width: 44px; min-width: 44px; max-width: 44px; }
 .tgrid td.c { position: relative; overflow: hidden; white-space: nowrap; text-overflow: clip; }   /* a cell holds at most 2 characters (X, Y, E, XH, YH); the overtime badge sits in the corner */
 .tgrid td.c sup { position: absolute; inset-block-start: 1px; inset-inline-end: 1px; margin: 0; font-size: .5rem; line-height: 1; }
@@ -408,3 +408,16 @@ body.has-install .floating { inset-block-start: 68px; }
 .ctx-item { display: block; text-align: start; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; cursor: pointer; text-decoration: none; }
 .ctx-item:hover, .ctx-item:focus-visible { background: color-mix(in srgb, var(--brand) 12%, var(--card)); outline: none; }
 .ctx-item.danger { color: var(--danger); }
+
+/* calendar: the days just outside the month (dimmed, view only) and the departure tag */
+.day.ctx { opacity: .62; cursor: default; border-style: dashed; background-image: none; }
+.day { position: relative; }
+.dep { position: absolute; inset-inline-start: 3px; inset-block-end: 3px; padding: 0 5px; border-radius: 6px; font-size: .62rem; font-weight: 700; line-height: 1.5; cursor: pointer; background: #fde68a; color: #78350f; border: 1px solid #f59e0b; z-index: 2; }
+.dep.dep-work { background: #fed7aa; color: #7c2d12; border-color: #ea580c; }
+.dep:focus-visible { outline: 2px solid var(--brand); }
+.day.ctx .dep { opacity: 1; }
+
+/* department grid: the day before / after the month (dimmed, view only) */
+.tgrid th.cx, .tgrid td.cx { opacity: .55; cursor: default; font-weight: 500; border-inline: 1px dashed var(--line); }
+.tgrid th.cx small { display: block; font-weight: 400; color: var(--muted); }
+.tgrid.month th.cx, .tgrid.month td.cx { min-width: 29px; }

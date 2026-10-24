@@ -1,13 +1,14 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
-import { fetchMonth, fetchEditWindow, setDayStatus, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
+import { fetchMonth, fetchEditWindow, setDayStatus, setDepartureMove, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
 import { fetchDepartment, setStatusRows } from '../api/admin.js';
 import { openDialog, confirmDialog } from '../components/dialog.js';
 import { choice } from '../components/choice.js';
 import { icon, INFO, DOWNLOAD, PRINT, TRASH } from '../components/icons.js';
 import { WEEK_START, nextStatus } from '../lib/core.js';
 import { enableDragFill } from '../lib/dragfill.js';
+import { departureOf } from '../export/model.js';
 import * as live from '../live.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
@@ -29,6 +30,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
   const confirmed = {};          // day -> status last confirmed by the server
   const want = {};               // day -> latest status the user asked for
   const busy = new Set();        // days with a request in flight
+  let edge = { prev: null, next: null }, moves = new Set(), lastSig = '';   // the days just outside the month (shown dimmed) and the moved departures
   let dragging = false, pendingDraw = false;      // while a drag-fill gesture runs nothing is re-rendered (the gesture would be lost)
   const redraw = () => { if (dragging) pendingDraw = true; else draw(); };
   let wver = 0;                  // bumped whenever a save starts or ends: a background read that overlapped one is stale and is dropped
@@ -44,12 +46,13 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     if (!quiet) root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
     if (quiet && busy.size) { refetch(); return; }          // a save is in flight: read after it
     const v0 = wver;
-    let fresh, win = editWindow;
-    try { [fresh, win] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow()]); }
+    let fresh, win = editWindow, around = { prev: null, next: null }, mv = new Set();
+    try { let r; [r, win] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow()]); fresh = r.byDay; around = { prev: r.prev, next: r.next }; mv = r.moves; }
     catch { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
     if (quiet && (busy.size || v0 !== wver)) { refetch(); return; }   // a save started / finished while we were reading: this read may predate it
-    if (quiet && sameMonth(fresh, data)) return;                      // nothing new
-    data = fresh; editWindow = win;
+    const sig = JSON.stringify([around, [...mv].sort()]);
+    if (quiet && sameMonth(fresh, data) && sig === lastSig) return;   // nothing new
+    data = fresh; editWindow = win; edge = around; moves = mv; lastSig = sig;
     for (const [day, v] of Object.entries(data)) if (!busy.has(day)) confirmed[day] = v.status;
     redraw();
   }
@@ -90,7 +93,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
 
   // Help text lives behind the "i" button (keeps the calendar compact)
   const openHelp = () => openDialog({ title: t('help'), content: h('div', { class: 'form' },
-    ...(admin ? [h('p', {}, t('person_hint'))] : []), h('p', {}, `${t('legend')} ${t('legend_ot')}`), h('p', {}, t('hint_drag_cal')),
+    ...(admin ? [h('p', {}, t('person_hint'))] : []), h('p', {}, `${t('legend')} ${t('legend_ot')}`), h('p', {}, t('hint_drag_cal')), h('p', {}, t('hint_departure')),
     ...(editWindow !== null && !admin ? [h('p', { class: 'muted' }, t('edit_window_note').replace('{n}', editWindow))] : [])), buttons: [{ label: t('close') }] });
 
   // Download THIS person's Monthly Time Report for the shown month (Excel or PDF)
@@ -150,6 +153,35 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     dlg?.addEventListener('close', () => { busy.delete(day); wver++; });
   }
 
+  // ---- departures: by default on the first REST day after a working period; the marker can be tapped to move it onto the last working day
+  const addDay = (date, n) => { const dt = new Date(date + 'T00:00:00'); dt.setDate(dt.getDate() + n); return ymd(dt.getFullYear(), dt.getMonth(), dt.getDate()); };
+  const statusOn = (date) => data[date]?.status ?? (edge.prev?.date === date ? edge.prev.status : edge.next?.date === date ? edge.next.status : 'E');
+  const depOn = (date, role) => {          // role 'prev' (the day before the month): only a MOVED departure is known there; 'next' (the day after): the rest-day kind
+    const works = statusOn(date) !== 'E';
+    const prevWorks = role === 'prev' ? false : statusOn(addDay(date, -1)) !== 'E';
+    const nextWorks = role === 'next' ? true : statusOn(addDay(date, 1)) !== 'E';
+    return departureOf({ works, prevWorks, nextWorks, movedHere: moves.has(date), movedPrev: moves.has(addDay(date, -1)) });
+  };
+  async function moveDeparture(workDate, on) {
+    const lim = earliest();
+    if (lim !== null && workDate < lim) { toast(t('edit_denied')); return; }
+    if (on) moves.add(workDate); else moves.delete(workDate);
+    redraw();
+    busy.add('mv' + workDate); wver++;
+    try { await setDepartureMove(uid, workDate, on); }
+    catch (e) { if (on) moves.delete(workDate); else moves.add(workDate); toast(e.code === '42501' ? t('edit_denied') : t('save_failed')); }
+    finally { busy.delete('mv' + workDate); wver++; redraw(); }
+  }
+  function depMark(date, kind) {
+    if (!kind) return null;
+    const toWork = kind === 'rest';                          // tap on the rest-day marker -> move it onto the last working day; tap on the work-day marker -> back
+    const workDate = toWork ? addDay(date, -1) : date;
+    const label = toWork ? t('dep_to_work') : t('dep_to_rest');
+    const go = (e) => { e.stopPropagation(); e.preventDefault(); moveDeparture(workDate, toWork); };
+    return h('span', { class: 'dep dep-' + kind, role: 'button', tabindex: 0, title: label, 'aria-label': `${t('departure')}: ${label}`,
+      onpointerdown: (e) => e.stopPropagation(), onclick: go, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') go(e); } }, t('dep_short'));
+  }
+
   function cell(d) {
     const day = ymd(cursor.y, cursor.m, d);
     const v = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
@@ -160,15 +192,29 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     return h('button', { class: cls, type: 'button', disabled: locked, 'data-d': day, 'aria-label': label, onclick: () => (admin && mode === 'details' ? openDetails(day) : change(day)) },
       h('span', { class: 'num' }, d),
       h('span', { class: 'st' }, v.eff),
-      v.ot ? h('span', { class: 'ot' }, `+${v.ot}${t('hour_abbr')}`) : null);
+      v.ot ? h('span', { class: 'ot' }, `+${v.ot}${t('hour_abbr')}`) : null,
+      depMark(day, depOn(day, 'in')));
+  }
+  // the last day of the previous month / the first of the next one: dimmed, read-only, so the working blocks look continuous
+  function ctxCell(info, role) {
+    if (!info) return h('span', { class: 'pad' });
+    const dt = new Date(info.date + 'T00:00:00');
+    return h('div', { class: ['day', 'ctx', 's-' + info.eff.toLowerCase()].join(' '), 'data-ctx': info.date, 'aria-label': `${fmt({ day: 'numeric', month: 'long' }, dt)}: ${info.eff}` },
+      h('span', { class: 'num' }, `${dt.getDate()} ${fmt({ month: 'short' }, dt)}`),
+      h('span', { class: 'st' }, info.eff),
+      depMark(info.date, depOn(info.date, role)));
   }
 
   function draw() {
     const first = new Date(cursor.y, cursor.m, 1);
     const lead = (first.getDay() - WEEK_START + 7) % 7;
     const cells = [];
-    for (let i = 0; i < lead; i++) cells.push(h('span', { class: 'pad' }));
-    for (let d = 1; d <= daysIn(cursor.y, cursor.m); d++) cells.push(cell(d));
+    const n = daysIn(cursor.y, cursor.m);
+    for (let i = 0; i < (lead === 0 ? 6 : lead - 1); i++) cells.push(h('span', { class: 'pad' }));        // the day before day 1 sits right in front of it (a row of its own when the month starts the week)
+    cells.push(ctxCell(edge.prev, 'prev'));
+    for (let d = 1; d <= n; d++) cells.push(cell(d));
+    cells.push(ctxCell(edge.next, 'next'));
+    for (let i = 0; i < ((7 - ((lead + n + 1) % 7)) % 7); i++) cells.push(h('span', { class: 'pad' }));
 
     const weekdays = [...Array(7)].map((_, i) =>
       h('span', { class: 'wd' }, fmt({ weekday: 'short' }, new Date(2023, 0, 1 + ((i + WEEK_START) % 7)))));
@@ -197,9 +243,9 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
 
   // drag-to-fill: press a day and drag over others -> they get the start day's status as you go (not in the admin's details mode)
   enableDragFill(root, {
-    cellSelector: '.grid .day',
+    cellSelector: '.grid .day:not(.ctx)',
     keyOf: (btn) => btn.dataset.d,
-    rowCells: () => [...root.querySelectorAll('.grid .day')],
+    rowCells: () => [...root.querySelectorAll('.grid .day:not(.ctx)')],
     statusOf: (btn) => data[btn.dataset.d]?.status ?? 'E',
     canFill: (btn, status) => !btn.disabled && !(status === 'Y' && (admin ? person?.y_allowed : state.profile.y_allowed) === false),
     fill: (btn, status) => {

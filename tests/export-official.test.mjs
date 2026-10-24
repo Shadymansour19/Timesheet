@@ -38,14 +38,17 @@ const overtime = new Map([
   ['e2|2028-10-02', { hours: 4, note: '' }], ['e3|2028-10-17', { hours: 1, note: 'on call' }], ['e5|2028-10-06', { hours: 3, note: 'x'.repeat(40) }],
 ]);
 const dept = { name: 'Turbo-Machinery', code: '19', approved_engineer: 264, approved_tech: 295, sector: 'Maintenance Sector', field: 'Operations [Fields]', report: { dept_print_name: 'TURBO (MAINT.)', location: 'IDKU Site' } };
-const model = buildModel({ sort: false, dept, people, data: { status, overtime, holidays: new Set(['2028-10-02', '2028-10-03', '2028-10-04']) }, year: 2028, month: 9 });
+const moves = new Set(['e3|2028-10-17']);                        // e3 moved the departure of her period onto its last working day (17 Oct)
+const model = buildModel({ sort: false, dept, people, data: { status, overtime, holidays: new Set(['2028-10-02', '2028-10-03', '2028-10-04']), moves }, year: 2028, month: 9 });
 const N = 31, nEmp = people.length;
 
 // ---------- independent expectation of the rules (does not use the model's code)
 function expectDay(p, day) {
   const iso = (n) => { const d = new Date(Date.UTC(2028, 9, n)); return d.toISOString().slice(0, 10); };
   const w = (n) => status.has(`${p.id}|${iso(n)}`);
-  const arrival = w(day) && !w(day - 1), departure = w(day) && !w(day + 1);
+  const mv = (n) => moves.has(`${p.id}|${iso(n)}`);
+  const arrival = w(day) && !w(day - 1);
+  const departure = w(day) ? mv(day) && !w(day + 1) : w(day - 1) && !mv(day - 1);          // default: the first rest day after a working period; moved: the last working day
   const marks = [arrival ? 'Arrival' : '', departure ? 'Departure' : ''].filter(Boolean);
   const ov = overtime.get(`${p.id}|${iso(day)}`);
   const trips = marks.length, outside = p.residence === 'outside';
@@ -63,14 +66,14 @@ const res = (cell) => (cell.value && typeof cell.value === 'object' && 'formula'
 // ---------- arrival / departure / transport rules (model)
 const mc = (ei, d) => byId(model, 'e' + (ei + 1)).cells[d - 1];
 ok('rule: work continuing from the previous month is NOT an arrival (e1 worked 30 Sep, so 1 Oct is not an arrival)', !mc(0, 1).arrival && mc(0, 1).comment === 'inventory');
-ok('rule: a work day with a rest day after it is a Departure (e1 on 3 Oct)', mc(0, 3).departure && mc(0, 3).comment.startsWith('Departure'));
+ok('rule: the Departure sits on the FIRST REST DAY after a working period (e1: work ends 3 Oct, Departure on 4 Oct, not on the work day)', mc(0, 4).departure && mc(0, 4).comment === 'Departure' && !mc(0, 3).departure && mc(0, 3).comment === 'night shift');
 ok('rule: work continuing into the next month is NOT a departure (e1 worked 1 Nov, so 31 Oct is not one) but IS an arrival', !mc(0, 31).departure && mc(0, 31).arrival);
-ok('rule: an isolated work day is both Arrival and Departure = 2 trips (e2 on 2 Oct)', mc(1, 2).arrival && mc(1, 2).departure && mc(1, 2).trips === 2 && mc(1, 2).comment === 'Arrival / Departure');
-ok('rule: trips go to TRANS/EX for a person living OUTSIDE the work city (e1) and TRANS/IN for INSIDE (e2)', mc(0, 31).tex === 1 && mc(0, 31).tin === 0 && mc(1, 2).tin === 2 && mc(1, 2).tex === 0);
+ok('rule: an isolated work day gives an Arrival on it and a Departure on the next rest day = 2 trips (e2: 2 Oct and 3 Oct)', mc(1, 2).arrival && !mc(1, 2).departure && mc(1, 2).trips === 1 && mc(1, 3).departure && mc(1, 3).trips === 1 && mc(1, 3).comment === 'Departure');
+ok('rule: trips go to TRANS/EX for a person living OUTSIDE the work city (e1) and TRANS/IN for INSIDE (e2)', mc(0, 31).tex === 1 && mc(0, 31).tin === 0 && mc(0, 4).tex === 1 && mc(1, 2).tin === 1 && mc(1, 3).tin === 1 && mc(1, 3).tex === 0);
 ok('rule: unspecified residence counts as inside (e3)', mc(2, 16).tin === 1 && mc(2, 16).tex === 0);
-ok('rule: the marks and the overtime note are combined ("Departure - on call"... e3 17 Oct: Departure - on call)', mc(2, 17).comment === 'Departure - on call', mc(2, 17).comment);
+ok('rule: a departure MOVED onto the last working day (e3, 17 Oct) shows there with the overtime note ("Departure - on call"), and the rest day after it has no departure', mc(2, 17).departure && mc(2, 17).comment === 'Departure - on call' && !mc(2, 18).departure && mc(2, 18).trips === 0 && mc(2, 17).trips === 1, mc(2, 17).comment);
 ok('rule: rest days (E) have no marks', mc(5, 10).comment === '' && mc(5, 10).trips === 0);
-ok('rule (alternative, as in the sample sheets): "rest-day" puts Departure on the first rest day', (() => { const m = buildModel({ sort: false, dept, people, data: { status, overtime, holidays: new Set() }, year: 2028, month: 9, departureRule: 'rest-day' }); return byId(m, 'e1').cells[3].departure === false && byId(m, 'e1').cells[3].comment === 'night shift' ? false : byId(m, 'e1').cells[3].departure === false && byId(m, 'e1').cells[3].status === 'E' ? false : true; })() || (() => { const m = buildModel({ sort: false, dept, people, data: { status, overtime, holidays: new Set() }, year: 2028, month: 9, departureRule: 'rest-day' }); return byId(m, 'e1').cells[3].departure && byId(m, 'e1').cells[3].status === 'E'; })());
+ok('rule (alternative): "work-day" puts the Departure on the last working day and ignores moves (old behaviour)', (() => { const m = buildModel({ sort: false, dept, people, data: { status, overtime, holidays: new Set(), moves }, year: 2028, month: 9, departureRule: 'work-day' }); return byId(m, 'e1').cells[2].departure === true && byId(m, 'e1').cells[3].departure === false; })());
 
 // ---------- sheet structure
 ok(`sheet count = ${N} days + ${nEmp} employees + Review + Overtime + 2 closeout B2B sheets`, names.length === N + nEmp + 4, String(names.length));
@@ -120,7 +123,7 @@ ok('employee sheet: department code, month, contract number, department, payroll
 ok('employee sheet: left table = days 1-15, right table = days 16-31 (the form splits at 15/16)', ws1.getCell('A15').value === 1 && ws1.getCell('A29').value === 15 && ws1.getCell('L15').value === 16 && ws1.getCell('L30').value === 31);
 ok('employee sheet: day 1 "Work" is a formula that looks the person up by P/R on day sheet 1', f(ws1.getCell('B15')).includes("'1'!$F$9:$F$14") && f(ws1.getCell('B15')).includes('MATCH($P$11') && f(ws1.getCell('B15')).includes("'1'!$E$9:$E$14"), f(ws1.getCell('B15')));
 ok('employee sheet: day 16 and day 31 read sheets 16 and 31', f(ws1.getCell('M15')).includes("'16'!") && f(ws1.getCell('M30')).includes("'31'!"));
-ok('employee sheet: cached results match (day 3 Y/6h/Departure/TEX 0..., day 31 X/24h/Arrival/EX 1)', res(ws1.getCell('B17')) === 'Y' && res(ws1.getCell('I17')) === 6 && String(res(ws1.getCell('J17'))).startsWith('Departure') && res(ws1.getCell('M30')) === 'X' && res(ws1.getCell('T30')) === 24 && String(res(ws1.getCell('U30'))).startsWith('Arrival') && res(ws1.getCell('S30')) === 1);
+ok('employee sheet: cached results match (day 3 Y/6h/night shift, day 4 Departure, day 31 X/24h/Arrival/EX 1)', res(ws1.getCell('B17')) === 'Y' && res(ws1.getCell('I17')) === 6 && res(ws1.getCell('J17')) === 'night shift' && res(ws1.getCell('J18')) === 'Departure' && res(ws1.getCell('M30')) === 'X' && res(ws1.getCell('T30')) === 24 && String(res(ws1.getCell('U30'))).startsWith('Arrival') && res(ws1.getCell('S30')) === 1);
 let badTot = [];
 people.forEach((p, i) => {
   const s = wb.getWorksheet(empNames[i]), x = exp[i];
@@ -198,7 +201,7 @@ else {
   const val = (ws, a, b) => { const v = (b === undefined ? ws.getCell(a) : ws.getCell(a, b)).value; if (v && typeof v === 'object' && 'formula' in v) return 'result' in v ? v.result : 0; return v; };
   const e1 = rc.getWorksheet(empNames[0]);
   ok('LibreOffice recalculation: day lookups (day 1 X, day 3 Y, day 31 X, a day with no record = E)', val(e1, 'B15') === 'X' && val(e1, 'B17') === 'Y' && val(e1, 'M30') === 'X' && val(e1, 'B20') === 'E', ['B15', 'B17', 'M30', 'B20'].map((a) => val(e1, a)).join(','));
-  ok('LibreOffice recalculation: overtime, comments and transport columns come through (2h/"inventory", 6h/"Departure - night shift", 24h, EX 1 on 31)', val(e1, 'I15') === 2 && val(e1, 'J15') === 'inventory' && val(e1, 'I17') === 6 && val(e1, 'J17') === 'Departure - night shift' && val(e1, 'T30') === 24 && val(e1, 'S30') === 1 && val(e1, 'U30') === 'Arrival - max', ['I15', 'J15', 'I17', 'J17', 'T30', 'S30', 'U30'].map((a) => val(e1, a)).join(' | '));
+  ok('LibreOffice recalculation: overtime, comments and transport columns come through (2h/"inventory", 6h/"night shift", 24h, EX 1 on 31)', val(e1, 'I15') === 2 && val(e1, 'J15') === 'inventory' && val(e1, 'I17') === 6 && val(e1, 'J17') === 'night shift' && val(e1, 'T30') === 24 && val(e1, 'S30') === 1 && val(e1, 'U30') === 'Arrival - max', ['I15', 'J15', 'I17', 'J17', 'T30', 'S30', 'U30'].map((a) => val(e1, a)).join(' | '));
   let badLo = [];
   people.forEach((p, i) => {
     const s = rc.getWorksheet(empNames[i]), x = exp[i];

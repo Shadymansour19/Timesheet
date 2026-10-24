@@ -373,6 +373,18 @@ select t.ok('adminA allows Y again (NULL keeps it otherwise)', $$select public.u
 select t.ok('...and Y works', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 50, 'Y')$$);
 select t.ok('4-argument update_profile leaves the permission unchanged', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', '7')$$);
 select t.eq('...still allowed', $$select y_allowed::text from public.profiles where id = '00000000-0000-0000-0000-0000000000a2'$$, 'true');
+select t.ok('adminA sets a working day for ua1 (for the departure tests)', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 60, 'X')$$);
+select t.ok('adminA moves the departure of ua1 onto that working day', $$select public.set_departure_move('00000000-0000-0000-0000-0000000000a2', current_date + 60, true)$$);
+select t.eq('...stored', $$select count(*)::text from public.departure_moves where user_id = '00000000-0000-0000-0000-0000000000a2' and work_day = current_date + 60$$, '1');
+select t.denied('a departure can only sit on a working day', $$select public.set_departure_move('00000000-0000-0000-0000-0000000000a2', current_date + 61, true)$$, '22023');
+select t.denied('adminA cannot move the departure of a dept B person', $$select public.set_departure_move('00000000-0000-0000-0000-0000000000b2', current_date + 60, true)$$);
+select t.denied('no direct writes to departure_moves', $$insert into public.departure_moves (user_id, work_day) values ('00000000-0000-0000-0000-0000000000a2', current_date + 62)$$);
+select t.login('00000000-0000-0000-0000-0000000000a2');
+select t.count('a user sees only his own departure moves', $$select 1 from public.departure_moves$$, 1);
+select t.ok('the user puts it back on the rest day (removes the move)', $$select public.set_departure_move('00000000-0000-0000-0000-0000000000a2', current_date + 60, false)$$);
+select t.ok('...and moves it again himself', $$select public.set_departure_move('00000000-0000-0000-0000-0000000000a2', current_date + 60, true)$$);
+select t.denied('a user cannot move the departure of another person', $$select public.set_departure_move('00000000-0000-0000-0000-0000000000a1', current_date + 60, true)$$);
+select t.login('00000000-0000-0000-0000-0000000000a1');
 select t.ok('adminA sets the approved totals of his department', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '264', '295')$$);
 select t.eq('...stored as whole numbers', $$select approved_engineer || '|' || approved_tech from public.departments where id = '10000000-0000-0000-0000-00000000000a'$$, '264|295');
 select t.denied('approved totals must be whole numbers', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb, null, null, null, '12.5', null)$$, '22023');

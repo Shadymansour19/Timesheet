@@ -3,11 +3,20 @@ import { ymd, daysIn, effective, comparePeople } from '../lib/core.js';
 // ---- Arrival / Departure rules (official report) -----------------------------------------------------------------
 // Work day = status X or Y. Rest day = E (also "no record").
 //   Arrival   : a work day whose PREVIOUS day is a rest day          (the previous day may be in the previous month)
-//   Departure : by default a work day whose NEXT day is a rest day   (the next day may be in the next month)
+//   Departure : by default the first REST day after a working period; the person / admin may move it onto the LAST WORKING DAY
+//               (data.moves, see departureOf). The rule 'work-day' (old) puts it on the last working day always.
 // Each Arrival / Departure counts as ONE trip: TRANS/IN when the person lives inside the work-location city, TRANS/EX when outside.
 // NOTE: in the company's sample sheets the Departure mark sits on the first REST day after a work period ('rest-day').
 // The written requirement says "the work day that has the next day E", which is the 'work-day' rule used here. Switch with this constant.
-export const DEPARTURE_RULE = 'work-day';   // 'work-day' | 'rest-day'
+export const DEPARTURE_RULE = 'rest-day';   // 'rest-day' (default, with moves) | 'work-day'
+
+// Where does a departure sit? 'rest' = on the first rest day after a working period (default); 'work' = on the last working day, when
+// the person / admin moved it there (moves = the working days that carry it). null = not a departure day.
+export function departureOf({ works, prevWorks, nextWorks, movedHere, movedPrev }) {
+  if (!works && prevWorks && !movedPrev) return 'rest';
+  if (works && !nextWorks && movedHere) return 'work';
+  return null;
+}
 
 const shift = (y, m, d, n) => { const dt = new Date(Date.UTC(y, m, d + n)); return ymd(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()); };
 
@@ -28,10 +37,12 @@ export function buildModel({ dept, people, data, year, month, departureRule = DE
     const cells = days.map((dy) => {
       const status = statusAt(dy.date);
       const works = status !== 'E';
-      const prevWorks = statusAt(shift(year, month, dy.day, -1)) !== 'E';
+      const prevWorks = statusAt(shift(year, month, dy.day, -1)) !== 'E';   // (the previous / next day may belong to the neighbouring month)
       const nextWorks = statusAt(shift(year, month, dy.day, 1)) !== 'E';
       const arrival = works && !prevWorks;
-      const departure = departureRule === 'rest-day' ? !works && prevWorks : works && !nextWorks;
+      const prevDate = shift(year, month, dy.day, -1);
+      const dep = departureOf({ works, prevWorks, nextWorks, movedHere: data.moves?.has(`${p.id}|${dy.date}`), movedPrev: data.moves?.has(`${p.id}|${prevDate}`) });
+      const departure = departureRule === 'rest-day' ? dep !== null : works && !nextWorks;
       const marks = [arrival && 'Arrival', departure && 'Departure'].filter(Boolean);
       const ov = data.overtime.get(`${p.id}|${dy.date}`);
       return {

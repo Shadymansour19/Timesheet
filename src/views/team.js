@@ -60,7 +60,7 @@ export function teamView() {
     if (!quiet) { days = rd; el.wrap?.classList.add('loading'); if (!built) root.replaceChildren(h('p', { class: 'muted center' }, t('loading'))); }
     let d, p, dep;
     try {
-      const jobs = [fetchRangeData(rd[0], rd[rd.length - 1])];
+      const jobs = [fetchRangeData(viewMode === 'month' ? addDays(rd[0], -1) : rd[0], viewMode === 'month' ? addDays(rd[rd.length - 1], 1) : rd[rd.length - 1])];   // month view: + the day before and the day after (shown dimmed)
       if (first || withPeople || !people.length) jobs.push(fetchDeptPeople(deptId), fetchDepartment(deptId));
       [d, p, dep] = await Promise.all(jobs);
       if (my !== seq) return;                 // a newer navigation superseded this one
@@ -379,9 +379,19 @@ export function teamView() {
     tr.append(h('th', { class: 'nm', scope: 'row', tabindex: mine && focusPos.day === null ? 0 : -1 },
       h('span', { class: 'nm-name' }, p.full_name),
       h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, (p.payroll ?? '')), h('span', { class: 'tots' }, totalsLine(p.id)))));
+    const [cb, ca] = ctxDates();
+    if (cb) tr.append(tdCtx(p, cb));
     for (const day of days) tr.append(tdFor(p, day, mine && focusPos.day === day));
+    if (ca) tr.append(tdCtx(p, ca));
     return tr;
   }
+  // the day before and the day after the displayed month (month view only): dimmed, read-only, so working blocks look continuous
+  const ctxDates = () => (viewMode === 'month' && days.length ? [addDays(days[0], -1), addDays(days[days.length - 1], 1)] : []);
+  function tdCtx(p, date) {
+    const eff = effective(statusOf(p.id, date), data.holidays.has(date));
+    return h('td', { class: `cx s-${eff.toLowerCase()}`, 'aria-hidden': 'true', title: fmt({ day: 'numeric', month: 'long' }, dateOf(date)) }, eff === 'E' ? '' : eff);
+  }
+  function thCtx(date) { const d = dateOf(date); return h('th', { class: 'cx', scope: 'col', 'aria-hidden': 'true' }, h('span', {}, d.getDate()), h('small', {}, fmt({ month: 'short' }, d))); }
   function tdFor(p, day, focusable = false) {
     const t0 = todayStr();
     const hol = data.holidays.has(day), ot = otOf(p.id, day);
@@ -404,12 +414,15 @@ export function teamView() {
   // Daily headcount: how many people are X (incl. XH) / Y (incl. YH) each day, across the whole department.
   function footRow() {
     const tr = h('tr', { class: 'foot' }, h('th', { class: 'nm', scope: 'row' }, h('span', { class: 'nm-name' }, t('headcount')), h('small', { class: 'muted' }, 'X / Y')));
+    const [cb, ca] = ctxDates();
+    if (cb) tr.append(h('td', { class: 'cx' }));
     for (const day of days) {
       let x = 0, y = 0;
       for (const p of people) { const s = statusOf(p.id, day); if (s === 'X') x++; else if (s === 'Y') y++; }
       tr.append(h('td', { class: 'hc' + (data.holidays.has(day) ? ' holiday' : '') + (day === todayStr() ? ' today' : ''), 'aria-label': `X ${x}, Y ${y}` },
         h('b', { class: 'hx' }, x || '·'), h('i', { class: 'hy' }, y || '·')));
     }
+    if (ca) tr.append(h('td', { class: 'cx' }));
     return tr;
   }
   function updateFoot() { const old = el.table.querySelector('tfoot'); if (old) old.replaceChildren(footRow()); }
@@ -421,11 +434,14 @@ export function teamView() {
     const hadFocus = el.table.contains(document.activeElement);
     dayLabels = new Map(days.map((d) => [d, fmt({ weekday: 'long', day: 'numeric', month: 'long' }, dateOf(d))]));
     const head = h('tr', {}, h('th', { class: 'nm' }, t('employee')));
+    const [cb, ca] = ctxDates();
+    if (cb) head.append(thCtx(cb));
     for (const day of days) {
       const d = dateOf(day);
       head.append(h('th', { class: 'dh' + (data.holidays.has(day) ? ' holiday' : '') + (day === t0 ? ' today' : '') , 'data-d': day, scope: 'col', title: t('hint_day_number') },
         h('span', {}, d.getDate()), h('small', {}, fmt({ weekday: viewMode === 'week' ? 'short' : 'narrow' }, d))));
     }
+    if (ca) head.append(thCtx(ca));
     const visible = people.filter(matches);
     rowEls.clear();
     const body = h('tbody', {});

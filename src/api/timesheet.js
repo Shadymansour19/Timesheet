@@ -28,22 +28,31 @@ export async function fetchRangeData(from, to, { userId } = {}) {
     if (userId) b = b.eq('user_id', userId);
     return b;
   };
-  const [st, ot, hol] = await Promise.all([
+  const [st, ot, hol, mv] = await Promise.all([
     fetchAll(q('day_status', 'user_id,day,status')),
     fetchAll(q('overtime', 'user_id,day,hours,note')),
     fetchAll(() => supabase.from('holidays').select('day').gte('day', from).lte('day', to).order('day')),
+    fetchAll(() => { let b = supabase.from('departure_moves').select('user_id,work_day').gte('work_day', from).lte('work_day', to).order('user_id').order('work_day'); if (userId) b = b.eq('user_id', userId); return b; }),
   ]);
   return {
     status: new Map(st.map((r) => [`${r.user_id}|${r.day}`, r.status])),
     overtime: new Map(ot.map((r) => [`${r.user_id}|${r.day}`, { hours: r.hours, note: r.note }])),
     holidays: new Set(hol.map((r) => r.day)),
+    moves: new Set(mv.map((r) => `${r.user_id}|${r.work_day}`)),          // departures moved onto their last working day (key = that working day)
   };
 }
 export const fetchMonthData = (y, m, opts) => { const [from, to] = monthRange(y, m); return fetchRangeData(from, to, opts); };
 
 // One person's month for the calendar: { [day]: { status, eff, ot, note, hol } }
+// -> { byDay, prev, next, moves }: prev / next = the last day of the previous month and the first day of the next month (shown dimmed so the
+// working blocks look continuous and Arrival / Departure are right); moves = Set of working days that carry their departure.
 export async function fetchMonth(userId, y, m) {
-  const d = await fetchMonthData(y, m, { userId });
+  const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+  const iso = (dt) => ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  const prevDate = iso(new Date(y, m, 0)), nextDate = iso(new Date(y, m + 1, 1));
+  void first; void last;
+  const d = await fetchRangeData(prevDate, nextDate, { userId });
+  const one = (day) => { const status = d.status.get(`${userId}|${day}`) ?? 'E'; const hol = d.holidays.has(day); return { date: day, status, eff: effective(status, hol), hol }; };
   const byDay = {};
   for (let i = 1; i <= daysIn(y, m); i++) {
     const day = ymd(y, m, i);
@@ -51,7 +60,12 @@ export async function fetchMonth(userId, y, m) {
     const hol = d.holidays.has(day);
     byDay[day] = { status, eff: effective(status, hol), ot: d.overtime.get(`${userId}|${day}`)?.hours ?? 0, note: d.overtime.get(`${userId}|${day}`)?.note ?? '', hol };
   }
-  return byDay;
+  return { byDay, prev: one(prevDate), next: one(nextDate), moves: new Set([...d.moves].filter((k) => k.startsWith(userId + '|')).map((k) => k.slice(userId.length + 1))) };
+}
+
+export async function setDepartureMove(userId, day, on) {
+  const { error } = await supabase.rpc('set_departure_move', { p_user: userId, p_day: day, p_on: on });
+  if (error) throw error;
 }
 
 // null = unlimited; N = users may edit days >= today - N (enforced server-side; UI just mirrors it).
