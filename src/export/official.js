@@ -468,9 +468,9 @@ export async function buildOfficialWorkbook(model, tpl, ExcelJS, { loadAsset, ca
   dayLast = Math.max(dayLast, D.first);
   const emps = model.employees.map((e) => employeeSheet(wb, model, S, e, employeeSheetName(e.fullName, e.payroll, used), dayNames, dayLast, logos));
   reviewSheet(wb, model, S, emps, uniqueSheetName('Review', used), logos);
-  if (model.employees.some((e) => e.totals.ot > 0)) overtimeSheet(wb, model, S, emps, uniqueSheetName('Overtime', used));      // no overtime in the month: no overtime form
-  b2bSheet(wb, model, S, emps, uniqueSheetName('Closeout B2B Eng', used), logos, 'eng');      // the last two sheets: back-to-back closeout for engineers / techs
+  b2bSheet(wb, model, S, emps, uniqueSheetName('Closeout B2B Eng', used), logos, 'eng');      // back-to-back closeout for engineers / techs
   b2bSheet(wb, model, S, emps, uniqueSheetName('Closeout B2B Tech', used), logos, 'tech');
+  if (model.employees.some((e) => e.totals.ot > 0)) overtimeSheet(wb, model, S, emps, uniqueSheetName('Overtime', used));      // the EMC overtime overview is the LAST sheet (none when nobody has overtime)
   return wb;
 }
 

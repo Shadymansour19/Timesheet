@@ -157,7 +157,7 @@ ok('review sheet: engineer days (SUMIF by position) = 3 + 1 = 4', res(rv.getCell
 // ---- D. simple format still available
 const simple = await doExport(p, { format: 'simple' });
 ok('Simple grid format: the original one-grid workbook (grid sheet + overtime sheet)', simple.wb.worksheets.length === 2 && simple.wb.worksheets[1].name === 'Overtime');
-ok('official workbook ends with Review, Overtime, Closeout B2B Eng, Closeout B2B Tech', names.slice(-4).join('|') === 'Review|Overtime|Closeout B2B Eng|Closeout B2B Tech', names.slice(-3).join(','));
+ok('official workbook ends with Review, Closeout B2B Eng, Closeout B2B Tech, Overtime (last)', names.slice(-4).join('|') === 'Review|Closeout B2B Eng|Closeout B2B Tech|Overtime', names.slice(-3).join(','));
 
 // ---- E. another month
 const other = await doExport(p, { monthValue: '2030-02' });

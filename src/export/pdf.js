@@ -337,8 +337,8 @@ export function buildOfficialPdf(model, tpl, { jsPDF, logos = {}, employeeId = n
   dayPages(model, S, logos, newPage, doc);
   model.employees.forEach((e) => { newPage('portrait'); employeePage(model, S, logos, e, doc); });
   reviewPages(model, S, logos, newPage, doc, sums);
-  overtimePage(model, S, newPage, doc, sums);
-  b2bPages(model, S, logos, newPage, doc, sums, 'eng');       // the last two pages: back-to-back closeout, engineers / techs
+  b2bPages(model, S, logos, newPage, doc, sums, 'eng');       // back-to-back closeout, engineers / techs
   b2bPages(model, S, logos, newPage, doc, sums, 'tech');
+  overtimePage(model, S, newPage, doc, sums);                  // the EMC overtime overview is the LAST page (none when nobody has overtime)
   return doc;
 }

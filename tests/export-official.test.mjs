@@ -78,7 +78,7 @@ ok('rule (alternative): "work-day" puts the Departure on the last working day an
 // ---------- sheet structure
 ok(`sheet count = ${N} days + ${nEmp} employees + Review + Overtime + 2 closeout B2B sheets`, names.length === N + nEmp + 4, String(names.length));
 ok('the first sheets are the month days, named 1, 2, 3 ... 31 in order', names.slice(0, N).every((n, i) => n === String(i + 1)));
-ok('the last four sheets are Review, Overtime, Closeout B2B Eng, Closeout B2B Tech', names.slice(-4).join('|') === 'Review|Overtime|Closeout B2B Eng|Closeout B2B Tech', names.slice(-4).join('|'));
+ok('the last four sheets are Review, Closeout B2B Eng, Closeout B2B Tech and, LAST, the Overtime overview', names.slice(-4).join('|') === 'Review|Closeout B2B Eng|Closeout B2B Tech|Overtime', names.slice(-4).join('|'));
 const empNames = names.slice(N, N + nEmp);
 ok('employee sheets come after the days, in employee order, named "<name> <OPR>"', empNames[0] === 'Mohamed Salah Rashed EMC-444' && empNames[4] === 'Hamdy Mahmoud Abdelnabi EMC-102' && empNames[5] === 'Khaled Orabi Ali EMC-074', empNames.join(' | '));
 ok('every sheet name is at most 31 characters, has no forbidden character (\\ / ? * [ ] : \') and is unique', names.every((n) => n.length <= 31 && !/[\\/?*[\]:']/.test(n)) && new Set(names.map((n) => n.toLowerCase())).size === names.length);

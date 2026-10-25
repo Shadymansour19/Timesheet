@@ -34,6 +34,7 @@ ok('review + overtime titles', /Monthly Attendance Sheet Review/.test(a.text) &&
 ok('non-Latin characters replaced, not crashing', /Ahmed \?+ Ali/.test(a.text));
 ok('arrival comment present', /Arrival/.test(a.text) && /Departure/.test(a.text));
 ok('two logos embedded (one image object each, reused)', execFileSync('pdfimages', ['-list', a.f]).toString().split('\n').filter((l) => /\bimage\b/.test(l)).length >= 2);
+ok('the EMC overtime overview is the LAST page of the PDF', execFileSync('pdftotext', ['-f', String(a.pages), '-l', String(a.pages), '-layout', a.f, '-']).toString().includes('Turbo EMC overtime') && !execFileSync('pdftotext', ['-f', String(a.pages - 1), '-l', String(a.pages - 1), '-layout', a.f, '-']).toString().includes('EMC overtime'));
 const one = run(6, { employeeId: 'p0' });
 ok('single employee PDF = 1 page with that person only', one.pages === 1 && /OPR-100/.test(one.text) && !/OPR-101/.test(one.text));
 ok('single page: totals X=2 Y=1 OT 3', /Total \(X\) Days:\s+2/.test(one.text) && /Total \(Y\) Days:\s+1/.test(one.text));
