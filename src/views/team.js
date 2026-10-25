@@ -71,7 +71,7 @@ export function teamView() {
     if (quiet && (writes > 0 || writeEpoch !== epoch)) { scheduleLive(false); return; }
     if (quiet && built) {
       const samePeople = !p || JSON.stringify(p.map((x) => [x.id, x.full_name, x.payroll, x.level, x.role])) === JSON.stringify(people.map((x) => [x.id, x.full_name, x.payroll, x.level, x.role]));
-      const sameRange = days.length === rd.length && days[0] === rd[0];   // a view / month change must always redraw
+      const sameRange = drawnRange && drawnRange[0] === rd[0] && drawnRange[1] === rd.length;   // a view / month change must always redraw (compared with what is DRAWN, `days` is already the new range while a navigation is loading)
       if (sameRange && samePeople && sameData(data, d)) return;
     }
     days = rd; data = d; if (p) { people = p; dept = dep; }
@@ -438,7 +438,9 @@ export function teamView() {
 
   function matches(p) { return !query || `${p.full_name} ${p.payroll ?? ''} ${p.opr ?? ''} ${p.username}`.toLowerCase().includes(query); }
 
+  let drawnRange = null;                       // [first day, number of days] of the grid on screen
   function drawGrid() {
+    drawnRange = [days[0], days.length];
     const t0 = todayStr();
     const hadFocus = el.table.contains(document.activeElement);
     dayLabels = new Map(days.map((d) => [d, fmt({ weekday: 'long', day: 'numeric', month: 'long' }, dateOf(d))]));

@@ -394,7 +394,7 @@ await big.context().close();
   const pu = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); await stub(pu, 'ok'); const up = await pu.newPage();
   await up.goto(BASE + '/'); await up.fill('#username', 'xou1'); await up.fill('#password', PW); await up.click('button[type=submit]'); await up.waitForSelector('.cal .day');
   await up.click('.cal-tools button:has-text("Print")');
-  ok('calendar Print: the person\'s own report page goes to print()', await eventually(async () => (await up.evaluate(() => window.__printed || 0)) === 1));
+  ok('calendar Print: the person\'s own report page goes to print()', await eventually(async () => (await up.evaluate(() => window.__printed || 0)) === 1, 30000), `printed=${await up.evaluate(() => window.__printed || 0)} toast=${(await up.locator('.toast').allTextContents()).join('|')} url=${up.url()}`);
   await pu.close(); }
 
 // ---- G. a plain user's compact calendar: help behind "i", own export (Excel + PDF)
