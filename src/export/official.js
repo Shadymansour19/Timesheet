@@ -115,7 +115,7 @@ function daySheet(wb, model, S, di, name, logos) {
   merge(ws, 1, 1, 3, 2, null); merge(ws, 1, 3, 3, 9, bannerText(S), { wrap: true }); merge(ws, 1, 10, 3, 11, null);
   logoIn(ws, logos, 'left', 1, 2, 1, 3, 150, 86); logoIn(ws, logos, 'right', 10, 11, 1, 3, 88, 88);
   const day = model.days[di];
-  const line = (r, v, o = {}) => { merge(ws, r, 1, r, D.cols, v, { bold: true, size: 9, border: false, ...o }); ws.getRow(r).height = 21; };
+  const line = (r, v, o = {}) => { merge(ws, r, 1, r, D.cols, v, { bold: true, size: 11, border: false, ...o }); ws.getRow(r).height = 22; };
   line(4, `${S.deptTitle} Daily Attendance Sheet`); line(5, S.manpower);
   line(6, new Date(Date.UTC(model.year, model.month, day.day)), { numFmt: day.holiday ? 'dd-mmm-yy "(Holiday)"' : 'dd-mmm-yy' });
   ['No.', 'Name', 'Title', 'Level', 'P/R', 'Status', 'Accom.', 'TRANS/IN', 'TRANS/EX', 'Over Time', 'Comments'].forEach((h, i) => setCell(ws, 8, i + 1, h, { bold: true, size: 8, wrap: true }));
@@ -139,9 +139,9 @@ function daySheet(wb, model, S, di, name, logos) {
   // sign-off box
   const sig = end + 2;
   ws.getRow(sig).height = 44;
-  merge(ws, sig, 1, sig, 5, S.signLeft, { bold: true, size: 8, h: 'left', border: false });
+  merge(ws, sig, 1, sig, 5, S.signLeft, { bold: true, size: 10, h: 'left', border: false });
   merge(ws, sig, 6, sig, 7, null, { border: false });
-  merge(ws, sig, 8, sig, 11, S.signRight, { bold: true, size: 8, h: 'right', border: false });
+  merge(ws, sig, 8, sig, 11, S.signRight, { bold: true, size: 10, h: 'right', border: false });
   return { last: end };
 }
 
@@ -159,7 +159,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   merge(ws, 4, 1, 4, 6, S.captionLeft, { bold: true, size: 8, h: 'center', border: false });        // each caption is centred under its logo
   merge(ws, 4, 17, 4, 21, S.captionRight, { bold: true, size: 8, h: 'center', border: false });
   ws.getRow(4).height = 16;
-  merge(ws, 5, 1, 5, 21, 'MONTHLY TIME REPORT', { bold: true, size: 9, underline: true, border: false }); ws.getRow(5).height = 18;
+  merge(ws, 5, 1, 5, 21, 'MONTHLY TIME REPORT', { bold: true, size: 11, underline: true, border: false }); ws.getRow(5).height = 20;
   ws.getRow(6).height = 8;
   const monthDate = new Date(Date.UTC(model.year, model.month, 1));
   const lab = (r, c1, c2, text, o = {}) => merge(ws, r, c1, r, c2, text, { bold: true, size: 8, h: 'left', ...o });
@@ -272,11 +272,11 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
   merge(ws, N0, 1, N0 + 2, 21, 'Notes (Penalty):-', { bold: true, size: 9, h: 'left', v: 'top' });
   const G0 = N0 + 4, dash = '------------------------------';
   ws.getCell(G0, 1).value = null;
-  merge(ws, G0, 1, G0, 8, 'Signature Employee', { bold: true, size: 8, h: 'left', border: false });
+  merge(ws, G0, 1, G0, 8, 'Signature Employee', { bold: true, size: 10, h: 'left', border: false });
   merge(ws, G0 + 1, 1, G0 + 1, 8, dash, { size: 8, h: 'left', v: 'bottom', border: false });
-  merge(ws, G0, 12, G0, 21, 'Approval of Supervisor', { bold: true, size: 8, h: 'left', border: false });
+  merge(ws, G0, 12, G0, 21, 'Approval of Supervisor', { bold: true, size: 10, h: 'left', border: false });
   merge(ws, G0 + 1, 12, G0 + 1, 21, dash, { size: 8, h: 'left', v: 'bottom', border: false });
-  merge(ws, G0 + 3, 12, G0 + 3, 21, 'Approval of Department GM', { bold: true, size: 8, h: 'left', border: false });
+  merge(ws, G0 + 3, 12, G0 + 3, 21, 'Approval of Department GM', { bold: true, size: 10, h: 'left', border: false });
   merge(ws, G0 + 4, 12, G0 + 4, 21, dash, { size: 8, h: 'left', v: 'bottom', border: false });
   [G0 + 1, G0 + 4].forEach((r) => { ws.getRow(r).height = 40; }); ws.getRow(G0 + 2).height = 24;   // room to sign
   return {
@@ -294,7 +294,7 @@ function reviewSheet(wb, model, S, emps, name, logos) {
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 22;
   merge(ws, 1, 1, 3, 2, null); merge(ws, 1, 3, 3, 10, bannerText(S), { wrap: true }); merge(ws, 1, 11, 3, 12, null);
   logoIn(ws, logos, 'left', 1, 2, 1, 3, 150, 80); logoIn(ws, logos, 'right', 11, 12, 1, 3, 80, 80);
-  const line = (r, v) => { merge(ws, r, 1, r, V.cols, v, { bold: true, size: 9, border: false }); ws.getRow(r).height = 16; };
+  const line = (r, v) => { merge(ws, r, 1, r, V.cols, v, { bold: true, size: 11, border: false }); ws.getRow(r).height = 18; };
   line(4, `${S.deptTitle} Monthly Attendance Sheet Review`); line(5, S.manpower); line(6, 'Closeout Calculation Sheet');
   ws.getRow(7).height = 5;
   ['No.', 'Name', 'Title', 'Level', 'P/R', '(X)DAYS', '(Y) DAYS', 'Total Days', 'O/T', 'EXT', 'IN', 'Signature'].forEach((h, i) => setCell(ws, 8, i + 1, h, { bold: true, size: 8, fill: i === 7 ? GREY : undefined }));
@@ -333,8 +333,8 @@ function reviewSheet(wb, model, S, emps, name, logos) {
   merge(ws, T + 2, 5, T + 2, 11, 'Total Approved (Tech)', b9); setCell(ws, T + 2, 12, model.approvedTech, b9);
   ws.getRow(T + 2).height = 20;
   const sig = T + 5;
-  merge(ws, sig, 1, sig, 4, S.signLeft, { bold: true, size: 8, border: false, h: 'left' });
-  merge(ws, sig, 9, sig, V.cols, S.signRight, { bold: true, size: 8, border: false, h: 'right' });
+  merge(ws, sig, 1, sig, 4, S.signLeft, { bold: true, size: 10, border: false, h: 'left' });
+  merge(ws, sig, 9, sig, V.cols, S.signRight, { bold: true, size: 10, border: false, h: 'right' });
   return { engineerDays: engDays, technicianDays: techDays };
 }
 
@@ -352,7 +352,7 @@ function overtimeSheet(wb, model, S, emps, name) {
   ws.getColumn(totalCol).width = 38;
   const span = totalCol;
   ws.getRow(1).height = 30;
-  merge(ws, 1, 1, 1, Math.max(span, 4), S.otTitle, { font: CAL, bold: true, size: 16, border: false });
+  merge(ws, 1, 1, 1, Math.max(span, 4), S.otTitle, { font: CAL, bold: true, size: 18, border: false });
   ws.getRow(2).height = 6;
   const hd = { bold: true, size: 11 };
   setCell(ws, 3, 1, 'No.', hd); setCell(ws, 3, 2, 'Name', hd); setCell(ws, 3, 3, 'P/R', hd);
@@ -371,7 +371,7 @@ function overtimeSheet(wb, model, S, emps, name) {
   if (!who.length) { ['', '', '', ...Array(dateCols)].forEach((_, c) => setCell(ws, 4, c + 1, null)); setCell(ws, 4, totalCol, null); }
   const sig = end + 3;
   ws.getRow(sig).height = 24;
-  const sg = { font: 'Arial', bold: true, size: 11, border: false };      // the three sign-offs sit in three EQUAL parts of the table width, no borders
+  const sg = { font: 'Arial', bold: true, size: 13, border: false };      // the three sign-offs sit in three EQUAL parts of the table width, no borders
   merge(ws, sig, 1, sig, 2, S.signRight, sg); setCell(ws, sig, 3, S.otMiddle, sg); setCell(ws, sig, totalCol, S.otRight, sg);
 }
 
@@ -386,7 +386,7 @@ function b2bSheet(wb, model, S, emps, name, logos, kind) {
   const approved = kind === 'eng' ? model.approvedEngineer : model.approvedTech;
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 20;
   logoIn(ws, logos, 'left', 1, 3, 1, 3, 140, 70); logoIn(ws, logos, 'right', 17, 21, 1, 3, 72, 72);
-  merge(ws, 4, 4, 4, 14, 'MONTHLY TIME SHEET REPORT (For Back to Back)', { font: CAL, size: 9, underline: true, border: false }); ws.getRow(4).height = 18;
+  merge(ws, 4, 4, 4, 14, 'MONTHLY TIME SHEET REPORT (For Back to Back)', { font: CAL, size: 11, underline: true, border: false }); ws.getRow(4).height = 20;
   merge(ws, 5, 1, 5, 3, S.captionLeft, { font: CAL, size: 9, h: 'left', border: false });
   merge(ws, 5, 4, 5, 5, 'Month:', { font: CAL, size: 11, bold: true, h: 'left', border: false });
   merge(ws, 5, 6, 5, 9, new Date(Date.UTC(model.year, model.month, 1)), { font: CAL, size: 9, underline: true, numFmt: 'mmm-yy', border: false });
@@ -430,7 +430,7 @@ function b2bSheet(wb, model, S, emps, name, logos, kind) {
   }
   merge(ws, first, 19, last, 19, mine.length ? fx(`SUM(${addr(18, first, false)}:${addr(18, last, false)})`, actual) : null, { font: CAL, size: 10 });
   merge(ws, first, 20, last, 20, approved, { font: CAL, size: 10 });
-  const sg = last + 3, sgo = { font: CAL, size: 9, bold: true, h: 'left', border: false };
+  const sg = last + 3, sgo = { font: CAL, size: 11, bold: true, h: 'left', border: false };
   merge(ws, sg, 1, sg, 5, 'Approval of Department AGM', sgo); merge(ws, sg + 1, 1, sg + 1, 5, '------------------------------', { ...sgo, bold: false, v: 'top' });
   merge(ws, sg, 11, sg, 17, 'Approval of Department GM', sgo); merge(ws, sg + 1, 11, sg + 1, 17, '------------------------------', { ...sgo, bold: false, v: 'top' });
   merge(ws, sg + 3, 11, sg + 3, 17, 'Approval of DFGM', sgo); merge(ws, sg + 4, 11, sg + 4, 17, '------------------------------', { ...sgo, bold: false, v: 'top' });
