@@ -15,17 +15,17 @@ import * as live from '../live.js';
 // TEMPORARY: new people start with this contract number (a UI default only; the database has no default for it)
 export const DEFAULT_CONTRACT_NO = '033/2019';
 
-export function personFields(initial = {}, { withLogin = false, isNew = false } = {}) {
+export function personFields(initial = {}, { withLogin = false, isNew = false, roles = null } = {}) {
   const f = {
     username: withLogin ? field(t('username'), { required: true, autocapitalize: 'none', autocomplete: 'off', pattern: '[a-z0-9._\\-]{3,32}', minlength: 3, maxlength: 32 }) : null,
     password: withLogin ? field(t('temp_password'), { type: 'text', required: true, minlength: 8, autocomplete: 'off', value: randomPassword() }) : null,
     full_name: field(t('full_name'), { required: true, value: initial.full_name ?? '' }),
-    opr: field(t('opr'), { required: true, value: initial.opr ?? '' }),
+    opr: field(t('opr'), { value: initial.opr ?? '' }),
     level: field(t('level'), { maxlength: 50, value: initial.level ?? '', placeholder: '3' }),
     job_title: field(t('job_title'), { maxlength: 100, value: initial.job_title ?? '' }),
     contract_no: field(t('contract_no'), { maxlength: 50, value: initial.contract_no ?? (isNew ? DEFAULT_CONTRACT_NO : '') }),
     work_location: field(t('work_location'), { maxlength: 100, value: initial.work_location ?? '' }),
-    payroll: field(t('payroll'), { required: true, maxlength: 50, value: initial.payroll ?? '' }),
+    payroll: field(t('payroll'), { required: initial.role !== 'manager', maxlength: 50, value: initial.payroll ?? '' }),
     position: field(t('position'), { maxlength: 100, value: initial.position ?? '', list: 'position-list', placeholder: 'Engineer, Tech' }),
   };
   // inside / outside the work-location city: decides whether Arrival / Departure trips count as TRANS/IN or TRANS/EX
@@ -36,11 +36,14 @@ export function personFields(initial = {}, { withLogin = false, isNew = false } 
   f.y_allowed = { row: yAllowed.row, input: yAllowed };
   f.position.row.append(h('datalist', { id: 'position-list' }, h('option', { value: 'Engineer' }), h('option', { value: 'Tech' })));   // suggestions only: the position is free text
   // new people only: the role (a department manager has no timesheet)
-  const roleCh = isNew && withLogin ? choice(t('role'), [{ value: 'user', label: t('role_user') }, { value: 'admin', label: t('role_admin') }, { value: 'manager', label: t('role_manager') }], 'user') : null;
-  if (roleCh) f.role = { row: roleCh.row, input: roleCh };
+  const roleCh = roles ? choice(t('role'), roles.map((r) => ({ value: r, label: t('role_' + r) })), roles[0]) : null;
+  if (roleCh) {
+    f.role = { row: roleCh.row, input: roleCh };
+    roleCh.row.addEventListener('change', () => { f.payroll.input.required = roleCh.value !== 'manager'; });   // a manager has no timesheet: no payroll needed
+  }
   const rows = Object.values(f).filter(Boolean).map((x) => x.row);
   const level = () => f.level.input.value.trim() || null;
-  const role = () => (roleCh ? roleCh.value : 'user');
+  const role = () => (roleCh ? roleCh.value : 'user');   // roles: the choices offered (new people only)
   return { f, rows, level, role };
 }
 
@@ -88,7 +91,7 @@ export function usersView() {
   }
 
   function addUser() {
-    const p = personFields({}, { withLogin: true, isNew: true });
+    const p = personFields({}, { withLogin: true, isNew: true, roles: ['user', 'admin', 'manager'] });
     openDialog({
       title: t('add_user'), wide: 'xl', content: h('div', { class: 'form two-col' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
       buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {

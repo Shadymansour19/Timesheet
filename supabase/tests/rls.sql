@@ -421,6 +421,9 @@ select t.denied('manager has no timesheet of their own', $$select public.set_day
 select t.denied('manager cannot touch dept B', $$select public.set_user_role('00000000-0000-0000-0000-0000000000b2', 'admin')$$);
 select t.denied('manager cannot change own role', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a3', 'user')$$);
 select t.login('00000000-0000-0000-0000-0000000000a1');
+select t.ok('a manager can be edited and needs no payroll', $$select public.update_profile('00000000-0000-0000-0000-0000000000a3', 'User A2', 'OPR-A3', '1', null, null, null, null, null, '')$$);
+select t.denied('a blank payroll is refused for a user', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', 'OPR-A2', '7', null, null, null, null, null, '')$$, '22023');
+select t.ok('OPR can be cleared (optional)', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'User A1', '', '7')$$);
 select t.ok('adminA makes the manager a user again', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a3', 'user')$$);
 select t.ok('adminA may reset ua2 password', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000a3', 'reset')$$);
 select t.denied('adminA may not reset dept B', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000b2', 'reset')$$);

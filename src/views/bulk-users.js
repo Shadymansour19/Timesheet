@@ -1,5 +1,5 @@
 // Bulk add users from an Excel sheet (Users tab). Columns (header row, any order, case-insensitive):
-//   Full name*, OPR*, Payroll, Username, Password, Level, Job title, Contract no, Work location, Position, Residence, Y allowed, Role (user | admin | manager; empty = user)
+//   Full name*, Payroll* (not for managers), OPR, Username, Password, Level, Job title, Contract no, Work location, Position, Residence, Y allowed, Role (user | admin | manager; empty = user)
 // Username empty -> the OPR (lower-case); password empty -> a random one. Everyone is created through the same Edge Function as
 // "Add user"; the result table (with the passwords) is shown and can be downloaded as Excel.
 import { h } from '../dom.js';
@@ -22,8 +22,10 @@ const YES = ['yes', 'y', 'true', '1'], NO = ['no', 'n', 'false', '0'];
 const ROLES = { user: 'user', 'normal user': 'user', admin: 'admin', manager: 'manager', 'dept manager': 'manager', 'department manager': 'manager' };
 const USERNAME = /^[a-z0-9._-]{3,32}$/;
 const plain = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');       // English letters and numbers only
-// username: the one in the sheet, else the PAYROLL reduced to letters and numbers (EMC-123 -> emc123), else the OPR the same way
-export const usernameOf = (r) => (r.username ? r.username.toLowerCase() : plain(r.payroll) || plain(r.opr));
+// username: the one in the sheet, else (managers: the OPR, others) the PAYROLL reduced to letters and numbers (EMC-123 -> emc123), else the OPR the same way
+// a manager (no timesheet, payroll optional): the OPR first
+export const usernameOf = (r) => (r.username ? r.username.toLowerCase()
+  : ROLES[(r.role || 'user').toLowerCase()] === 'manager' ? plain(r.opr) || plain(r.payroll) : plain(r.payroll) || plain(r.opr));
 
 const cellText = (c) => {
   let v = c?.value;
@@ -41,7 +43,7 @@ export async function parseWorkbook(buffer) {
   const head = {};
   ws.getRow(1).eachCell((c, i) => { const name = cellText(c).toLowerCase(); const col = COLUMNS.find(([, , al]) => al.includes(name)); if (col && !head[col[0]]) head[col[0]] = i; });
   const problems = [];
-  for (const need of ['full_name', 'opr']) if (!head[need]) problems.push(`${t('bulk_missing_column')}: ${COLUMNS.find((c) => c[0] === need)[1]}`);
+  for (const need of ['full_name', 'payroll']) if (!head[need]) problems.push(`${t('bulk_missing_column')}: ${COLUMNS.find((c) => c[0] === need)[1]}`);
   if (problems.length) return { rows: [], problems };
   const rows = [];
   for (let r = 2; r <= ws.rowCount; r++) {
@@ -84,7 +86,7 @@ async function createRow(r, dupError = '') {
   const out = { ...r, username: usernameOf(r), password: r.password || randomPassword(), ok: false, error: dupError };
   const level = r.level.trim() || null;                 // free text
   if (out.error) return out;
-  if (!r.full_name || !r.opr) out.error = t('bulk_err_required');
+  if (!r.full_name || (!r.payroll && ROLES[(r.role || 'user').toLowerCase()] !== 'manager')) out.error = t('bulk_err_required');
   else if (!USERNAME.test(out.username)) out.error = t('bulk_err_username');
   else if (out.password.length < 8 || out.password.length > 72) out.error = t('bulk_err_password');
   else if (r.residence && !['inside', 'outside'].includes(r.residence.toLowerCase())) out.error = t('bulk_err_residence');

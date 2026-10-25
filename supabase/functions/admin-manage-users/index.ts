@@ -87,12 +87,12 @@ Deno.serve(async (req) => {
         if (!USERNAME.test(username)) throw new HttpError(400, "username must be 3-32 of a-z 0-9 . _ -");
         const pw = password(body.password);
         const fullName = str(body.full_name, "full_name");
-        const opr = str(body.opr, "opr", 50);
         const optional = (v: unknown, name: string, max: number) => {   // optional free text, '' / missing = none
           if (v === null || v === undefined || v === "") return null;
           if (typeof v !== "string" || v.length > max) throw new HttpError(400, `invalid ${name}`);
           return v.trim() || null;
         };
+        const opr = optional(body.opr, "opr", 50);   // optional for everyone
         const level = optional(typeof body.level === "number" ? String(body.level) : body.level, "level", 50);   // free text (3, 3A, Senior ...)
         const jobTitle = optional(body.job_title, "job_title", 100);
         const contractNo = optional(body.contract_no, "contract_no", 50);
@@ -105,6 +105,7 @@ Deno.serve(async (req) => {
         if (residence !== null && residence !== "inside" && residence !== "outside") throw new HttpError(400, "residence must be inside or outside");
         const deptId = uuid(body.department_id, "department_id");
         const role = str(body.role ?? "user", "role", 20);
+        if (role !== "manager" && payroll === null) throw new HttpError(400, "payroll is required");   // managers have no timesheet
 
         const { error: authzErr } = await caller.rpc("assert_can_create", { p_dept: deptId, p_role: role });
         if (authzErr) throw rpcError(authzErr);

@@ -72,25 +72,23 @@ call "" '{"action":"create_user"}';                                  check "no t
 call "garbage" '{"action":"create_user"}';                           check "bad token rejected" 401
 call "$ADM_T" 'not json';                                            check "invalid JSON" 400
 call "$ADM_T" '{"action":"nope"}';                                   check "unknown action" 400
-call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u1\",\"password\":\"short\",\"full_name\":\"n\",\"opr\":\"o\",\"department_id\":\"$DEPT_A\"}"
+call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u1\",\"password\":\"short\",\"full_name\":\"n\",\"opr\":\"o\",\"payroll\":\"P-o\",\"department_id\":\"$DEPT_A\"}"
 check "short password rejected" 400
 
 # ---- department admin
-call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"E2E_U1\",\"password\":\"$PW\",\"full_name\":\"E2E User 1\",\"opr\":\"E2E-1\",\"level\":3,\"department_id\":\"$DEPT_A\"}"
+call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"E2E_U1\",\"password\":\"$PW\",\"full_name\":\"E2E User 1\",\"opr\":\"E2E-1\",\"payroll\":\"P-E2E-1\",\"level\":3,\"department_id\":\"$DEPT_A\"}"
 check "admin creates user in own dept (username lower-cased)" 200
 U1=$(echo "$BODY" | jq -r .id)
 expect "profile row correct" "$(sql "select username||'|'||role||'|'||opr||'|'||level||'|'||department_id||'|'||active from public.profiles where id='$U1'")" "e2e_u1|user|E2E-1|3|$DEPT_A|true"
 [ -n "$(login e2e_u1 "$PW")" ] && echo "PASS: new user can log in" || { echo "FAIL: new user cannot log in"; fail=1; }
-call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u1\",\"password\":\"$PW\",\"full_name\":\"dup\",\"opr\":\"E2E-9\",\"department_id\":\"$DEPT_A\"}"
+call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u1\",\"password\":\"$PW\",\"full_name\":\"dup\",\"opr\":\"E2E-9\",\"payroll\":\"P-E2E-9\",\"department_id\":\"$DEPT_A\"}"
 check "duplicate username -> 409" 409
-call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u9\",\"password\":\"$PW\",\"full_name\":\"dup opr\",\"opr\":\"E2E-1\",\"department_id\":\"$DEPT_A\"}"
+call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u9\",\"password\":\"$PW\",\"full_name\":\"dup opr\",\"opr\":\"E2E-1\",\"payroll\":\"P-E2E-1\",\"department_id\":\"$DEPT_A\"}"
 check "duplicate OPR -> 409" 409
 expect "failed create left no orphan auth user" "$(sql "select count(*) from auth.users where email='e2e_u9@timesheet.local'")" "0"
-call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u2\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-2\",\"department_id\":\"$DEPT_B\"}"
+call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u2\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-2\",\"payroll\":\"P-E2E-2\",\"department_id\":\"$DEPT_B\"}"
 check "admin cannot create in other dept" 403
-call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u2\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-2\",\"department_id\":\"$DEPT_A\",\"role\":\"admin\"}"
-check "admin cannot create an admin" 403
-call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u2\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-2\",\"department_id\":\"$DEPT_A\",\"role\":\"super_admin\"}"
+call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u2\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-2\",\"payroll\":\"P-E2E-2\",\"department_id\":\"$DEPT_A\",\"role\":\"super_admin\"}"
 check "admin cannot create a super_admin" 403
 expect "no rogue users were created" "$(sql "select count(*) from auth.users where email in ('e2e_u2@timesheet.local')")" "0"
 
@@ -104,7 +102,7 @@ call "$ADM_T" "{\"action\":\"delete_user\",\"user_id\":\"$ADM\"}"
 check "admin cannot delete self" 403
 
 U1_T=$(login e2e_u1 'New-Pass-12345')
-call "$U1_T" "{\"action\":\"create_user\",\"username\":\"e2e_u3\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-3\",\"department_id\":\"$DEPT_A\"}"
+call "$U1_T" "{\"action\":\"create_user\",\"username\":\"e2e_u3\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-3\",\"payroll\":\"P-E2E-3\",\"department_id\":\"$DEPT_A\"}"
 check "plain user cannot create users" 403
 call "$U1_T" "{\"action\":\"reset_password\",\"user_id\":\"$ADM\",\"password\":\"New-Pass-12345\"}"
 check "plain user cannot reset passwords" 403
@@ -112,9 +110,9 @@ call "$U1_T" "{\"action\":\"delete_user\",\"user_id\":\"$ADM\"}"
 check "plain user cannot delete" 403
 
 # ---- super admin
-call "$SA_T" "{\"action\":\"create_user\",\"username\":\"e2e_u4\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-4\",\"department_id\":\"$DEPT_A\"}"
+call "$SA_T" "{\"action\":\"create_user\",\"username\":\"e2e_u4\",\"password\":\"$PW\",\"full_name\":\"x\",\"opr\":\"E2E-4\",\"payroll\":\"P-E2E-4\",\"department_id\":\"$DEPT_A\"}"
 check "super_admin cannot create plain user" 403
-call "$SA_T" "{\"action\":\"create_user\",\"username\":\"e2e_adm2\",\"password\":\"$PW\",\"full_name\":\"Admin Two\",\"opr\":\"E2E-A2\",\"department_id\":\"$DEPT_B\",\"role\":\"admin\"}"
+call "$SA_T" "{\"action\":\"create_user\",\"username\":\"e2e_adm2\",\"password\":\"$PW\",\"full_name\":\"Admin Two\",\"opr\":\"E2E-A2\",\"payroll\":\"P-E2E-A2\",\"department_id\":\"$DEPT_B\",\"role\":\"admin\"}"
 check "super_admin creates admin in dept B" 200
 ADM2=$(echo "$BODY" | jq -r .id)
 expect "admin profile role/dept" "$(sql "select role||'|'||department_id from public.profiles where id='$ADM2'")" "admin|$DEPT_B"

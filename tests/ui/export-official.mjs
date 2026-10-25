@@ -173,22 +173,24 @@ await dla.saveAs(S + '/xo-ar.xlsx'); const wba = new ExcelJS.Workbook(); await w
 ok('...the workbook itself stays the English company form', wba.getWorksheet('1').getCell('A4').value === 'XO Alpha Dept. Daily Attendance Sheet' && wba.getWorksheet('Review').getCell('H8').value === 'Total Days');
 // ---- F2. bulk add users from an Excel sheet
 { const bw = new ExcelJS.Workbook(); const bs = bw.addWorksheet('Users');
-  bs.addRow(['Full name', 'OPR', 'Payroll', 'Username', 'Password', 'Level', 'Job title', 'Contract no', 'Work location', 'Position', 'Residence']);
+  bs.addRow(['Full name', 'OPR', 'Payroll', 'Username', 'Password', 'Level', 'Job title', 'Contract no', 'Work location', 'Position', 'Residence', 'Y allowed', 'Role']);
   bs.addRow(['XO Bulk One', 'OPRCTR9001', 'XOT-9001', '', '', 2, 'Engineer', '033/2019', 'IDKU Site', 'Engineer', 'inside']);
   bs.addRow(['XO Bulk Two', 'OPRCTR9002', 'XOT-9002', 'xobulk2', 'Bulk-Pass-1234']);
   bs.addRow(['XO Bulk Dup', 'OPRCTR9001', 'XOT-9003']);
-  bs.addRow(['XO Bulk Bad', '', 'XOT-9004']);
+  bs.addRow(['XO Bulk Bad', '', '']);
+  bs.addRow(['XO Bulk Mgr', 'OPRMGR9005', '', '', '', '', '', '', '', '', '', '', 'dept manager']);   // a manager: no payroll, username = the OPR
   await bw.xlsx.writeFile(S + '/xo-bulk.xlsx');
   if (await p.locator('button:text-is("English")').count()) await p.click('button:text-is("English")');   // the Arabic check above switched the UI
   await p.goto(BASE + '/#/users'); await p.waitForSelector('.person');
   await p.click('button:text-is("Bulk add (Excel)")'); await p.waitForSelector('dialog[open]');
   await dlg(p).locator('input[type=file]').setInputFiles(S + '/xo-bulk.xlsx');
-  ok('bulk add: the file is read (4 users found)', await eventually(async () => (await dlg(p).locator('p.muted').nth(1).textContent()).includes('4 users found')));
+  ok('bulk add: the file is read (5 users found)', await eventually(async () => (await dlg(p).locator('p.muted').nth(1).textContent()).includes('5 users found')));
   await dlg(p).locator('button:text-is("Create users")').click();
-  ok('bulk add: result says 2 created, 2 failed', await eventually(async () => (await dlg(p).textContent()).includes('Created: 2 · Failed: 2'), 120000));
+  ok('bulk add: result says 3 created, 2 failed', await eventually(async () => (await dlg(p).textContent()).includes('Created: 3 · Failed: 2'), 120000));
   const rowsTxt = await dlg(p).locator('.bulk-table tbody tr').allTextContents();
+  ok('bulk add: a manager without payroll is created with the OPR as username and the manager role', rowsTxt[4].includes('oprmgr9005') && sql(`select role||'|'||coalesce(payroll,'-') from public.profiles where username='oprmgr9005'`) === 'manager|-', rowsTxt[4]);
   ok('bulk add: empty username = the PAYROLL with only letters and numbers (XOT-9001 -> xot9001) with a generated password (8+ chars), given username/password kept', rowsTxt[0].includes('xot9001') && /[A-Za-z0-9]{8,}/.test(rowsTxt[0].replace('XO Bulk One', '').replace('xot9001', '').replace('Created', '')) && rowsTxt[1].includes('xobulk2') && rowsTxt[1].includes('Bulk-Pass-1234'), rowsTxt.join(' | '));
-  ok('bulk add: the duplicate and the row without OPR are reported as failed', rowsTxt[2].includes('Repeated in the file') && rowsTxt[2].includes('XO Bulk Dup') && rowsTxt[3].includes('required'), rowsTxt.slice(2).join(' | '));
+  ok('bulk add: the duplicate and the row without payroll are reported as failed', rowsTxt[2].includes('Repeated in the file') && rowsTxt[2].includes('XO Bulk Dup') && rowsTxt[3].includes('required'), rowsTxt.slice(2).join(' | '));
   ok('bulk add: users are in the database with payroll / OPR exactly as typed (no prefix added) in the acting department', sql(`select username||'|'||opr||'|'||payroll||'|'||coalesce(position,'')||'|'||department_id from public.profiles where username='xot9001'`) === `xot9001|OPRCTR9001|XOT-9001|Engineer|${DA}` && sql(`select count(*) from public.profiles where username in ('xot9001','xobulk2')`) === '2');
   const [dlr] = await Promise.all([p.waitForEvent('download'), dlg(p).locator('#bulk-download').click()]);
   await dlr.saveAs(S + '/xo-bulk-result.xlsx'); const rw = new ExcelJS.Workbook(); await rw.xlsx.readFile(S + '/xo-bulk-result.xlsx'); const rs = rw.worksheets[0];
@@ -240,7 +242,7 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   ok('Edit data has the "Allowed to have Y" choice (allowed by default)', (await dlg(p).locator('.choice:has-text("Allowed to have Y") input:checked').inputValue()) === 'yes');
   await dlg(p).locator('label.choice-card:has(input[value="no"])').click(); await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
   ok('y_allowed is stored as false (admin controls it)', await eventually(() => sql(`select y_allowed from public.profiles where opr='XOT-902'`) === 'f'));
-  const day = sql("select to_char(current_date,'YYYY-MM-DD')"); const u2 = sql(`select id from public.profiles where opr='XOT-902'`);
+  const day = new Date().toLocaleDateString('en-CA'); const u2 = sql(`select id from public.profiles where opr='XOT-902'`);   // day = the browser's local today (the database date is UTC)
   const stOf = () => sql(`select coalesce((select status from public.day_status where user_id='${u2}' and day='${day}'),'E')`);
   await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr'); await p.waitForTimeout(1500);
   const cellU2 = p.locator(`td.c[data-u="${u2}"][data-d="${day}"]`);
