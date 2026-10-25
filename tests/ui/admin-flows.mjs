@@ -155,7 +155,7 @@ ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 
 // admin's own calendar tab still works and shows own data
 await p.click('.nav a:has(.lbl:text-is("My calendar"))'); await p.waitForSelector('.day');
-ok('admin own calendar: Y on days 10-12', (await p.locator('.day').nth(9).locator('.st').textContent()) === 'Y');
+ok('admin own calendar: Y on days 10-12', (await p.locator('.day:not(.ctx)').nth(9).locator('.st').textContent()) === 'Y');
 
 // ================= super admin =================
 const sa = await session('uisa'); await sa.waitForSelector('.dept');

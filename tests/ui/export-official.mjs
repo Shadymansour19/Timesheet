@@ -291,8 +291,12 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
     const dep = (n) => up2.locator(`.cal .day[data-d="${dayStr(n)}"] .dep`);
     const mvRows = () => sql(`select coalesce(string_agg(to_char(work_day,'DD'), ',' order by work_day), '') from public.departure_moves where user_id='${u2}'`);
     await up2.reload(); await up2.waitForSelector('.cal .day');
-    const ctx = await up2.locator('.cal .day.ctx').evaluateAll((els) => els.map((e) => [e.dataset.ctx, e.textContent]));
-    ok('calendar: the last day of the previous month and the first day of the next month are shown (dimmed, view only)', ctx.length === 2 && ctx[0][0] === sql(`select to_char(${mf} - 1, 'YYYY-MM-DD')`) && ctx[1][0] === sql(`select to_char(date_trunc('month', current_date)::date + interval '1 month', 'YYYY-MM-DD')`) && /X/.test(ctx[0][1]), JSON.stringify(ctx));
+    const ctx = await up2.locator('.cal .day.ctx').evaluateAll((els) => els.map((e) => [e.dataset.d, e.textContent]));
+    ok('calendar: the last day of the previous month and the first day of the next month are shown (dimmed, editable)', ctx.length === 2 && ctx[0][0] === sql(`select to_char(${mf} - 1, 'YYYY-MM-DD')`) && ctx[1][0] === sql(`select to_char(date_trunc('month', current_date)::date + interval '1 month', 'YYYY-MM-DD')`) && /X/.test(ctx[0][1]), JSON.stringify(ctx));
+    const prevCtx = up2.locator(`.cal .day.ctx[data-d="${ctx[0][0]}"]`);
+    ok('calendar: the outer days are real buttons (editable): a tap on the previous month\'s last day cycles it X -> E', (await prevCtx.evaluate((e) => e.tagName)) === 'BUTTON' && (await (async () => { await prevCtx.click(); return eventually(() => sql(`select coalesce((select status from public.day_status where user_id='${u2}' and day=${mf} - 1),'E')`) === 'E', 30000); })()));
+    await prevCtx.click(); await eventually(() => sql(`select status from public.day_status where user_id='${u2}' and day=${mf} - 1`) === 'X', 30000);
+    ok('calendar: a Trips chip counts arrivals + departures of the month (days 20-22 worked: arrival 1 + departure 1 + the prev-month block departure on day 1 = 3)', (await up2.locator('.chip.trips').textContent()).includes('3'), await up2.locator('.chip.trips').textContent());
     ok('calendar: the previous month\'s last day is X and day 1 is a rest day, so the departure tag of that block sits on day 1 (first rest day)', (await up2.locator(`.cal .day[data-d="${dayStr(0)}"] .dep.dep-rest`).count()) === 1);
     ok('calendar: the departure tag sits on the FIRST REST DAY after the working period (day 23), not on the last working day', (await dep(22).count()) === 1 && (await dep(21).count()) === 0 && (await dep(22).getAttribute('class')).includes('dep-rest'));
     await dep(22).click(); await up2.waitForTimeout(300);

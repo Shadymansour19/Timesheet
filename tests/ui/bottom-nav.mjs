@@ -86,12 +86,14 @@ await ph.screenshot({ path: S + '/bn-ar.png' });
 ok('phone admin: no page errors ' + JSON.stringify(ph.errs), ph.errs.length === 0);
 await ph.close();
 
-for (const un of ['bnu', 'bnsa']) {
+for (const un of ['bnu']) {
   const r = await open(390, 'light', un); await r.waitForTimeout(500);
   const pad = await r.evaluate(() => parseFloat(getComputedStyle(document.getElementById('app')).paddingBottom));
   ok(`phone, ${un}: one tab only -> no bottom bar and no wasted space`, (await bar(r)).display === 'none' && pad < 40, `${(await bar(r)).display} ${pad}`);
   await r.close();
 }
+{ const r = await open(390, 'light', 'bnsa'); await r.waitForTimeout(500);
+  ok('phone, super admin (Departments + the admin tabs): the bottom bar shows 4 tabs', (await bar(r)).display !== 'none' && (await r.locator('.nav a').count()) === 4); await r.close(); }
 const dk = await open(1280, 'light', 'bnadm'); await dk.waitForSelector('.tgrid');
 const dn = await bar(dk);
 ok('desktop: tabs stay at the top (not fixed), icons hidden, labels only', dn.pos !== 'fixed' && dn.top < 200 && !(await dk.locator('.nav .ico').first().isVisible()) && (await dk.locator('.shell > .nav a').allTextContents()).map((s) => s.trim()).join('|') === 'Department|Overtime|Users|My calendar');

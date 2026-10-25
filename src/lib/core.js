@@ -13,10 +13,11 @@ export const WEEK_START = 0;
 
 // True when two fetchRangeData() results hold exactly the same values (used to skip redraws after a live refetch).
 export function sameData(a, b) {
-  if (a.status.size !== b.status.size || a.overtime.size !== b.overtime.size || a.holidays.size !== b.holidays.size) return false;
+  if (a.status.size !== b.status.size || a.overtime.size !== b.overtime.size || a.holidays.size !== b.holidays.size || (a.moves?.size ?? 0) !== (b.moves?.size ?? 0)) return false;
   for (const [k, v] of a.status) if (b.status.get(k) !== v) return false;
   for (const [k, v] of a.overtime) { const o = b.overtime.get(k); if (!o || o.hours !== v.hours || (o.note ?? '') !== (v.note ?? '')) return false; }
   for (const d of a.holidays) if (!b.holidays.has(d)) return false;
+  for (const k of a.moves ?? []) if (!b.moves?.has(k)) return false;
   return true;
 }
 

@@ -1,9 +1,10 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
-import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective } from '../api/timesheet.js';
+import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective, setDepartureMove } from '../api/timesheet.js';
 import { WEEK_START, sameData, nextStatus } from '../lib/core.js';
 import { enableDragFill } from '../lib/dragfill.js';
+import { departureOf } from '../export/model.js';
 import * as live from '../live.js';
 import { fetchDeptPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
 import { explain } from '../api/errors.js';
@@ -49,7 +50,7 @@ export function teamView() {
   const otOf = (uid, day) => data.overtime.get(key(uid, day))?.hours ?? 0;
   const rangeDays = () => (viewMode === 'week'
     ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-    : Array.from({ length: daysIn(cursor.y, cursor.m) }, (_, i) => ymd(cursor.y, cursor.m, i + 1)));
+    : [addDays(ymd(cursor.y, cursor.m, 1), -1), ...Array.from({ length: daysIn(cursor.y, cursor.m) }, (_, i) => ymd(cursor.y, cursor.m, i + 1)), addDays(ymd(cursor.y, cursor.m, daysIn(cursor.y, cursor.m)), 1)]);   // month view: + the last day of the previous month and the first of the next one, editable like the others
 
   // ---------- loading ----------
   // quiet = a live/background refetch: no loading overlay, and no redraw when nothing actually changed.
@@ -60,7 +61,7 @@ export function teamView() {
     if (!quiet) { days = rd; el.wrap?.classList.add('loading'); if (!built) root.replaceChildren(h('p', { class: 'muted center' }, t('loading'))); }
     let d, p, dep;
     try {
-      const jobs = [fetchRangeData(viewMode === 'month' ? addDays(rd[0], -1) : rd[0], viewMode === 'month' ? addDays(rd[rd.length - 1], 1) : rd[rd.length - 1])];   // month view: + the day before and the day after (shown dimmed)
+      const jobs = [fetchRangeData(addDays(rd[0], -1), addDays(rd[rd.length - 1], 1))];       // one more day each side: the neighbours of the outer days (departure tags)
       if (first || withPeople || !people.length) jobs.push(fetchDeptPeople(deptId), fetchDepartment(deptId));
       [d, p, dep] = await Promise.all(jobs);
       if (my !== seq) return;                 // a newer navigation superseded this one
@@ -197,8 +198,9 @@ export function teamView() {
     const statusMap = (from, to) => { const k = `${from}|${to}`; if (!cache.has(k)) cache.set(k, fetchRangeData(from, to).then((d) => d.status)); return cache.get(k); };
     const all = h('input', { type: 'checkbox', checked: true, id: 'bulk-all' });
     const boxes = people.map((p) => h('input', { type: 'checkbox', checked: true, value: p.id }));
-    const from = field(t('from'), { type: 'date', value: days[0], required: true });
-    const to = field(t('to'), { type: 'date', value: days[days.length - 1], required: true });
+    const inner = days.filter((d) => !isCtx(d));                // bulk fill defaults to the month itself, not the two outer days
+    const from = field(t('from'), { type: 'date', value: inner[0], required: true });
+    const to = field(t('to'), { type: 'date', value: inner[inner.length - 1], required: true });
     const st = choice(t('status'), ['X', 'Y', 'E'].map((s) => ({ value: s, label: s, cls: 's-' + s.toLowerCase() })), 'X', { compact: true });
     const preview = h('p', { class: 'bulk-preview', 'aria-live': 'polite' });
 
@@ -286,7 +288,7 @@ export function teamView() {
   }
 
   const openInfo = () => openDialog({ title: t('info_title'), content: h('div', { class: 'form' },
-    h('p', {}, t('team_hint')), h('p', {}, t('hint_drag_grid')), h('p', { class: 'muted' }, t('team_hint_views')),
+    h('p', {}, t('team_hint')), h('p', {}, t('hint_drag_grid')), h('p', {}, t('hint_dep_grid')), h('p', { class: 'muted' }, t('team_hint_views')),
     h('h4', { class: 'kbd-title' }, t('kbd_title')), h('p', { class: 'muted' }, t('team_hint_keys'))), buttons: [{ label: t('close') }] });
 
   // Size the grid to the space left on screen so the pinned headcount row is always visible (never below the fold).
@@ -353,6 +355,7 @@ export function teamView() {
     if (k === 'x' || k === 'y' || k === 'e') { e.preventDefault(); brush(uid, day, k.toUpperCase(), false); }
     else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); brush(uid, day, 'E', false); }
     else if (k === 'h') { e.preventDefault(); toggleHoliday(day); }
+    else if (k === 'd') { e.preventDefault(); const kind = depKind(uid, day); if (kind) moveDeparture(uid, kind === 'rest' ? addDays(day, -1) : day, kind === 'rest'); }   // D: move this day's departure tag onto the last working day / back
     else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(uid, day, e.shiftKey); }
   }
 
@@ -360,6 +363,7 @@ export function teamView() {
   function totalsOf(uid) {
     const c = { X: 0, Y: 0, XH: 0, YH: 0, ot: 0 };
     for (const day of days) {
+      if (isCtx(day)) continue;                                // the outer days are not part of the month's totals
       const s = statusOf(uid, day);
       if (s !== 'E') c[effective(s, data.holidays.has(day))]++;
       c.ot += otOf(uid, day);
@@ -379,26 +383,34 @@ export function teamView() {
     tr.append(h('th', { class: 'nm', scope: 'row', tabindex: mine && focusPos.day === null ? 0 : -1 },
       h('span', { class: 'nm-name' }, p.full_name),
       h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, (p.payroll ?? '')), h('span', { class: 'tots' }, totalsLine(p.id)))));
-    const [cb, ca] = ctxDates();
-    if (cb) tr.append(tdCtx(p, cb));
     for (const day of days) tr.append(tdFor(p, day, mine && focusPos.day === day));
-    if (ca) tr.append(tdCtx(p, ca));
     return tr;
   }
-  // the day before and the day after the displayed month (month view only): dimmed, read-only, so working blocks look continuous
-  const ctxDates = () => (viewMode === 'month' && days.length ? [addDays(days[0], -1), addDays(days[days.length - 1], 1)] : []);
-  function tdCtx(p, date) {
-    const eff = effective(statusOf(p.id, date), data.holidays.has(date));
-    return h('td', { class: `cx s-${eff.toLowerCase()}`, 'aria-hidden': 'true', title: fmt({ day: 'numeric', month: 'long' }, dateOf(date)) }, eff === 'E' ? '' : eff);
+  const isCtx = (day) => viewMode === 'month' && days.length > 2 && (day === days[0] || day === days[days.length - 1]);   // the outer days of the month view (dimmed, not in the totals)
+  // departure: where does this person's departure sit (on this day)?  'rest' = first rest day after a working period, 'work' = moved onto the last working day
+  const depKind = (uid, date) => departureOf({
+    works: statusOf(uid, date) !== 'E', prevWorks: statusOf(uid, addDays(date, -1)) !== 'E', nextWorks: statusOf(uid, addDays(date, 1)) !== 'E',
+    movedHere: data.moves?.has(`${uid}|${date}`), movedPrev: data.moves?.has(`${uid}|${addDays(date, -1)}`) });
+  async function moveDeparture(uid, workDate, on) {
+    if (on) data.moves.add(`${uid}|${workDate}`); else data.moves.delete(`${uid}|${workDate}`);
+    updateRow(uid);
+    try { await track(() => setDepartureMove(uid, workDate, on)); }
+    catch (e) { if (on) data.moves.delete(`${uid}|${workDate}`); else data.moves.add(`${uid}|${workDate}`); toast(explain(e)); updateRow(uid); }
   }
-  function thCtx(date) { const d = dateOf(date); return h('th', { class: 'cx', scope: 'col', 'aria-hidden': 'true' }, h('span', {}, d.getDate()), h('small', {}, fmt({ month: 'short' }, d))); }
+  function depBadge(p, day) {
+    const kind = depKind(p.id, day);
+    if (!kind) return null;
+    const toWork = kind === 'rest', workDate = toWork ? addDays(day, -1) : day, label = toWork ? t('dep_to_work') : t('dep_to_rest');
+    const go = (e) => { e.stopPropagation(); e.preventDefault(); moveDeparture(p.id, workDate, toWork); };
+    return h('span', { class: 'dpb dpb-' + kind, role: 'button', title: label, 'aria-label': `${t('departure')}: ${label}`, onpointerdown: (e) => e.stopPropagation(), onclick: go, 'data-t': t('dep_short') });      // the letter comes from CSS (data-t), so the cell text stays just the status
+  }
   function tdFor(p, day, focusable = false) {
     const t0 = todayStr();
     const hol = data.holidays.has(day), ot = otOf(p.id, day);
     const eff = effective(statusOf(p.id, day), hol);
-    return h('td', { class: `c s-${eff.toLowerCase()}${hol ? ' holiday' : ''}${ot ? ' has-ot' : ''}${day === t0 ? ' today' : ''}`, 'data-u': p.id, 'data-d': day,
+    return h('td', { class: `c s-${eff.toLowerCase()}${hol ? ' holiday' : ''}${ot ? ' has-ot' : ''}${day === t0 ? ' today' : ''}${isCtx(day) ? ' ctx' : ''}`, 'data-u': p.id, 'data-d': day,
       tabindex: focusable ? 0 : -1, 'aria-label': `${p.full_name}, ${dayLabels.get(day) ?? day}: ${eff}${ot ? `, ${ot} ${t('overtime_h')}` : ''}` },
-      eff, ot ? h('sup', {}, ot) : null);
+      depBadge(p, day), eff, ot ? h('sup', {}, ot) : null);
   }
   const rowEls = new Map();
   function updateRow(uid) {
@@ -414,15 +426,12 @@ export function teamView() {
   // Daily headcount: how many people are X (incl. XH) / Y (incl. YH) each day, across the whole department.
   function footRow() {
     const tr = h('tr', { class: 'foot' }, h('th', { class: 'nm', scope: 'row' }, h('span', { class: 'nm-name' }, t('headcount')), h('small', { class: 'muted' }, 'X / Y')));
-    const [cb, ca] = ctxDates();
-    if (cb) tr.append(h('td', { class: 'cx' }));
     for (const day of days) {
       let x = 0, y = 0;
       for (const p of people) { const s = statusOf(p.id, day); if (s === 'X') x++; else if (s === 'Y') y++; }
       tr.append(h('td', { class: 'hc' + (data.holidays.has(day) ? ' holiday' : '') + (day === todayStr() ? ' today' : ''), 'aria-label': `X ${x}, Y ${y}` },
         h('b', { class: 'hx' }, x || '·'), h('i', { class: 'hy' }, y || '·')));
     }
-    if (ca) tr.append(h('td', { class: 'cx' }));
     return tr;
   }
   function updateFoot() { const old = el.table.querySelector('tfoot'); if (old) old.replaceChildren(footRow()); }
@@ -434,14 +443,11 @@ export function teamView() {
     const hadFocus = el.table.contains(document.activeElement);
     dayLabels = new Map(days.map((d) => [d, fmt({ weekday: 'long', day: 'numeric', month: 'long' }, dateOf(d))]));
     const head = h('tr', {}, h('th', { class: 'nm' }, t('employee')));
-    const [cb, ca] = ctxDates();
-    if (cb) head.append(thCtx(cb));
     for (const day of days) {
       const d = dateOf(day);
-      head.append(h('th', { class: 'dh' + (data.holidays.has(day) ? ' holiday' : '') + (day === t0 ? ' today' : '') , 'data-d': day, scope: 'col', title: t('hint_day_number') },
-        h('span', {}, d.getDate()), h('small', {}, fmt({ weekday: viewMode === 'week' ? 'short' : 'narrow' }, d))));
+      head.append(h('th', { class: 'dh' + (data.holidays.has(day) ? ' holiday' : '') + (day === t0 ? ' today' : '') + (isCtx(day) ? ' ctx' : ''), 'data-d': day, scope: 'col', title: t('hint_day_number') },
+        h('span', {}, d.getDate()), h('small', {}, isCtx(day) ? fmt({ month: 'short' }, d) : fmt({ weekday: viewMode === 'week' ? 'short' : 'narrow' }, d))));
     }
-    if (ca) head.append(thCtx(ca));
     const visible = people.filter(matches);
     rowEls.clear();
     const body = h('tbody', {});
@@ -493,7 +499,7 @@ export function teamView() {
     el.count = h('span', { class: 'muted team-count' });
     el.views = h('div', { class: 'seg', role: 'group', 'aria-label': t('view_month') + ' / ' + t('view_week') });
     el.undo = h('button', { type: 'button', class: 'btn small', onclick: undo });
-    el.table = h('table', { class: 'tgrid', role: 'grid', 'aria-label': t('nav_team'), 'aria-keyshortcuts': 'ArrowUp ArrowDown ArrowLeft ArrowRight X Y E Delete H Control+Z' });
+    el.table = h('table', { class: 'tgrid', role: 'grid', 'aria-label': t('nav_team'), 'aria-keyshortcuts': 'ArrowUp ArrowDown ArrowLeft ArrowRight X Y E Delete H D Control+Z' });
     el.announce = h('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
     el.table.addEventListener('keydown', onKey);
     el.table.addEventListener('focusin', (e) => { const n = e.target.closest?.('td.c, tbody th.nm'); if (n && el.table.contains(n)) markActive(n); });   // mouse/touch focus moves the active cell too

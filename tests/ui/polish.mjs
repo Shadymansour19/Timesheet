@@ -66,20 +66,20 @@ await p.screenshot({ path: S + '/cal-ar2.png' });
 
 // ---- overtime highlight + taller cells (user calendar)
 await p.click('text=English'); await p.waitForSelector('.day');
-const cellBox = await p.locator('.day').nth(3).boundingBox();
+const cellBox = await p.locator('.day:not(.ctx)').nth(3).boundingBox();
 ok('calendar cells are taller than wide (ratio >= 1.25)', cellBox.height / cellBox.width >= 1.25, (cellBox.height / cellBox.width).toFixed(2));
 const otCell = p.locator('.day.has-ot');
 ok('exactly the 3 overtime days are marked', (await otCell.count()) === 3);
-const ot = p.locator('.day').nth(3).locator('.ot');
+const ot = p.locator('.day:not(.ctx)').nth(3).locator('.ot');
 ok('overtime area text +3h', (await ot.textContent()) === '+3h');
 const otBg = await ot.evaluate((e) => getComputedStyle(e).backgroundColor);
-const cellBg = await p.locator('.day').nth(3).evaluate((e) => getComputedStyle(e).backgroundColor);
+const cellBg = await p.locator('.day:not(.ctx)').nth(3).evaluate((e) => getComputedStyle(e).backgroundColor);
 ok('overtime area has its own amber colour, different from the cell', otBg === 'rgb(253, 230, 138)' && otBg !== cellBg, `${otBg} vs ${cellBg}`);
-const ob = await ot.boundingBox(), cb = await p.locator('.day').nth(3).boundingBox();
+const ob = await ot.boundingBox(), cb = await p.locator('.day:not(.ctx)').nth(3).boundingBox();
 ok('overtime strip is flush with the bottom edge and full width of the cell', ob.y >= cb.y + cb.height * 0.6 && Math.abs(ob.y + ob.height - (cb.y + cb.height)) <= 1.5 && Math.abs(ob.width - cb.width) <= 1.5, JSON.stringify({ ob, cb }));
-ok('12h overtime is shown on the Y day', (await p.locator('.day').nth(4).locator('.ot').textContent()) === '+12h' && (await p.locator('.day').nth(4).locator('.st').textContent()) === 'Y');
-ok('day without overtime has no strip', (await p.locator('.day').nth(5).locator('.ot').count()) === 0 && (await p.locator('.day').nth(6).locator('.ot').count()) === 0);
-ok('holiday X day still shows XH', (await p.locator('.day').nth(5).locator('.st').textContent()) === 'XH');
+ok('12h overtime is shown on the Y day', (await p.locator('.day:not(.ctx)').nth(4).locator('.ot').textContent()) === '+12h' && (await p.locator('.day:not(.ctx)').nth(4).locator('.st').textContent()) === 'Y');
+ok('day without overtime has no strip', (await p.locator('.day:not(.ctx)').nth(5).locator('.ot').count()) === 0 && (await p.locator('.day:not(.ctx)').nth(6).locator('.ot').count()) === 0);
+ok('holiday X day still shows XH', (await p.locator('.day:not(.ctx)').nth(5).locator('.st').textContent()) === 'XH');
 ok('totals chip for overtime is amber and sums 16h', (await p.locator('.chip.ot').textContent()).includes('16h') && (await p.locator('.chip.ot').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(253, 230, 138)');
 await p.screenshot({ path: S + '/cal-ot.png' });
 
@@ -95,7 +95,7 @@ await p.screenshot({ path: S + '/trigger-open.png' });
 await p.locator('.acct > summary').click();
 await p.emulateMedia({ colorScheme: 'dark' }); await p.waitForTimeout(300);
 await p.screenshot({ path: S + '/cal-ot-dark.png' });
-const darkBg = await p.locator('.day').nth(3).locator('.ot').evaluate((e) => getComputedStyle(e).backgroundColor);
+const darkBg = await p.locator('.day:not(.ctx)').nth(3).locator('.ot').evaluate((e) => getComputedStyle(e).backgroundColor);
 ok('dark mode uses the dark amber', darkBg === 'rgb(120, 53, 15)', darkBg);
 await p.emulateMedia({ colorScheme: 'light' });
 
@@ -151,6 +151,13 @@ ok('Arabic: back arrow is mirrored', (await p.locator('.back-link svg').evaluate
 ok('no page errors ' + JSON.stringify(errs), errs.length === 0);
 cleanup();
 ok('cleanup removed every test row (real data untouched)', db("select count(*) from auth.users where email like 'pl%@timesheet.local'") === '0');
+// ---- first visit: the language follows the device / browser language; a saved choice wins
+{ const open = async (opts, pre) => { const ctx = await b.newContext(opts); if (pre) await ctx.addInitScript(pre); const pg = await ctx.newPage(); await pg.goto('http://localhost:4173/'); await pg.waitForSelector('#username'); const r = await pg.evaluate(() => [document.documentElement.lang, document.documentElement.dir]); await ctx.close(); return r; };
+  ok('first visit on an Arabic device: the page loads in Arabic (rtl)', JSON.stringify(await open({ locale: 'ar-EG' })) === '["ar","rtl"]');
+  ok('first visit on an English device: English (ltr)', JSON.stringify(await open({ locale: 'en-GB' })) === '["en","ltr"]');
+  ok('first visit on a device in another language: English by default', JSON.stringify(await open({ locale: 'fr-FR' })) === '["en","ltr"]');
+  ok('a language the user chose before wins over the device language', JSON.stringify(await open({ locale: 'ar-EG' }, () => localStorage.setItem('lang', 'en'))) === '["en","ltr"]' && JSON.stringify(await open({ locale: 'en-US' }, () => localStorage.setItem('lang', 'ar'))) === '["ar","rtl"]'); }
+
 // ---- install bar (phones): appears when the browser offers installation, X hides it, a refresh brings it back; never on desktop
 { const fire = (pg) => pg.evaluate(() => { const e = new Event('beforeinstallprompt', { cancelable: true }); e.prompt = async () => { window.__installPrompted = true; }; e.userChoice = Promise.resolve({ outcome: 'dismissed' }); window.dispatchEvent(e); });
   const mk = async (opts) => { const ctx = await b.newContext(opts); const pg = await ctx.newPage(); await pg.goto('http://localhost:4173/'); await pg.waitForSelector('#username'); return pg; };

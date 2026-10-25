@@ -8,7 +8,12 @@ let lang = 'en';
 try {
   const saved = localStorage.getItem('lang');
   if (saved && dicts[saved]) lang = saved;
-  else if ((navigator.language || '').toLowerCase().startsWith('ar')) lang = 'ar';
+  else {
+    // first visit: follow the device / browser language list (first supported entry wins: Arabic -> Arabic, English -> English)
+    const prefs = (navigator.languages?.length ? navigator.languages : [navigator.language || '']).map((l) => String(l).toLowerCase());
+    const hit = prefs.find((l) => l.startsWith('ar') || l.startsWith('en'));
+    if (hit?.startsWith('ar')) lang = 'ar';
+  }
 } catch { /* storage unavailable: keep default */ }
 
 export const getLang = () => lang;

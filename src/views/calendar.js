@@ -30,7 +30,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
   const confirmed = {};          // day -> status last confirmed by the server
   const want = {};               // day -> latest status the user asked for
   const busy = new Set();        // days with a request in flight
-  let edge = { prev: null, next: null }, moves = new Set(), lastSig = '';   // the days just outside the month (shown dimmed) and the moved departures
+  let moves = new Set(), lastSig = '';   // the departures moved onto their last working day
   let dragging = false, pendingDraw = false;      // while a drag-fill gesture runs nothing is re-rendered (the gesture would be lost)
   const redraw = () => { if (dragging) pendingDraw = true; else draw(); };
   let wver = 0;                  // bumped whenever a save starts or ends: a background read that overlapped one is stale and is dropped
@@ -46,13 +46,13 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     if (!quiet) root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
     if (quiet && busy.size) { refetch(); return; }          // a save is in flight: read after it
     const v0 = wver;
-    let fresh, win = editWindow, around = { prev: null, next: null }, mv = new Set();
-    try { let r; [r, win] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow()]); fresh = r.byDay; around = { prev: r.prev, next: r.next }; mv = r.moves; }
+    let fresh, win = editWindow, mv = new Set();
+    try { let r; [r, win] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow()]); fresh = r.byDay; mv = r.moves; }
     catch { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
     if (quiet && (busy.size || v0 !== wver)) { refetch(); return; }   // a save started / finished while we were reading: this read may predate it
-    const sig = JSON.stringify([around, [...mv].sort()]);
+    const sig = JSON.stringify([...mv].sort());
     if (quiet && sameMonth(fresh, data) && sig === lastSig) return;   // nothing new
-    data = fresh; editWindow = win; edge = around; moves = mv; lastSig = sig;
+    data = fresh; editWindow = win; moves = mv; lastSig = sig;
     for (const [day, v] of Object.entries(data)) if (!busy.has(day)) confirmed[day] = v.status;
     redraw();
   }
@@ -112,7 +112,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
   // Overtime entries are not touched (they are entered by the admin).
   async function clearMonth() {
     const lim = earliest();
-    const days = Object.entries(data).filter(([d, v]) => v.status !== 'E' && !(lim !== null && d < lim)).map(([d]) => d);
+    const days = Object.entries(data).filter(([d, v]) => !v.ctx && v.status !== 'E' && !(lim !== null && d < lim)).map(([d]) => d);
     const monthName = fmt({ month: 'long', year: 'numeric' }, new Date(cursor.y, cursor.m, 1));
     if (!days.length) { toast(t('clear_nothing')); return; }
     const yes = await confirmDialog(t('clear_confirm').replace('{n}', days.length).replace('{month}', monthName),
@@ -155,13 +155,11 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
 
   // ---- departures: by default on the first REST day after a working period; the marker can be tapped to move it onto the last working day
   const addDay = (date, n) => { const dt = new Date(date + 'T00:00:00'); dt.setDate(dt.getDate() + n); return ymd(dt.getFullYear(), dt.getMonth(), dt.getDate()); };
-  const statusOn = (date) => data[date]?.status ?? (edge.prev?.date === date ? edge.prev.status : edge.next?.date === date ? edge.next.status : 'E');
-  const depOn = (date, role) => {          // role 'prev' (the day before the month): only a MOVED departure is known there; 'next' (the day after): the rest-day kind
-    const works = statusOn(date) !== 'E';
-    const prevWorks = role === 'prev' ? false : statusOn(addDay(date, -1)) !== 'E';
-    const nextWorks = role === 'next' ? true : statusOn(addDay(date, 1)) !== 'E';
-    return departureOf({ works, prevWorks, nextWorks, movedHere: moves.has(date), movedPrev: moves.has(addDay(date, -1)) });
-  };
+  const statusOn = (date) => data[date]?.status ?? 'E';
+  const edgeDates = () => [addDay(ymd(cursor.y, cursor.m, 1), -1), addDay(ymd(cursor.y, cursor.m, daysIn(cursor.y, cursor.m)), 1)];
+  const depOn = (date) => departureOf({
+    works: statusOn(date) !== 'E', prevWorks: statusOn(addDay(date, -1)) !== 'E', nextWorks: statusOn(addDay(date, 1)) !== 'E',
+    movedHere: moves.has(date), movedPrev: moves.has(addDay(date, -1)) });
   async function moveDeparture(workDate, on) {
     const lim = earliest();
     if (lim !== null && workDate < lim) { toast(t('edit_denied')); return; }
@@ -179,48 +177,42 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     const label = toWork ? t('dep_to_work') : t('dep_to_rest');
     const go = (e) => { e.stopPropagation(); e.preventDefault(); moveDeparture(workDate, toWork); };
     return h('span', { class: 'dep dep-' + kind, role: 'button', tabindex: 0, title: label, 'aria-label': `${t('departure')}: ${label}`,
-      onpointerdown: (e) => e.stopPropagation(), onclick: go, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') go(e); } }, t('dep_short'));
+      onpointerdown: (e) => e.stopPropagation(), onclick: go, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') go(e); }, 'data-t': t('dep_short') });
   }
 
-  function cell(d) {
-    const day = ymd(cursor.y, cursor.m, d);
-    const v = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
+  function cell(day) {
+    const d = Number(day.slice(8)), v = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false }, ctx = !!v.ctx;
     const lim = earliest();
     const locked = lim !== null && day < lim;
-    const cls = ['day', 's-' + v.eff.toLowerCase(), day === todayStr ? 'today' : '', v.hol ? 'holiday' : '', v.ot ? 'has-ot' : ''].join(' ');
-    const label = `${fmt({ weekday: 'long', day: 'numeric', month: 'long' }, new Date(cursor.y, cursor.m, d))}: ${v.eff}${v.ot ? `, ${v.ot} ${t('overtime_h')}` : ''}`;
+    const cls = ['day', ctx ? 'ctx' : '', 's-' + v.eff.toLowerCase(), day === todayStr ? 'today' : '', v.hol ? 'holiday' : '', v.ot ? 'has-ot' : ''].filter(Boolean).join(' ');
+    const dt = new Date(day + 'T00:00:00');
+    const label = `${fmt({ weekday: 'long', day: 'numeric', month: 'long' }, dt)}: ${v.eff}${v.ot ? `, ${v.ot} ${t('overtime_h')}` : ''}`;
     return h('button', { class: cls, type: 'button', disabled: locked, 'data-d': day, 'aria-label': label, onclick: () => (admin && mode === 'details' ? openDetails(day) : change(day)) },
-      h('span', { class: 'num' }, d),
+      h('span', { class: 'num' }, ctx ? `${d} ${fmt({ month: 'short' }, dt)}` : d),
       h('span', { class: 'st' }, v.eff),
       v.ot ? h('span', { class: 'ot' }, `+${v.ot}${t('hour_abbr')}`) : null,
-      depMark(day, depOn(day, 'in')));
-  }
-  // the last day of the previous month / the first of the next one: dimmed, read-only, so the working blocks look continuous
-  function ctxCell(info, role) {
-    if (!info) return h('span', { class: 'pad' });
-    const dt = new Date(info.date + 'T00:00:00');
-    return h('div', { class: ['day', 'ctx', 's-' + info.eff.toLowerCase()].join(' '), 'data-ctx': info.date, 'aria-label': `${fmt({ day: 'numeric', month: 'long' }, dt)}: ${info.eff}` },
-      h('span', { class: 'num' }, `${dt.getDate()} ${fmt({ month: 'short' }, dt)}`),
-      h('span', { class: 'st' }, info.eff),
-      depMark(info.date, depOn(info.date, role)));
+      depMark(day, depOn(day)));
   }
 
   function draw() {
     const first = new Date(cursor.y, cursor.m, 1);
     const lead = (first.getDay() - WEEK_START + 7) % 7;
     const cells = [];
-    const n = daysIn(cursor.y, cursor.m);
+    const n = daysIn(cursor.y, cursor.m), [pd, nd] = edgeDates();
     for (let i = 0; i < (lead === 0 ? 6 : lead - 1); i++) cells.push(h('span', { class: 'pad' }));        // the day before day 1 sits right in front of it (a row of its own when the month starts the week)
-    cells.push(ctxCell(edge.prev, 'prev'));
-    for (let d = 1; d <= n; d++) cells.push(cell(d));
-    cells.push(ctxCell(edge.next, 'next'));
+    cells.push(cell(pd));
+    for (let d = 1; d <= n; d++) cells.push(cell(ymd(cursor.y, cursor.m, d)));
+    cells.push(cell(nd));
     for (let i = 0; i < ((7 - ((lead + n + 1) % 7)) % 7); i++) cells.push(h('span', { class: 'pad' }));
 
     const weekdays = [...Array(7)].map((_, i) =>
       h('span', { class: 'wd' }, fmt({ weekday: 'short' }, new Date(2023, 0, 1 + ((i + WEEK_START) % 7)))));
 
-    const count = (s) => Object.values(data).filter((v) => v.eff === s).length;
-    const ot = Object.values(data).reduce((a, v) => a + (v.ot || 0), 0);
+    const monthDates = Object.keys(data).filter((d) => !data[d].ctx);          // the two outer days are not part of the month's totals
+    const count = (s) => monthDates.filter((d) => data[d].eff === s).length;
+    const ot = monthDates.reduce((a, d) => a + (data[d].ot || 0), 0);
+    // trips of the month = arrivals (a work day after a rest day) + departures (the tag, wherever it sits)
+    const trips = monthDates.reduce((a, d) => a + (data[d].status !== 'E' && statusOn(addDay(d, -1)) === 'E' ? 1 : 0) + (depOn(d) ? 1 : 0), 0);
     const go = (delta) => { shiftMonth(delta); load(); };
     const seg = admin ? h('div', { class: 'seg cal-mode', role: 'group', 'aria-label': t('tap_mode') },
       [['cycle', t('mode_cycle')], ['details', t('mode_details')]].map(([m, label]) =>
@@ -238,19 +230,20 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         ['X', 'Y', 'XH', 'YH'].map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
-        h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`)));
+        h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`),
+        h('span', { class: 'chip trips', title: t('trips_hint') }, `${t('trips')}: ${trips}`)));
   }
 
   // drag-to-fill: press a day and drag over others -> they get the start day's status as you go (not in the admin's details mode)
   enableDragFill(root, {
-    cellSelector: '.grid .day:not(.ctx)',
+    cellSelector: '.grid .day',
     keyOf: (btn) => btn.dataset.d,
-    rowCells: () => [...root.querySelectorAll('.grid .day:not(.ctx)')],
+    rowCells: () => [...root.querySelectorAll('.grid .day')],
     statusOf: (btn) => data[btn.dataset.d]?.status ?? 'E',
     canFill: (btn, status) => !btn.disabled && !(status === 'Y' && (admin ? person?.y_allowed : state.profile.y_allowed) === false),
     fill: (btn, status) => {
-      const day = btn.dataset.d, d = Number(day.slice(8));
-      setTo(day, status, () => { const fresh = cell(d); btn.className = fresh.className; btn.replaceChildren(...fresh.childNodes); btn.setAttribute('aria-label', fresh.getAttribute('aria-label')); });
+      const day = btn.dataset.d;
+      setTo(day, status, () => { const fresh = cell(day); btn.className = fresh.className; btn.replaceChildren(...fresh.childNodes); btn.setAttribute('aria-label', fresh.getAttribute('aria-label')); });
     },
     press: () => { dragging = true; },
     release: () => { dragging = false; setTimeout(() => { if (pendingDraw && !dragging) { pendingDraw = false; draw(); } }, 0); },     // after the click event, which needs the pressed button to still be there

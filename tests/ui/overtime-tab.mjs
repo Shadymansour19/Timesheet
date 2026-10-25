@@ -142,7 +142,7 @@ ok('admin: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 // ---- other roles
 const u = await newPage('otu1'); await u.waitForSelector('.day');
 ok('a plain user has no Overtime tab', (await u.locator('.nav a').allTextContents()).join('|') === 'My calendar');
-ok('...and sees the overtime the admin entered, read-only (+3h strip, no edit dialog)', (await u.locator('.day').nth(3).locator('.ot').textContent()) === '+3h');
+ok('...and sees the overtime the admin entered, read-only (+3h strip, no edit dialog)', (await u.locator('.day:not(.ctx)').nth(3).locator('.ot').textContent()) === '+3h');
 await u.evaluate(() => { location.hash = '#/overtime'; }); await u.waitForTimeout(500);
 ok('...typing #/overtime shows no overtime screen', (await u.locator('.ot-view').count()) === 0);
 const s = await newPage('otsa'); await s.waitForSelector('.depts');

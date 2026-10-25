@@ -47,20 +47,21 @@ export const fetchMonthData = (y, m, opts) => { const [from, to] = monthRange(y,
 // -> { byDay, prev, next, moves }: prev / next = the last day of the previous month and the first day of the next month (shown dimmed so the
 // working blocks look continuous and Arrival / Departure are right); moves = Set of working days that carry their departure.
 export async function fetchMonth(userId, y, m) {
-  const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
   const iso = (dt) => ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
   const prevDate = iso(new Date(y, m, 0)), nextDate = iso(new Date(y, m + 1, 1));
-  void first; void last;
-  const d = await fetchRangeData(prevDate, nextDate, { userId });
-  const one = (day) => { const status = d.status.get(`${userId}|${day}`) ?? 'E'; const hol = d.holidays.has(day); return { date: day, status, eff: effective(status, hol), hol }; };
-  const byDay = {};
-  for (let i = 1; i <= daysIn(y, m); i++) {
-    const day = ymd(y, m, i);
+  const prev2 = iso(new Date(y, m, -1)), next2 = iso(new Date(y, m + 1, 2));       // one more day each side: the neighbours of the two outer days (so their departure tag is right)
+  const d = await fetchRangeData(prev2, next2, { userId });
+  const rec = (day, ctx) => {
     const status = d.status.get(`${userId}|${day}`) ?? 'E';
     const hol = d.holidays.has(day);
-    byDay[day] = { status, eff: effective(status, hol), ot: d.overtime.get(`${userId}|${day}`)?.hours ?? 0, note: d.overtime.get(`${userId}|${day}`)?.note ?? '', hol };
-  }
-  return { byDay, prev: one(prevDate), next: one(nextDate), moves: new Set([...d.moves].filter((k) => k.startsWith(userId + '|')).map((k) => k.slice(userId.length + 1))) };
+    return { status, eff: effective(status, hol), ot: d.overtime.get(`${userId}|${day}`)?.hours ?? 0, note: d.overtime.get(`${userId}|${day}`)?.note ?? '', hol, ...(ctx ? { ctx: true } : {}) };
+  };
+  const byDay = {};
+  byDay[prev2] = { ...rec(prev2, true), outer: true }; byDay[next2] = { ...rec(next2, true), outer: true };
+  byDay[prevDate] = rec(prevDate, true);                       // the day before and the day after the month are editable like the month days (ctx = not part of the month's totals)
+  for (let i = 1; i <= daysIn(y, m); i++) { const day = ymd(y, m, i); byDay[day] = rec(day, false); }
+  byDay[nextDate] = rec(nextDate, true);
+  return { byDay, moves: new Set([...d.moves].filter((k) => k.startsWith(userId + '|')).map((k) => k.slice(userId.length + 1))) };
 }
 
 export async function setDepartureMove(userId, day, on) {

@@ -272,13 +272,13 @@ ok('applying with 0 changes says "Nothing to change" and writes nothing', (await
 // ---- view toggle: month
 await p.locator('.team-row .seg:not(.tools .seg) button:text-is("Month"), .team-row > .seg button:text-is("Month")').first().click(); await p.waitForFunction(() => document.querySelectorAll('th.dh').length > 7, null, { timeout: 15000 }); await p.waitForTimeout(300);
 const nM = Number(db("select extract(day from (date_trunc('month',current_date)+interval '1 month - 1 day'))"));
-ok(`Month view: one column per day (${nM}) and it scrolls sideways on a phone`, (await p.locator('th.dh').count()) === nM && await p.locator('.gridwrap').evaluate((e) => e.scrollWidth > e.clientWidth + 50));
+ok(`Month view: one column per day (${nM}) plus the two outer days (last of the previous month, first of the next; dimmed) and it scrolls sideways on a phone`, (await p.locator('th.dh').count()) === nM + 2 && (await p.locator('th.dh.ctx').count()) === 2 && await p.locator('.gridwrap').evaluate((e) => e.scrollWidth > e.clientWidth + 50));
 const tb = await p.locator('th.dh.today').boundingBox(), wb = await p.locator('.gridwrap').boundingBox();
 ok('month view: every day cell has the same fixed width whatever it contains (E, X, Y, XH, overtime)', await p.locator('td.c').evaluateAll((els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().width))).size === 1));
 ok('Month view auto-scrolls so today is visible', tb && tb.x >= wb.x && tb.x + tb.width <= wb.x + wb.width + 1, JSON.stringify({ tb, wb }));
 ok('the chosen view is remembered on this device', await p.evaluate(() => localStorage.getItem('ts.teamView')) === 'month');
 await p.reload(); await p.waitForSelector('.tgrid tbody tr');
-ok('after reload the grid opens in Month view', (await p.locator('th.dh').count()) === nM);
+ok('after reload the grid opens in Month view', (await p.locator('th.dh').count()) === nM + 2);
 await p.locator('.team-row > .seg button:text-is("Week")').click(); await p.waitForFunction(() => document.querySelectorAll('th.dh').length === 7, null, { timeout: 15000 }).catch(async () => console.log('DIAG week count', await p.locator('th.dh').count(), JSON.stringify(p.errs))); await p.waitForTimeout(300);
 ok('switching back to Week works', (await p.locator('th.dh').count()) === 7);
 
@@ -304,11 +304,34 @@ ok('phone: no page errors ' + JSON.stringify(p.errs), p.errs.length === 0);
 
 // ================= desktop =================
 const d = await open(1280);
-ok('desktop defaults to MONTH view and the month fits without sideways scrolling', (await d.locator('th.dh').count()) === nM && await d.locator('.gridwrap').evaluate((e) => e.scrollWidth <= e.clientWidth + 1), await d.locator('.gridwrap').evaluate((e) => `${e.scrollWidth}/${e.clientWidth}`));
+ok('desktop defaults to MONTH view and the month fits without sideways scrolling', (await d.locator('th.dh').count()) === nM + 2 && await d.locator('.gridwrap').evaluate((e) => e.scrollWidth <= e.clientWidth + 2), await d.locator('.gridwrap').evaluate((e) => `${e.scrollWidth}/${e.clientWidth}`));
 ok('desktop shows the OPR beside the totals under each name', await d.locator('.opr').first().isVisible());
 ok('toolbar is pinned (sticky) while the grid scrolls', (await d.locator('.team-top').evaluate((e) => getComputedStyle(e).position)) === 'sticky');
 ok('headcount row is visible on screen without scrolling the page (desktop)', await fitsScreen(d, 800), JSON.stringify([await d.locator('tfoot th').boundingBox(), await d.locator('.gridwrap').boundingBox()]));
 await d.screenshot({ path: S + '/tg-desktop.png' });
+// ---- departure in the grid + the two outer days (editable, dimmed, not in the totals)
+{ const t1 = db("select to_char(current_date + 1,'YYYY-MM-DD')"); const u20 = uid(20);
+  db(`delete from public.day_status where user_id='${u20}' and day between current_date - 1 and current_date + 2; delete from public.departure_moves where user_id='${u20}'`);
+  db(`insert into public.day_status (user_id, day, status) values ('${u20}', '${T}', 'X')`);
+  await d.reload(); await d.waitForSelector('.tgrid tbody tr'); await d.waitForTimeout(1500);
+  const badge = (day) => d.locator(`td.c[data-u="${u20}"][data-d="${day}"] .dpb`);
+  const moves = () => db(`select coalesce(string_agg(to_char(work_day,'YYYY-MM-DD'), ',' order by work_day), '') from public.departure_moves where user_id='${u20}'`);
+  ok('grid: the departure badge (D) sits on the FIRST REST DAY after the working day', (await badge(t1).count()) === 1 && (await badge(t1).getAttribute('class')).includes('dpb-rest') && (await badge(T).count()) === 0);
+  ok('grid: the badge letter is CSS only, the cell text stays the status', (await d.locator(`td.c[data-u="${u20}"][data-d="${t1}"]`).textContent()).trim() === 'E');
+  await badge(t1).click();
+  ok('grid: clicking the badge moves the departure onto the last working day and stores it', await until(async () => (await moves()) === T, 30000) && (await badge(T).count()) === 1 && (await badge(T).getAttribute('class')).includes('dpb-work') && (await badge(t1).count()) === 0);
+  await d.locator(`td.c[data-u="${u20}"][data-d="${T}"]`).focus(); await d.keyboard.press('d');
+  ok('grid: the D key on that cell puts it back on the rest day', await until(async () => (await moves()) === '', 30000) && (await badge(t1).count()) === 1);
+  const ctxHeads = await d.locator('th.dh.ctx').count(), ctxCells = await d.locator(`tr[data-u="${u20}"] td.c.ctx`).count();
+  ok('grid: two dimmed outer day columns (header and every row)', ctxHeads === 2 && ctxCells === 2);
+  const firstCtx = d.locator(`tr[data-u="${u20}"] td.c.ctx`).first(), ctxDay = await firstCtx.getAttribute('data-d');
+  const tots = async () => (await d.locator(`tr[data-u="${u20}"] th.nm .tots`).textContent()).trim();
+  const before = await tots();
+  await firstCtx.click();
+  ok('grid: an outer day is editable like any day (a click cycles E -> X) and is NOT counted in the person totals', await until(async () => (await st(20, ctxDay)) === 'X', 30000) && (await tots()) === before, `${before} -> ${await tots()}`);
+  await d.locator(`tr[data-u="${u20}"] td.c.ctx`).first().click(); await d.waitForTimeout(500); await d.locator(`tr[data-u="${u20}"] td.c.ctx`).first().click();
+  await until(async () => (await st(20, ctxDay)) === 'E', 30000);
+  db(`delete from public.day_status where user_id='${u20}' and day between current_date - 1 and current_date + 2; delete from public.departure_moves where user_id='${u20}'`); }
 ok('desktop: no page errors ' + JSON.stringify(d.errs), d.errs.length === 0);
 
 cleanup();

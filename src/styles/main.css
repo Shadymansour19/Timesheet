@@ -412,12 +412,18 @@ body.has-install .floating { inset-block-start: 68px; }
 /* calendar: the days just outside the month (dimmed, view only) and the departure tag */
 .day.ctx { opacity: .62; cursor: default; border-style: dashed; background-image: none; }
 .day { position: relative; }
-.dep { position: absolute; inset-inline-start: 3px; inset-block-end: 3px; padding: 0 5px; border-radius: 6px; font-size: .62rem; font-weight: 700; line-height: 1.5; cursor: pointer; background: #fde68a; color: #78350f; border: 1px solid #f59e0b; z-index: 2; }
+.dep { position: absolute; inset-inline-end: 3px; inset-block-start: 3px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; font-size: .72rem; font-weight: 800; line-height: 1; cursor: pointer; background: #fde68a; color: #78350f; border: 2px solid #f59e0b; z-index: 2; }
+.dep:hover { filter: brightness(.95); transform: scale(1.08); }
 .dep.dep-work { background: #fed7aa; color: #7c2d12; border-color: #ea580c; }
 .dep:focus-visible { outline: 2px solid var(--brand); }
 .day.ctx .dep { opacity: 1; }
 
 /* department grid: the day before / after the month (dimmed, view only) */
-.tgrid th.cx, .tgrid td.cx { opacity: .55; cursor: default; font-weight: 500; border-inline: 1px dashed var(--line); }
-.tgrid th.cx small { display: block; font-weight: 400; color: var(--muted); }
-.tgrid.month th.cx, .tgrid.month td.cx { min-width: 29px; }
+
+/* departure badge in the department grid cells */
+.tgrid td.c { position: relative; }
+.tgrid .dpb { position: absolute; inset-inline-start: 1px; inset-block-start: 1px; width: 14px; height: 14px; display: grid; place-items: center; border-radius: 50%; font-size: .55rem; font-weight: 800; line-height: 1; cursor: pointer; background: #fde68a; color: #78350f; border: 1.5px solid #f59e0b; z-index: 2; }
+.tgrid .dpb.dpb-work { background: #fed7aa; color: #7c2d12; border-color: #ea580c; }
+.tgrid th.dh.ctx, .tgrid td.c.ctx { opacity: .6; }
+
+.dep::before, .tgrid .dpb::before { content: attr(data-t); }

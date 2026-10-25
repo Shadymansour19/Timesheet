@@ -161,9 +161,9 @@ await G.screenshot({ path: S + '/lv-empty.png' });
 // ============================================================ PERSON TIMESHEET
 await A.fill('.team-search', ''); await A.waitForTimeout(300); await A.click('.team-row > .seg button:has-text("All")');
 await A.locator('.person', { hasText: 'LV LU2' }).locator('a:text-is("Timesheet")').click(); await A.waitForSelector('.person-head'); await A.waitForSelector('.day');
-ok('Timesheet opens that person page with name, OPR, level and a month calendar', A.url().includes('#/person/' + uid(2)) && (await A.textContent('.person-head')).includes('LV LU2') && (await A.textContent('.person-head')).includes('OPR-lu2') && (await A.locator('.day').count()) > 27);
+ok('Timesheet opens that person page with name, OPR, level and a month calendar', A.url().includes('#/person/' + uid(2)) && (await A.textContent('.person-head')).includes('LV LU2') && (await A.textContent('.person-head')).includes('OPR-lu2') && (await A.locator('.day:not(.ctx)').count()) > 27);
 ok('a Back link is shown', (await A.locator('.back-link').count()) === 1);
-const dayBtn = (p, d) => p.locator('.day').nth(d - 1);
+const dayBtn = (p, d) => p.locator('.day:not(.ctx)').nth(d - 1);
 const target = Number(T.slice(8)) <= 20 ? Number(T.slice(8)) + 3 : Number(T.slice(8)) - 3;   // a day other than today
 const D2 = `${T.slice(0, 8)}${String(target).padStart(2, '0')}`;
 await dayBtn(A, target).click(); await A.waitForTimeout(900);
@@ -187,7 +187,7 @@ ok('even with a 3-day user edit window the admin can edit the 1st of the month (
 sql(`update public.settings set value='null'::jsonb where key='user_edit_window_days'`);
 // live inside the person view: lu2 edits their own calendar
 const U2 = await login('lu2'); await U2.waitForSelector('.day');
-await U2.locator('.day').nth(Number(T.slice(8)) - 1).click();
+await U2.locator('.day:not(.ctx)').nth(Number(T.slice(8)) - 1).click();
 ok("the admin's person page shows the person's own edit LIVE", await eventually(async () => (await txt(dayBtn(A, Number(T.slice(8))).locator('.st'))) !== 'E'));
 // access control of the route
 await A.goto('http://localhost:4173/#/person/' + B_USER); await A.waitForSelector('.person-view');
