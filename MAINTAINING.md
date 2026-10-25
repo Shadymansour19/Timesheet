@@ -71,3 +71,10 @@ Data flow: database rows → `fetchPaddedMonthData` (month ± 1 day) → `buildM
 2. Run the quick checks (section 2), then `npm run test:rls`, then the browser tests of the area you touched.
 3. A migration that went wrong: write a new migration that fixes it (do not edit the old one).
 4. Anything in the app that talks to the database fails for a plain user but works for an admin → it is almost always a missing grant or role check in the function (migration), not the UI.
+
+## 8. Overtime forms from a scan (local OCR)
+Overtime tab -> "Scan overtime forms": PDFs / photos (several files or a whole folder) are read ON THE DEVICE and shown as an editable preview; "Save overtime" writes one atomic bulk save per date (`set_overtime_bulk`).
+- Code: `src/ocr/engine.js` (pdf.js draws the pages, Tesseract.js reads them, English model in `public/ocr/lang`), `src/ocr/parse.js` (pure: words -> rows), `src/components/overtime-scan.js` (preview + save). The big engine files are NOT precached (`vite.config.js`); they are cached on first use.
+- Rows are found from the payroll code `EMC-<number>` anywhere on the page; the person and the English name come from the admin's department (the payroll key ignores leading zeros); a payroll that is not in the department is skipped; Arabic text is never used or shown. The work text of the row is the note, the hours are the small number on the same side of the code as that text.
+- Lessons (tests/ui/overtime-scan.mjs on the real sample): rotation is found by 4 quick passes; read at ~150 dpi (a second try at ~200 dpi); do NOT threshold the page (small text was lost); the lone hours digit is read separately from its own strip with the table's vertical lines erased.
+- Tests: `npm run test:ocr-parse` (pure) and `npm run test:ui-ocr` (needs the sample PDF at `OCR_SAMPLE`, default `~/Downloads/scan_opr1021_2026-10-25-14-38-11.pdf`; it is a real document and is not in the repository).

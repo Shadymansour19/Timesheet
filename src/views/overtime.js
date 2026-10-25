@@ -146,6 +146,7 @@ export function overtimeView() {
 
     root.replaceChildren(
       monthHead(fmt({ month: 'long', year: 'numeric' }, first), { onPrev: () => go(-1), onNext: () => go(1), onToday: () => { goToday(); load(); } }),
+      h('div', { class: 'cal-tools' }, h('button', { type: 'button', class: 'btn small', id: 'scan-open', onclick: () => import('../components/overtime-scan.js').then((m) => m.openOvertimeScan({ people, onSaved: () => load() })) }, t('scan_open'))),
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         h('span', { class: 'chip ot' }, `${t('ot_total')}: ${sum}${t('hour_abbr')}`),

@@ -24,6 +24,9 @@ export default defineConfig({
         // App shell is cached; Supabase API calls always go to the network.
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/functions\//, /^\/auth\//, /^\/rest\//],
+        // the OCR engine (several MB) is NOT part of the app shell: cached on first use instead (works offline afterwards)
+        globIgnores: ['**/tesseract-core*', '**/pdf.worker*', '**/worker.min*'],
+        runtimeCaching: [{ urlPattern: /\/(ocr\/lang\/|assets\/(tesseract-core|pdf\.worker|worker\.min))/, handler: 'CacheFirst', options: { cacheName: 'ocr-engine', expiration: { maxEntries: 12 } } }],
       },
     }),
   ],

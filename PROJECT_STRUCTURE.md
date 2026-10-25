@@ -22,6 +22,7 @@ timesheet/
 │   │   ├── pdf.js            # the same report as PDF (jsPDF)
 │   │   ├── engine.js         # downloads, single-person export, print (PDF in a hidden frame, Excel fallback), simple grid
 │   │   └── templates/        # official.js (constants of the form), default.js (simple grid), example-fill.js
+│   ├── ocr/                  # engine.js (pdf.js + Tesseract.js, local), parse.js (words -> overtime rows)
 │   ├── i18n/                 # en.js, ar.js (kept in sync by tests/check-i18n.mjs)
 │   └── styles/main.css
 ├── supabase/

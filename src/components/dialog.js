@@ -7,7 +7,7 @@ import { explain } from '../api/errors.js';
 export function openDialog({ title, content, buttons, onClose, wide = false, autofocus = true }) {
   const err = h('p', { class: 'error', role: 'alert' });
   let busy = false;
-  const dlg = h('dialog', { class: 'dlg' + (wide ? ' wide' + (wide === 'xl' ? ' xl' : '') : '') });
+  const dlg = h('dialog', { class: 'dlg' + (wide ? ' wide' + (wide === 'xl' || wide === 'xxl' ? ' xl' : '') + (wide === 'xxl' ? ' xxl' : '') : '') });
   const els = buttons.map((b) => h('button', { type: 'button', class: 'btn ' + (b.kind || ''), onclick: async () => {
     if (!b.onClick) return dlg.close();
     els.forEach((x) => { x.disabled = true; }); err.textContent = ''; busy = true;
