@@ -3,7 +3,8 @@ import { t, otherLang, setLang } from '../i18n/index.js';
 import { state, signOut, signOutAll, switchTo, addAccount, removeAccount, listAccounts } from '../auth/session.js';
 import { navFor } from '../router.js';
 import { openDialog, confirmDialog } from './dialog.js';
-import { icon, BUILDING, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT, SUN, MOON, MONITOR } from './icons.js';
+import { eligible as notifyEligible, enabled as notifyOn, setEnabled as setNotify } from '../notify.js';
+import { icon, BELL, BUILDING, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT, SUN, MOON, MONITOR } from './icons.js';
 import { getTheme, setTheme } from '../theme.js';
 import { field } from './form.js';
 import { choice } from './choice.js';
@@ -74,6 +75,11 @@ function accountMenu() {
       h('button', { class: 'menu-item', type: 'button', onclick: () => { close(); addAccountDialog(); } }, icon(PLUS, 18), t('add_account')),
       h('a', { class: 'menu-item', href: '#/account', onclick: close }, icon(KEY, 18), t('change_password')),
       themeRow(),
+      notifyEligible() ? h('button', { class: 'menu-item', type: 'button', 'aria-pressed': String(notifyOn()), onclick: async () => {
+        const r = await setNotify(!notifyOn());
+        if (r === 'denied') toast(t('notify_denied'));
+        setTimeout(() => { const fresh = accountMenu(); fresh.open = true; det.replaceWith(fresh); }, 0);      // after this click has finished bubbling (the outside-click handler would close the new menu)
+      } }, icon(BELL, 18), `${t('notify_menu')}: ${notifyOn() ? t('on') : t('off')}`) : null,
       h('hr'),
       h('button', { class: 'menu-item', type: 'button', onclick: () => { close(); signOut(); } }, withFlip(icon(LOGOUT, 18)), t('sign_out')),
       accounts.length > 1 ? h('button', { class: 'menu-item danger-text', type: 'button', onclick: () => { close(); signOutAll(); } }, withFlip(icon(LOGOUT, 18)), t('sign_out_all')) : null));

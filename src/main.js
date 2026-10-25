@@ -9,6 +9,7 @@ import { resolve } from './router.js';
 import { shell } from './components/shell.js';
 import { initInstall, syncInstall } from './install.js';
 import { acting, ensureActing } from './acting.js';
+import { startNotifications, stopNotifications } from './notify.js';
 import { fetchDepartments } from './api/admin.js';
 
 const root = document.getElementById('app');
@@ -36,6 +37,7 @@ function render() {
     watchedFor = state.profile.id;
     live.watchGlobal([`user:${state.profile.id}`], (p) => { if (p.t === 'profile' || p.t === 'resync') refreshProfile(); });
   }
+  startNotifications();                                   // admins on the installed desktop app: "somebody filled his timesheet" (src/notify.js)
   const route = resolve();
   if (!route) return; // redirecting to the landing page; hashchange re-renders
   if (state.profile.role === 'super_admin' && acting.active && !acting.list.length) {   // first admin tab of this session: choose / load the department
@@ -54,7 +56,7 @@ const syncKeyboard = () => requestAnimationFrame(() => document.body.classList.t
 document.addEventListener('focusin', syncKeyboard);
 document.addEventListener('focusout', syncKeyboard);
 window.addEventListener('hashchange', () => state.profile && render());
-onChange(() => { live.dispose(); watchedFor = null; if (!state.profile) location.hash = ''; render(); });
+onChange(() => { live.dispose(); watchedFor = null; stopNotifications(); if (!state.profile) location.hash = ''; render(); });
 
 root.append(h('p', { class: 'muted center' }, t('loading')));
 restore().then((key) => { notice = key; render(); });

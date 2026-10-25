@@ -22,7 +22,8 @@
     "test:ui-bottom-nav": "node tests/ui/bottom-nav.mjs",
     "test:export-official": "node tests/export-official.test.mjs",
     "test:export-pdf": "node tests/export-pdf.test.mjs",
-    "test:ui-export": "node tests/ui/export-official.mjs"
+    "test:ui-export": "node tests/ui/export-official.mjs",
+    "test:ui-notify": "node tests/ui/notify.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
