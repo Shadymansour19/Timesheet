@@ -408,7 +408,20 @@ select t.denied('adminA cannot grant super_admin', $$select public.set_user_role
 select t.denied('adminA create_department', $$select public.create_department('Evil')$$);
 select t.ok('adminA may create user in own dept', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'user')$$);
 select t.denied('adminA may not create user in dept B', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000b', 'user')$$);
-select t.denied('adminA may not create admin', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'admin')$$);
+select t.ok('adminA may create admin in own dept', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'admin')$$);
+select t.ok('adminA may create manager in own dept', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'manager')$$);
+select t.denied('adminA may not create super_admin', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'super_admin')$$);
+-- department manager: admin powers, no timesheet
+select t.ok('adminA makes ua2 a manager', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a3', 'manager')$$);
+select t.denied('adminA cannot give a manager a day status', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a3', current_date, 'X')$$, '22023');
+select t.login('00000000-0000-0000-0000-0000000000a3');
+select t.eq('manager acts as admin (app_role)', $$select public.app_role()$$, 'admin');
+select t.ok('manager sets a user day status in own dept', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date, 'X')$$);
+select t.denied('manager has no timesheet of their own', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a3', current_date, 'X')$$, '22023');
+select t.denied('manager cannot touch dept B', $$select public.set_user_role('00000000-0000-0000-0000-0000000000b2', 'admin')$$);
+select t.denied('manager cannot change own role', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a3', 'user')$$);
+select t.login('00000000-0000-0000-0000-0000000000a1');
+select t.ok('adminA makes the manager a user again', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a3', 'user')$$);
 select t.ok('adminA may reset ua2 password', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000a3', 'reset')$$);
 select t.denied('adminA may not reset dept B', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000b2', 'reset')$$);
 select t.denied('adminA may not delete self', $$select public.soft_delete_user('00000000-0000-0000-0000-0000000000a1')$$);
@@ -477,6 +490,7 @@ select t.ok('super_admin demotes admin across depts', $$select public.set_user_r
 select t.ok('super_admin demotes admin B', $$select public.set_user_role('00000000-0000-0000-0000-0000000000b1', 'user')$$);
 select t.denied('super_admin cannot demote self/super_admin via RPC', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a0', 'user')$$);
 select t.ok('super_admin may create admin in any dept', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'admin')$$);
+select t.ok('super_admin may create manager in any dept', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'manager')$$);
 select t.denied('super_admin may not create plain user', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'user')$$);
 select t.ok('super_admin may reset an admin password', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000a1', 'reset')$$);
 select t.denied('super_admin may not reset a plain user password', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000a2', 'reset')$$);

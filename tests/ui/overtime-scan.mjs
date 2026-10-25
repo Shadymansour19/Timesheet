@@ -99,6 +99,18 @@ sql(`insert into public.overtime (user_id, day, hours, note, entered_by) values 
   ok('edits made in the preview are what is saved (2 h, "edited in preview")', /10-2[34]:2:edited in preview/.test(sv), sv);
   await ctx.close(); }
 
+// drag and drop of files onto the drop zone
+{ const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } }); const p = await ctx.newPage();
+  await p.goto('http://localhost:4173/'); await p.fill('#username', 'ocadm'); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
+  await p.goto('http://localhost:4173/#/overtime'); await p.waitForSelector('#scan-open'); await p.click('#scan-open'); await p.waitForSelector('dialog[open] .scan-drop');
+  await p.evaluate(async (b64) => {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)); const dt = new DataTransfer(); dt.items.add(new File([bin], 'dropped.pdf', { type: 'application/pdf' }));
+    document.querySelector('dialog[open] .scan-drop').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  }, (await import('node:fs')).readFileSync(SAMPLE).toString('base64'));
+  await p.waitForFunction(() => /rows found/.test(document.querySelector('dialog[open] [aria-live]')?.textContent ?? ''), null, { timeout: 240000 });
+  ok('drag and drop: a dropped PDF is scanned (2 pages)', (await p.locator('.scan-page').count()) === 2);
+  await ctx.close(); }
+
 // an admin of another department: the same payroll is not in his department -> skipped, nothing shown
 const other = await scan('ocadm2');
 const o = await other.p.locator('.scan-page').evaluateAll((els) => els.map((e) => ({ rows: e.querySelectorAll('tbody tr').length, skipped: e.querySelector('.scan-skipped')?.textContent ?? '' })));

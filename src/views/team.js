@@ -6,7 +6,7 @@ import { WEEK_START, sameData, nextStatus } from '../lib/core.js';
 import { enableDragFill } from '../lib/dragfill.js';
 import { departureOf } from '../export/model.js';
 import * as live from '../live.js';
-import { fetchDeptPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
+import { fetchTimesheetPeople, fetchDepartment, setStatus, setStatusRows, setHoliday } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { field } from '../components/form.js';
@@ -62,7 +62,7 @@ export function teamView() {
     let d, p, dep;
     try {
       const jobs = [fetchRangeData(addDays(rd[0], -1), addDays(rd[rd.length - 1], 1))];       // one more day each side: the neighbours of the outer days (departure tags)
-      if (first || withPeople || !people.length) jobs.push(fetchDeptPeople(deptId), fetchDepartment(deptId));
+      if (first || withPeople || !people.length) jobs.push(fetchTimesheetPeople(deptId), fetchDepartment(deptId));
       [d, p, dep] = await Promise.all(jobs);
       if (my !== seq) return;                 // a newer navigation superseded this one
     } catch (e) { if (quiet && built) return; if (my === seq) root.replaceChildren(h('p', { class: 'error' }, explain(e))); built = false; return; }

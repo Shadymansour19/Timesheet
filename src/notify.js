@@ -7,7 +7,7 @@
 // need Web Push (server side keys) - not part of this.
 import * as live from './live.js';
 import { state, myDept } from './auth/session.js';
-import { fetchDeptPeople } from './api/admin.js';
+import { fetchTimesheetPeople } from './api/admin.js';
 import { t } from './i18n/index.js';
 
 const KEY = 'ts.notify';
@@ -17,7 +17,7 @@ const quiet = () => { try { const v = Number(localStorage.getItem('ts.notifyDela
 const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const desktop = () => matchMedia('(pointer: fine)').matches && matchMedia('(min-width: 901px)').matches;
 export const supported = () => typeof Notification !== 'undefined';
-export const eligible = () => supported() && state.profile?.role === 'admin' && desktop() && standalone();
+export const eligible = () => supported() && ['admin', 'manager'].includes(state.profile?.role) && desktop() && standalone();
 export const enabled = () => { try { return supported() && Notification.permission === 'granted' && localStorage.getItem(KEY) === 'on'; } catch { return false; } };
 
 // switching on asks the browser for permission (must run from a click); returns 'on' | 'off' | 'denied'
@@ -33,7 +33,7 @@ export async function setEnabled(on) {
 const pending = new Map();                      // person id -> { timer, first, n }   (one timer per person, never shared)
 const names = new Map();
 async function nameOf(uid) {
-  if (!names.has(uid)) { try { (await fetchDeptPeople(myDept())).forEach((p) => names.set(p.id, p.full_name)); } catch { /* ignore */ } }
+  if (!names.has(uid)) { try { (await fetchTimesheetPeople(myDept())).forEach((p) => names.set(p.id, p.full_name)); } catch { /* ignore */ } }
   return names.get(uid) ?? '';
 }
 async function fire(uid) {

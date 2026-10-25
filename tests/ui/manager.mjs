@@ -1,0 +1,55 @@
+// Browser E2E for the department manager role: no Calendar tab, admin tabs, not in the team grid, role choice on Add user, bulk-add Role column.
+// Fixtures: temporary ids 3c000000-... Needs `npx vite preview --port 4173`, TS_DB_URL, Chromium.
+import { chromium } from 'playwright';
+import { execSync } from 'node:child_process';
+const sql = (q) => execSync(`psql "$TS_DB_URL" -X -q -At -c "${q.replace(/"/g, '\\"')}"`, { encoding: 'utf8' }).trim();
+const PW = 'Mg-Pass-12345', DA = '3c000000-0000-0000-0000-00000000000a';
+const uid = (i) => `3c000000-0000-0000-0000-0000000001${String(i).padStart(2, '0')}`;
+const cleanup = () => sql(`delete from auth.users where id::text ~ '^3c000000-' or id in (select id from public.profiles where department_id::text ~ '^3c000000-');
+  delete from public.departments where id::text ~ '^3c000000-';
+  delete from public.audit_log where (target_user is not null and target_user not in (select id from public.profiles)) or (department_id is not null and department_id not in (select id from public.departments));`);
+cleanup();
+sql(`insert into public.departments (id,name) values ('${DA}','MG Alpha')`);
+const people = [[0, 'mgadm', 'MG Admin', 'admin'], [1, 'mgmgr', 'MG Manager', 'manager'], [2, 'mgu1', 'MG Person', 'user']];
+for (const [i, un, name, role] of people) sql(`
+ insert into auth.users (instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at,confirmation_token,recovery_token,email_change_token_new,email_change)
+ values ('00000000-0000-0000-0000-000000000000','${uid(i)}','authenticated','authenticated','${un}@timesheet.local',crypt('${PW}',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{}',now(),now(),'','','','');
+ insert into auth.identities (id,user_id,provider_id,identity_data,provider,last_sign_in_at,created_at,updated_at) values (gen_random_uuid(),'${uid(i)}','${uid(i)}','{"sub":"${uid(i)}"}','email',now(),now(),now());
+ insert into public.profiles (id,username,full_name,opr,payroll,level,department_id,role) values ('${uid(i)}','${un}','${name}','MGO-${i}','MGP-${i}','2','${DA}','${role}');`);
+
+const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
+let fails = 0;
+const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
+async function login(un) {
+  const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } }); const p = await ctx.newPage(); p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message));
+  await p.goto('http://localhost:4173/'); await p.fill('#username', un); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
+  return p;
+}
+{ const p = await login('mgmgr');
+  await p.waitForSelector('.tgrid');
+  const tabs = await p.locator('nav a, .topbar a').allTextContents();
+  ok('manager lands on Team and has no Calendar tab', /#\/team/.test(p.url()) && !tabs.some((x) => /calendar/i.test(x)), `${p.url()} ${tabs}`);
+  await p.goto('http://localhost:4173/#/calendar');
+  ok('the calendar route is not available to a manager', !(await p.locator('.cal, .calendar').count()));
+  await p.goto('http://localhost:4173/#/team'); await p.waitForSelector('.tgrid');
+  const names = await p.locator('.tgrid tbody').innerText();
+  ok('the team grid lists the person but not the manager', /MG Person/.test(names) && !/MG Manager/.test(names), names);
+  await p.goto('http://localhost:4173/#/users'); await p.waitForSelector('.person, table');
+  const body = await p.locator('main, body').first().innerText();
+  ok('Users lists the manager with the manager badge', /MG Manager/.test(body) && /Department manager/.test(body));
+  ok('no page errors (manager)', p.errs.length === 0, p.errs.join('|'));
+  await p.context().close(); }
+{ const p = await login('mgadm');
+  await p.goto('http://localhost:4173/#/users'); await p.waitForSelector('.person');
+  await p.click('text=Add user'); await p.waitForSelector('dialog[open]');
+  const roles = await p.locator('dialog[open] input[type=radio]').evaluateAll((e) => e.map((x) => x.value).filter((v) => ['user', 'admin', 'manager'].includes(v)));
+  ok('Add user offers user / admin / manager', roles.join() === 'user,admin,manager', roles.join());
+  await p.keyboard.press('Escape');
+  // promote the person to manager through the card action
+  await p.locator('.person:has-text("MG Person") >> text=Make manager').click();
+  await p.click('dialog[open] button.primary'); await p.waitForTimeout(1500);
+  ok('"Make manager" changes the role', sql(`select role from public.profiles where id='${uid(2)}'`) === 'manager');
+  await p.context().close(); }
+cleanup();
+await b.close();
+console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL MANAGER TESTS PASSED ===');

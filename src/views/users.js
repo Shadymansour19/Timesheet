@@ -35,9 +35,13 @@ export function personFields(initial = {}, { withLogin = false, isNew = false } 
   const yAllowed = choice(t('y_allowed'), [{ value: 'yes', label: t('y_yes') }, { value: 'no', label: t('y_no') }], initial.y_allowed === false ? 'no' : 'yes');
   f.y_allowed = { row: yAllowed.row, input: yAllowed };
   f.position.row.append(h('datalist', { id: 'position-list' }, h('option', { value: 'Engineer' }), h('option', { value: 'Tech' })));   // suggestions only: the position is free text
+  // new people only: the role (a department manager has no timesheet)
+  const roleCh = isNew && withLogin ? choice(t('role'), [{ value: 'user', label: t('role_user') }, { value: 'admin', label: t('role_admin') }, { value: 'manager', label: t('role_manager') }], 'user') : null;
+  if (roleCh) f.role = { row: roleCh.row, input: roleCh };
   const rows = Object.values(f).filter(Boolean).map((x) => x.row);
   const level = () => f.level.input.value.trim() || null;
-  return { f, rows, level };
+  const role = () => (roleCh ? roleCh.value : 'user');
+  return { f, rows, level, role };
 }
 
 export const resetPasswordDialog = (person) => {
@@ -58,7 +62,7 @@ export async function deletePerson(person, reload) {
 }
 
 export async function changeRole(person, role, reload) {
-  const q = role === 'admin' ? t('promote_confirm') : t('demote_confirm');
+  const q = role === 'admin' ? t('promote_confirm') : role === 'manager' ? t('manager_confirm') : t('demote_confirm');
   if (!(await confirmDialog(`${q} ${person.full_name}?`))) return;
   try { await setUserRole(person.id, role); await reload(); }
   catch (e) { toast(explain(e)); }
@@ -90,7 +94,7 @@ export function usersView() {
       buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {
         await callFn('create_user', {
           username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
-          opr: p.f.opr.input.value, level: p.level(), department_id: myDept(), role: 'user',
+          opr: p.f.opr.input.value, level: p.level(), department_id: myDept(), role: p.role(),
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
           work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value, payroll: p.f.payroll.input.value, y_allowed: p.f.y_allowed.input.value === 'yes',
         });
@@ -119,6 +123,8 @@ export function usersView() {
       ...(self ? [] : [{ label: t('reset_password'), run: () => resetPasswordDialog(p) }]),
       ...(p.role === 'user' ? [{ label: t('promote'), run: () => changeRole(p, 'admin', load) }] : []),
       ...(p.role === 'admin' && !self ? [{ label: t('demote'), run: () => changeRole(p, 'user', load) }] : []),
+      ...(p.role === 'manager' && !self ? [{ label: t('demote'), run: () => changeRole(p, 'user', load) }] : []),
+      ...(p.role !== 'manager' && !self ? [{ label: t('make_manager'), run: () => changeRole(p, 'manager', load) }] : []),
       ...(self ? [] : [{ label: t('delete'), kind: 'danger', run: () => deletePerson(p, load) }]),
     ];
   }
@@ -150,14 +156,14 @@ export function usersView() {
       onkeydown: (e) => { if (e.key === 'Enter') editUser(p); } },
       h('th', { scope: 'row' }, p.full_name),
       h('td', {}, p.payroll ?? ''), h('td', {}, p.opr ?? ''), h('td', {}, p.position ?? ''), h('td', {}, p.job_title ?? ''), h('td', {}, p.level ?? ''),
-      h('td', {}, h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role))), h('td', {}, p.work_location ?? ''));
+      h('td', {}, h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role))), h('td', {}, p.work_location ?? ''));
   }
 
   function card(p) {
     const self = p.id === me.id;
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
-        h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' ? ' admin' : '') }, t('role_' + p.role)),
+        h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role)),
         h('span', { class: 'muted' }, `${p.payroll || '-'}${p.position ? ' · ' + p.position : ''}`)),   // everything else is in Edit data
       h('div', { class: 'pactions' },
         ...actionsOf(p).map((a) => (a.href ? h('a', { class: 'btn small' + (a.kind ? ' ' + a.kind : ''), href: a.href }, a.label) : h('button', { class: 'btn small' + (a.kind ? ' ' + a.kind : ''), onclick: a.run }, a.label)))));
@@ -188,10 +194,10 @@ export function usersView() {
 
   function update() {
     const visible = people.filter(matches);
-    const nUsers = people.filter((p) => p.role === 'user').length, nAdmins = people.filter((p) => p.role === 'admin').length;
+    const nUsers = people.filter((p) => p.role === 'user').length, nAdmins = people.filter((p) => p.role === 'admin').length, nManagers = people.filter((p) => p.role === 'manager').length;
     el.title.textContent = `${t('nav_users')} (${people.length})`;
     el.count.textContent = query || roleFilter !== 'all' ? `${visible.length}/${people.length}` : '';
-    el.seg.replaceChildren(...[['all', t('role_filter_all'), people.length], ['user', t('role_filter_user'), nUsers], ['admin', t('role_filter_admin'), nAdmins]].map(([r, label, n]) =>
+    el.seg.replaceChildren(...[['all', t('role_filter_all'), people.length], ['user', t('role_filter_user'), nUsers], ['admin', t('role_filter_admin'), nAdmins], ...(nManagers ? [['manager', t('role_filter_manager'), nManagers]] : [])].map(([r, label, n]) =>
       h('button', { type: 'button', class: 'btn small' + (roleFilter === r ? ' on' : ''), 'aria-pressed': String(roleFilter === r), onclick: () => { roleFilter = r; update(); } }, `${label} ${n}`)));
     el.views.replaceChildren(...[['cards', GRID, t('view_cards')], ['table', LIST, t('view_table')]].map(([v, ic, label]) =>
       h('button', { type: 'button', class: 'btn small icon-only' + (view === v ? ' on' : ''), 'aria-pressed': String(view === v), 'aria-label': label, title: label, 'data-view': v,

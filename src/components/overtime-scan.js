@@ -103,13 +103,30 @@ export function openOvertimeScan({ people, onSaved }) {
     } catch (e) { console.error(e); status.textContent = t('scan_failed'); }
     busy = false;
   }
+  // drag and drop: files and whole folders (entries are read recursively; no browser warning)
+  const readAll = (dir) => new Promise((res) => { const rd = dir.createReader(), all = []; const next = () => rd.readEntries((b) => (b.length ? (all.push(...b), next()) : res(all)), () => res(all)); next(); });
+  const fileOf = (en) => new Promise((res) => en.file(res, () => res(null)));
+  async function walk(en, acc) {
+    if (en.isFile) { const f = await fileOf(en); if (f) acc.push(f); }
+    else if (en.isDirectory) for (const c of await readAll(en)) await walk(c, acc);
+  }
+  const drop = h('div', { class: 'scan-drop', tabindex: '-1' }, t('scan_drop'));
+  const over = (on) => (e) => { e.preventDefault(); drop.classList.toggle('over', on); };
+  drop.addEventListener('dragover', over(true)); drop.addEventListener('dragleave', over(false));
+  drop.addEventListener('drop', async (e) => {
+    e.preventDefault(); drop.classList.remove('over');
+    const entries = [...(e.dataTransfer.items ?? [])].map((i) => i.webkitGetAsEntry?.()).filter(Boolean);   // must be taken before any await
+    if (!entries.length) { run(e.dataTransfer.files); return; }
+    const acc = []; for (const en of entries) await walk(en, acc);
+    run(acc);
+  });
   files.addEventListener('change', () => run(files.files));
   folder.addEventListener('change', () => run(folder.files));
 
   const content = h('div', { class: 'form' }, h('p', { class: 'muted' }, t('scan_hint')),
     h('div', { class: 'scan-pickers' },
       h('div', { class: 'field' }, h('label', { for: 'scan-files' }, t('scan_pick')), files),
-      h('div', { class: 'field' }, h('label', { for: 'scan-folder' }, t('scan_pick_folder')), folder)), status, out);
+      h('div', { class: 'field' }, h('label', { for: 'scan-folder' }, t('scan_pick_folder')), folder)), drop, status, out);
   const dlg = openDialog({ title: t('scan_title'), wide: 'xxl', autofocus: false, content,
     buttons: [{ label: t('close') }, { label: t('scan_confirm'), kind: 'primary', onClick: async () => {
       const { byDate, problems } = collect(cards.map((c) => c.state()));

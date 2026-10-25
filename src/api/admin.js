@@ -33,6 +33,9 @@ export const fetchDeptPeople = (deptId) => fetchAll(() =>
   supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).eq('department_id', deptId).order('full_name').order('id')).then((r) => r.sort(comparePeople));   // engineers, techs, ... payroll number order
 
 // super_admin only (RLS): every active admin/user with their department.
+// the people who have a timesheet (department managers do not)
+export const fetchTimesheetPeople = (deptId) => fetchDeptPeople(deptId).then((r) => r.filter((p) => p.role !== 'manager'));
+
 export const fetchAllPeople = () => fetchAll(() =>
   supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).neq('role', 'super_admin').order('full_name').order('id')).then((r) => r.sort(comparePeople));
 

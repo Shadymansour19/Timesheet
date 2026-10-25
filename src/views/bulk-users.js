@@ -1,5 +1,5 @@
 // Bulk add users from an Excel sheet (Users tab). Columns (header row, any order, case-insensitive):
-//   Full name*, OPR*, Payroll, Username, Password, Level, Job title, Contract no, Work location, Position, Residence
+//   Full name*, OPR*, Payroll, Username, Password, Level, Job title, Contract no, Work location, Position, Residence, Y allowed, Role (user | admin | manager; empty = user)
 // Username empty -> the OPR (lower-case); password empty -> a random one. Everyone is created through the same Edge Function as
 // "Add user"; the result table (with the passwords) is shown and can be downloaded as Excel.
 import { h } from '../dom.js';
@@ -15,8 +15,11 @@ export const COLUMNS = [
   ['username', 'Username', ['username', 'user name', 'login']], ['password', 'Password', ['password', 'pass']], ['level', 'Level', ['level']],
   ['job_title', 'Job title', ['job title', 'title']], ['contract_no', 'Contract no', ['contract no', 'contract no.', 'contract', 'contr. no']],
   ['work_location', 'Work location', ['work location', 'location', 'site']], ['position', 'Position', ['position']], ['residence', 'Residence', ['residence', 'lives']], ['y_allowed', 'Y allowed', ['y allowed', 'y']],
+  ['role', 'Role', ['role', 'type']],
 ];
 const YES = ['yes', 'y', 'true', '1'], NO = ['no', 'n', 'false', '0'];
+// Role column: empty = normal user
+const ROLES = { user: 'user', 'normal user': 'user', admin: 'admin', manager: 'manager', 'dept manager': 'manager', 'department manager': 'manager' };
 const USERNAME = /^[a-z0-9._-]{3,32}$/;
 const plain = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');       // English letters and numbers only
 // username: the one in the sheet, else the PAYROLL reduced to letters and numbers (EMC-123 -> emc123), else the OPR the same way
@@ -54,9 +57,9 @@ export async function templateFile() {
   const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Users');
   ws.addRow(COLUMNS.map(([, label]) => label)).font = { bold: true };
   // three rows showing the possible values: empty username / password (-> payroll letters+numbers / random), Y allowed yes | no, residence inside | outside
-  ws.addRow(['Ahmed Ali Hassan', 'OPRCTR123', 'EMC-123', '', '', '3', 'Engineer', '033/2019', 'IDKU Site', 'Engineer', 'inside', 'yes']);
-  ws.addRow(['Sara Mahmoud Ibrahim', 'OPRCTR124', 'EMC-124', 'sara.m', 'Pass-12345', '3A', 'Technician', '033/2019', 'IDKU Site', 'Tech', 'outside', 'no']);
-  ws.addRow(['Omar Khaled Samir', 'OPRCTR125', 'EMC-125', '', 'Temp-Pass-9', 'Senior', 'Supervisor', '', '', 'Engineer', '', 'yes']);
+  ws.addRow(['Ahmed Ali Hassan', 'OPRCTR123', 'EMC-123', '', '', '3', 'Engineer', '033/2019', 'IDKU Site', 'Engineer', 'inside', 'yes', '']);
+  ws.addRow(['Sara Mahmoud Ibrahim', 'OPRCTR124', 'EMC-124', 'sara.m', 'Pass-12345', '3A', 'Technician', '033/2019', 'IDKU Site', 'Tech', 'outside', 'no', 'user']);
+  ws.addRow(['Omar Khaled Samir', 'OPRCTR125', 'EMC-125', '', 'Temp-Pass-9', 'Senior', 'Supervisor', '', '', 'Engineer', '', 'yes', 'manager']);
   COLUMNS.forEach((_, i) => { ws.getColumn(i + 1).width = 18; });
   return wb.xlsx.writeBuffer();
 }
@@ -86,9 +89,10 @@ async function createRow(r, dupError = '') {
   else if (out.password.length < 8 || out.password.length > 72) out.error = t('bulk_err_password');
   else if (r.residence && !['inside', 'outside'].includes(r.residence.toLowerCase())) out.error = t('bulk_err_residence');
   else if (r.y_allowed && !YES.includes(r.y_allowed.toLowerCase()) && !NO.includes(r.y_allowed.toLowerCase())) out.error = t('bulk_err_y');
+  else if (r.role && !ROLES[r.role.toLowerCase()]) out.error = t('bulk_err_role');
   if (out.error) return out;
   try {
-    await callFn('create_user', { username: out.username, password: out.password, full_name: r.full_name, opr: r.opr, level, department_id: myDept(), role: 'user',
+    await callFn('create_user', { username: out.username, password: out.password, full_name: r.full_name, opr: r.opr, level, department_id: myDept(), role: ROLES[(r.role || 'user').toLowerCase()],
       job_title: r.job_title, contract_no: r.contract_no, work_location: r.work_location, residence: r.residence.toLowerCase(), position: r.position, payroll: r.payroll, y_allowed: !NO.includes((r.y_allowed || 'yes').toLowerCase()) });
     out.ok = true;
   } catch (e) { out.error = explain(e); }

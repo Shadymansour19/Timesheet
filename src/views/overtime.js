@@ -3,7 +3,7 @@ import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchMonthData } from '../api/timesheet.js';
 import { WEEK_START } from '../lib/core.js';
-import { fetchDeptPeople, setOvertimeBulk } from '../api/admin.js';
+import { fetchTimesheetPeople, setOvertimeBulk } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { toast } from '../components/toast.js';
@@ -26,7 +26,7 @@ export function overtimeView() {
   async function load({ quiet = false } = {}) {
     if (!quiet) root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
     let p, d;
-    try { [p, d] = await Promise.all([fetchDeptPeople(deptId), fetchMonthData(cursor.y, cursor.m)]); }
+    try { [p, d] = await Promise.all([fetchTimesheetPeople(deptId), fetchMonthData(cursor.y, cursor.m)]); }
     catch (e) { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, explain(e))); return; }
     if (quiet && data && sameData(data, d) && JSON.stringify(p.map((x) => x.id)) === JSON.stringify(people.map((x) => x.id))) return;   // nothing new
     people = p; data = d;

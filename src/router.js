@@ -19,6 +19,12 @@ const routes = {
     { path: '/users', label: 'nav_users', icon: USERS, view: usersView },
     { path: '/calendar', label: 'nav_calendar', icon: CALENDAR, view: calendarView },
   ],
+  // department manager: the admin tabs without a timesheet of their own
+  manager: [
+    { path: '/team', label: 'nav_team', icon: GRID, view: teamView },
+    { path: '/overtime', label: 'nav_overtime', icon: CLOCK, view: overtimeView },
+    { path: '/users', label: 'nav_users', icon: USERS, view: usersView },
+  ],
   // super admin: department management, plus the admin tabs for ANY department (acting as its admin, see acting.js)
   super_admin: [
     { path: '/departments', label: 'nav_departments', icon: BUILDING, view: departmentsView },
@@ -40,7 +46,7 @@ export function resolve() {
   if (match) return match;
   // admin only: one employee's timesheet, #/person/<uuid>
   const person = path.match(/^\/person\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
-  if (person && ['admin', 'super_admin'].includes(state.profile.role)) return { path, view: () => personView(person[1]) };
+  if (person && ['admin', 'manager', 'super_admin'].includes(state.profile.role)) return { path, view: () => personView(person[1]) };
   const home = navFor()[0];
   if (path === '/' && home) { location.replace('#' + home.path); return null; }
   return { path, view: placeholderView('not_found') };
