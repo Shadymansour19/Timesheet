@@ -25,6 +25,7 @@ const b = await chromium.launch(process.env.CHROME ? { executablePath: process.e
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
 const ctx0 = await b.newContext({ viewport: { width: 390, height: 800 } });
+await ctx0.addInitScript(() => { const g = Storage.prototype.getItem; Storage.prototype.getItem = function (k) { return String(k).startsWith('ts.guideSeen.') ? '1' : g.call(this, k); }; });   // the phone tour is tested in guide.mjs; here it must not cover the page
 await ctx0.addInitScript(() => { try { localStorage.setItem('ts.teamView', 'month'); } catch { /* ignore */ } });   // phones default to week view
 const p = await ctx0.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));

@@ -322,6 +322,17 @@ await d.screenshot({ path: S + '/tg-desktop.png' });
   ok('grid: clicking the badge moves the departure onto the last working day and stores it', await until(async () => (await moves()) === T, 30000) && (await badge(T).count()) === 1 && (await badge(T).getAttribute('class')).includes('dpb-work') && (await badge(t1).count()) === 0);
   await d.locator(`td.c[data-u="${u20}"][data-d="${T}"]`).focus(); await d.keyboard.press('d');
   ok('grid: the D key on that cell puts it back on the rest day', await until(async () => (await moves()) === '', 30000) && (await badge(t1).count()) === 1);
+  // phone, month view, scrolled sideways: a D badge under the sticky name column must be hidden BEHIND the name, not on top of it
+  { const m = await open(390); await m.evaluate(() => localStorage.setItem('ts.teamView', 'month')); await m.reload(); await m.waitForSelector('.tgrid.month .dpb');
+    const r = await m.evaluate((sel) => {
+      const wrap = document.querySelector('.gridwrap'), b = document.querySelector(sel), nm = b.closest('tr').querySelector('th.nm');       // the name cell of the SAME row
+      b.closest('tr').scrollIntoView({ block: 'center' });                                                    // the row must be on screen for elementFromPoint
+      const nr = nm.getBoundingClientRect(); wrap.scrollLeft += b.getBoundingClientRect().left - nr.right + 24;     // slide the badge's day under the name column
+      const br = b.getBoundingClientRect(), top = document.elementFromPoint(br.left + br.width / 2, br.top + br.height / 2);
+      return { under: br.left + br.width / 2 < nr.right, covered: !!top && nm.contains(top), top: top && (top.tagName + '.' + top.className) };
+    }, `td.c[data-u="${u20}"] .dpb`);
+    ok('phone month view: a D badge scrolled under the employee name is hidden behind it', r.under && r.covered, JSON.stringify(r));
+    await m.context().close(); }
   const ctxHeads = await d.locator('th.dh.ctx').count(), ctxCells = await d.locator(`tr[data-u="${u20}"] td.c.ctx`).count();
   ok('grid: two dimmed outer day columns (header and every row)', ctxHeads === 2 && ctxCells === 2);
   const firstCtx = d.locator(`tr[data-u="${u20}"] td.c.ctx`).first(), ctxDay = await firstCtx.getAttribute('data-d');

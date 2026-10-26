@@ -500,8 +500,31 @@ body.has-install .floating { inset-block-start: 68px; }
 .menu-credit .credit-links { gap: 6px; }
 .menu-credit .credit-link { width: 28px; height: 28px; }
 
-.guide { max-width: none; margin: 10px 0; padding: 12px 14px; }
-.guide-steps { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.guide-step { display: flex; align-items: flex-start; gap: 10px; }
-.guide-ico { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--brand) 16%, transparent); color: var(--brand); }
-.guide-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: .92rem; }
+
+/* a day cell is its own stacking layer: its D badge (z-index) must never climb above the sticky name column when the grid is scrolled sideways */
+.tgrid td.c { isolation: isolate; }
+
+/* ---- guided tour (src/components/tour.js): blurred / dimmed page with a spotlight, a pulsing ring and a sliding card ---- */
+.tour { position: fixed; inset: 0; z-index: 90; animation: tour-fade .25s ease both; }
+.tour.leaving { opacity: 0; transition: opacity .2s ease; }
+.tour-dim { position: fixed; background: rgba(8, 20, 24, .5); backdrop-filter: blur(5px);
+  transition: top .35s ease, left .35s ease, width .35s ease, height .35s ease; }
+.tour-ring { position: fixed; border-radius: 14px; border: 2px solid var(--brand); transition: top .35s ease, left .35s ease, width .35s ease, height .35s ease, opacity .25s ease;
+  animation: tour-pulse 1.8s ease-in-out infinite; }
+.tour-card { position: fixed; width: min(340px, calc(100vw - 24px)); background: var(--card); color: var(--text); border-radius: 16px; padding: 14px 16px 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .35); transition: top .35s ease, left .35s ease; }
+.tour-card.enter { animation: tour-in .35s ease both; }
+.tour-head { display: flex; align-items: center; justify-content: space-between; margin-block-end: 6px; }
+.tour-dots { display: flex; gap: 5px; }
+.tour-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: width .25s ease, background .25s ease; }
+.tour-dot.on { width: 18px; border-radius: 4px; background: var(--brand); }
+.tour-skip { all: unset; cursor: pointer; font-size: .8rem; color: var(--muted); padding: 4px 6px; border-radius: 6px; }
+.tour-skip:hover { color: var(--text); }
+.tour-skip:focus-visible { outline: 2px solid var(--brand); }
+.tour-title { display: block; font-size: 1.05rem; }
+.tour-text { margin: 4px 0 10px; font-size: .92rem; line-height: 1.5; color: var(--text); }
+.tour-actions { display: flex; justify-content: flex-end; gap: 8px; }
+@keyframes tour-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tour-in { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes tour-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 45%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand) 0%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .tour, .tour * { animation: none !important; transition: none !important; } }

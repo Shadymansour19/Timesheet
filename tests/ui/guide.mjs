@@ -26,29 +26,48 @@ async function open(un, { phone = true } = {}) {
   await p.goto('http://localhost:4173/'); await p.fill('#username', un); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
   return p;
 }
-{ const p = await open('gdnew'); await p.waitForSelector('.day');
-  ok('phone, new user: the how-to card is shown with 5 steps', (await p.locator('#guide .guide-step').count()) === 5);
-  if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/guide.png' });
-  await p.tap('#guide-ok');
-  ok('"Got it" removes the card', (await p.locator('#guide').count()) === 0);
-  await p.reload(); await p.waitForSelector('.day');
-  ok('...and it stays gone after a reload', (await p.locator('#guide').count()) === 0);
+const TARGETS = ['.cal > .cal-head', '.grid .day.today', '.grid', '.totals', '.cal-tools .icon-only', '.acct'];
+const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; });
+{ const p = await open('gdnew'); await p.waitForSelector('.day'); await p.waitForSelector('.tour');
+  ok('phone, new user: the tour starts by itself with a welcome card', /Welcome/.test(await p.locator('.tour-title').innerText()) && (await p.locator('.tour-dot').count()) === 7);
+  const bf = await p.locator('.tour-dim').first().evaluate((e) => getComputedStyle(e).backdropFilter + '|' + getComputedStyle(e).backgroundColor);
+  ok('the page behind is blurred and dimmed (backdrop blur on the panels)', bf.includes('blur'), bf);
+  if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/tour-0.png' });
+  await p.tap('#tour-next');
+  for (let i = 0; i < TARGETS.length; i++) {
+    await p.waitForTimeout(500);                                  // the spotlight glides to the next area
+    const m = await p.evaluate((sel) => { const t = document.querySelector(sel).getBoundingClientRect(), r = document.querySelector('.tour-ring').getBoundingClientRect(); return { covers: r.left <= t.left + 1 && r.top <= t.top + 1 && r.right >= t.right - 1 && r.bottom >= t.bottom - 1, small: r.width < innerWidth * 1.2 }; }, TARGETS[i]);
+    ok(`step ${i + 1}: the spotlight ring surrounds ${TARGETS[i]}`, m.covers && m.small, JSON.stringify(m));
+    ok(`step ${i + 1}: the explanation card is fully on screen and shows a title`, (await inView(p)) && (await p.locator('.tour-title').innerText()).length > 2);
+    if (process.env.SHOTS && i === 1) await p.screenshot({ path: process.env.SHOTS + '/tour-2.png' });
+    if (i < TARGETS.length - 1) await p.tap('#tour-next');
+  }
+  ok('the last step says Done', (await p.locator('#tour-next').innerText()) === 'Done');
+  await p.tap('#tour-next'); await p.waitForSelector('.tour', { state: 'detached' });
+  ok('finishing the tour removes it', (await p.locator('.tour').count()) === 0);
+  await p.reload(); await p.waitForSelector('.day'); await p.waitForTimeout(1500);
+  ok('...and it does not start again after a reload', (await p.locator('.tour').count()) === 0);
   await p.tap('.acct > summary');
   ok('the menu has "How to use the app" on a phone', (await p.locator('#guide-open').isVisible()));
-  await p.tap('#guide-open'); await p.waitForSelector('dialog[open]');
-  ok('the menu entry opens the same steps in a dialog', (await p.locator('dialog[open] .guide-step').count()) === 5);
+  await p.tap('#guide-open'); await p.waitForSelector('.tour');
+  ok('the menu entry starts the tour again', (await p.locator('.tour-dot').count()) === 7);
+  await p.keyboard.press('Escape'); await p.waitForSelector('.tour', { state: 'detached' });
+  ok('Esc skips the tour', (await p.locator('.tour').count()) === 0);
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 { const p = await open('gdold'); await p.waitForSelector('.day');
-  ok('phone, an older account: no card by itself', (await p.locator('#guide').count()) === 0);
+  await p.waitForTimeout(1500);
+  ok('phone, an older account: no tour by itself', (await p.locator('.tour').count()) === 0);
   await p.tap('.acct > summary');
   ok('...but the menu entry is there', (await p.locator('#guide-open').isVisible()));
   await p.context().close(); }
 { const p = await open('gdnew', { phone: false }); await p.waitForSelector('.day');
-  ok('desktop: no card, no menu entry', (await p.locator('#guide').count()) === 0 && (await p.locator('#guide-open').count()) === 0);
+  await p.waitForTimeout(1500);
+  ok('desktop: no tour, no menu entry', (await p.locator('.tour').count()) === 0 && (await p.locator('#guide-open').count()) === 0);
   await p.context().close(); }
 { const p = await open('gdadm'); await p.waitForSelector('.tgrid');
-  ok('phone, an admin: no how-to card and no menu entry (admins have the checklist)', (await p.locator('#guide').count()) === 0 && (await p.locator('#guide-open').count()) === 0);
+  await p.waitForTimeout(1000);
+  ok('phone, an admin: no tour and no menu entry (admins have the checklist)', (await p.locator('.tour').count()) === 0 && (await p.locator('#guide-open').count()) === 0);
   await p.context().close(); }
 cleanup();
 await b.close();

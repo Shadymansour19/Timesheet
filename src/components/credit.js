@@ -10,13 +10,13 @@ const links = () => [
   ['GitHub', `https://github.com/${USER}`, GITHUB],
   ['LinkedIn', `https://www.linkedin.com/in/${USER}`, LINKEDIN],
   ['Email', `mailto:${USER}@gmail.com`, MAIL],
-  ['WhatsApp', `https://wa.me/${PHONE}?text=${encodeURIComponent(t('wa_message'))}`, WHATSAPP],
+  ['WhatsApp', `https://wa.me/${PHONE}?text=${encodeURIComponent(t('wa_message'))}`, WHATSAPP, 1.3],      // the glyph is drawn smaller than the others: zoomed inside the same circle
 ];
 
 // compact: one small row for the bottom of the account menu
 export const credit = ({ compact = false } = {}) => h('div', { class: compact ? 'menu-credit muted' : 'credit muted' },
   h('span', {}, `${t('developed_by')} Shady Mansour`),
-  h('span', { class: 'credit-links' }, links().map(([name, href, ic]) => h('a', {
+  h('span', { class: 'credit-links' }, links().map(([name, href, ic, zoom = 1]) => h('a', {
     href, title: name, 'aria-label': `Shady Mansour \u2013 ${name}`, class: 'credit-link', 'data-link': name.toLowerCase(),
     ...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {}),
-  }, icon(ic, compact ? 16 : 20)))));
+  }, icon(ic, Math.round((compact ? 16 : 20) * zoom))))));

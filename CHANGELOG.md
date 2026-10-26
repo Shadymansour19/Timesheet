@@ -9,6 +9,7 @@ Newest first. Grouped by day from the git history; the reasons are in [SPEC.md](
 - Users table: sort and Excel-style cascading filters on the column headers; fixed column widths.
 - Phone bottom bar: a five-tab bar (super admin) is a dark notched bar with the landing tab as a raised round button; bars with fewer tabs stay flat; Super users is the fifth tab for the super admin.
 - Departments tab: search by department or person, counts in the closed rows.
+- Guided tour for new users on phones; WhatsApp link; D badge no longer shows over the names on phones.
 - "New version available" banner (the service worker waits for Refresh); first-run checklist for a new department; super users edit their own name / OPR.
 - Overtime scan: the PDF reader is no longer precached (downloads when first needed).
 - Internal: column filter, bulk-fill dialog and bulk import parsing moved out of the big view files.

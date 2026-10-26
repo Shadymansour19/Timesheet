@@ -25,6 +25,7 @@ const b = await chromium.launch(process.env.CHROME ? { executablePath: process.e
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
 const ctx = await b.newContext({ viewport: { width: 390, height: 800 } });
+await ctx.addInitScript(() => { const g = Storage.prototype.getItem; Storage.prototype.getItem = function (k) { return String(k).startsWith('ts.guideSeen.') ? '1' : g.call(this, k); }; });   // the phone tour is tested in guide.mjs; here it must not cover the page
 const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 const who = async (pg = p) => (await pg.locator('.acct > summary strong').textContent()).trim();
 const openMenu = async (pg = p) => { if (!(await pg.locator('.acct').getAttribute('open') !== null)) await pg.locator('.acct > summary').click(); };
