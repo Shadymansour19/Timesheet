@@ -39,6 +39,10 @@ export const fetchTimesheetPeople = (deptId) => fetchDeptPeople(deptId).then((r)
 export const fetchAllPeople = () => fetchAll(() =>
   supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).order('full_name').order('id')).then((r) => r.sort(comparePeople));
 
+// super admins and super managers (no department); super_admin only (RLS)
+export const fetchSuperUsers = () => fetchAll(() =>
+  supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).is('department_id', null).order('full_name').order('id'));
+
 export async function fetchDepartments() {
   const { data, error } = await supabase.from('departments').select('id,name,code,sector,field,report,approved_engineer,approved_tech').order('name');
   if (error) throw error;

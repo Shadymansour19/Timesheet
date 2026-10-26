@@ -40,8 +40,9 @@ let nb = await bar(ph);
 ok('phone: the tabs are a bar FIXED to the bottom of the screen', nb.pos === 'fixed' && Math.abs(nb.bottom - nb.vh) < 1.5 && nb.w >= 388, JSON.stringify(nb));
 const links = ph.locator('.shell > .nav a');
 ok('admin has 4 tabs, each with an icon AND a label', (await links.count()) === 4 && (await ph.locator('.shell > .nav a svg').count()) === 4 && (await links.allTextContents()).map((s) => s.trim()).join('|') === 'Department|Overtime|Users|My calendar');
-const boxes = await links.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
-ok('tabs share the width evenly', Math.max(...boxes) - Math.min(...boxes) <= 2, JSON.stringify(boxes));
+const boxes = await ph.locator('.shell > .nav a:not(.nav-center)').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+ok('the landing tab is the raised round button in the middle of the bar', await ph.locator('.nav a.nav-center').evaluate((e) => { const r = e.getBoundingClientRect(), v = window.innerWidth; return Math.abs(r.left + r.width / 2 - v / 2) < 2 && r.width >= 60 && r.top < document.querySelector('.shell > .nav').getBoundingClientRect().top + 5; }));
+ok('the other tabs share the width evenly', Math.max(...boxes) - Math.min(...boxes) <= 2, JSON.stringify(boxes));
 ok('the active tab icon has NO highlight background (colour of icon and text only)', (await ph.locator('.nav a.active .ico').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgba(0, 0, 0, 0)');
 ok('tap targets are at least 44px tall', (await links.evaluateAll((els) => els.every((e) => e.getBoundingClientRect().height >= 44))));
 await ph.waitForSelector('.tgrid'); await ph.waitForTimeout(600);
@@ -76,12 +77,12 @@ await ph.click('.acct > summary'); await ph.click('.menu a.menu-item'); await ph
 const back = await ph.locator('.back-link').boundingBox(); nb = await bar(ph);
 ok('change-password page: Back link visible; the form ends above the bar after scrolling', back.y + back.height < nb.top && await (async () => { await ph.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); const f = await ph.locator('form button.primary').boundingBox(); return f.y + f.height <= nb.top + 1; })());
 await ph.click('.back-link'); await ph.waitForSelector('.tgrid'); await ph.click('.acct > summary'); await ph.locator('.theme-seg [data-theme-opt="dark"]').click(); await ph.click('.acct > summary');
-ok('dark theme: the bar uses the dark card colour', (await ph.locator('.shell > .nav').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgb(26, 35, 44)');
+ok('the bar is a dark green bar in the dark theme too', (await ph.locator('.shell > .nav').evaluate((e) => getComputedStyle(e, '::before').backgroundColor)) === 'rgb(11, 63, 58)');
 await ph.screenshot({ path: S + '/bn-dark.png' });
 await ph.click('text=العربية'); await ph.waitForSelector('.tgrid');
 const ab = await ph.locator('.shell > .nav a').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
-ok('Arabic: the bar is mirrored (first tab on the right)', ab[0] > ab[1] && ab[1] > ab[2] && ab[2] > ab[3], JSON.stringify(ab));
-ok('Arabic: no label is cut off', await ph.locator('.nav .lbl').evaluateAll((els) => els.every((e) => e.scrollWidth <= e.clientWidth + 1)));
+ok('Arabic: the bar is mirrored (Overtime, Users on the right of the middle button, My calendar on the left)', ab[1] > ab[2] && ab[2] > ab[0] && ab[0] > ab[3], JSON.stringify(ab));
+ok('Arabic: no label is cut off', await ph.locator('.nav a:not(.nav-center) .lbl').evaluateAll((els) => els.every((e) => e.scrollWidth <= e.clientWidth + 1)));
 await ph.screenshot({ path: S + '/bn-ar.png' });
 ok('phone admin: no page errors ' + JSON.stringify(ph.errs), ph.errs.length === 0);
 await ph.close();
@@ -93,7 +94,7 @@ for (const un of ['bnu']) {
   await r.close();
 }
 { const r = await open(390, 'light', 'bnsa'); await r.waitForTimeout(500);
-  ok('phone, super admin (Departments + the admin tabs): the bottom bar shows 4 tabs', (await bar(r)).display !== 'none' && (await r.locator('.nav a').count()) === 4); await r.close(); }
+  ok('phone, super admin (Departments + the admin tabs): the bottom bar shows 5 tabs (Super users is the fifth)', (await bar(r)).display !== 'none' && (await r.locator('.nav a').count()) === 5); await r.close(); }
 const dk = await open(1280, 'light', 'bnadm'); await dk.waitForSelector('.tgrid');
 const dn = await bar(dk);
 ok('desktop: tabs stay at the top (not fixed), icons hidden, labels only', dn.pos !== 'fixed' && dn.top < 200 && !(await dk.locator('.nav .ico').first().isVisible()) && (await dk.locator('.shell > .nav a').allTextContents()).map((s) => s.trim()).join('|') === 'Department|Overtime|Users|My calendar');

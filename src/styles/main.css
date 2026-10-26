@@ -310,14 +310,24 @@ a.btn.primary { color: #fff; }
 .kbd-title { margin: 14px 0 4px; font-size: .9rem; }
 
 /* ---- navigation: top tabs on wide screens, bottom icon bar on phones ---- */
-:root { --bar-h: 0px; }
+:root { --bar-h: 0px; --bar-bg: #0b3f3a; }
+.nav .nav-gap { display: none; }
 .nav .ico { display: none; }
 @media (max-width: 640px) {
   :root { --bar-h: calc(64px + env(safe-area-inset-bottom)); }
-  .nav { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; overflow: visible;
-    background: var(--card); border-block-end: 0; border-block-start: 1px solid var(--line); padding-block-end: env(safe-area-inset-bottom); }
-  .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 6px 2px; border: 0; font-size: .68rem; font-weight: 500; min-width: 0; }
-  .nav a.active { border: 0; color: var(--brand); font-weight: 700; }
+  /* dark bar with a notch and a raised round button in the middle (the landing tab); other tabs left / right of it */
+  .nav { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 40; display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); gap: 0; overflow: visible;
+    background: none; border: 0; padding-block-end: env(safe-area-inset-bottom); }
+  .nav::before { content: ''; position: absolute; inset-block-start: 0; left: 50%; width: 800px; height: 130px; transform: translateX(-50%); background: var(--bar-bg); z-index: -1; pointer-events: none;
+    clip-path: path('M0 0 L345 0 C365 0 368 34 400 34 C432 34 435 0 455 0 L800 0 L800 130 L0 130 Z'); }
+  .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 6px 2px; border: 0; font-size: .68rem; font-weight: 500; min-width: 0; color: rgba(204, 251, 241, .72); }
+  .nav a.active { border: 0; color: #fff; font-weight: 700; }
+  .nav .nav-gap { display: block; }
+  .nav a.nav-center { position: absolute; inset-inline: 0; margin-inline: auto; inset-block-start: 0; width: 64px; height: 64px; min-height: 0; padding: 0; transform: translateY(-58%);
+    border-radius: 50%; background: #0d9488; color: #fff; box-shadow: 0 8px 20px rgba(0, 0, 0, .35); }
+  .nav a.nav-center.active { background: #115e59; }
+  .nav a.nav-center .ico { width: auto; height: auto; }
+  .nav a.nav-center .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .nav .ico { display: grid; place-items: center; width: 54px; height: 28px; border-radius: 999px; transition: background .15s; }
   .nav .lbl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nav.solo { display: none; }                       /* one tab only: nothing to navigate */

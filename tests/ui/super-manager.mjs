@@ -85,7 +85,7 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   bs.addRow(['Nowhere', 'SM Bad Row', '', 'SMB-4']);
   bs.addRow(['SM Beta', 'SM Plain User', '', 'SMB-5', '', '', '', '', '', '', '', '', '', 'user']);
   await bw.xlsx.writeFile(S + '/sm-admins.xlsx');
-  await p.click('button:text-is("Bulk add admins and managers (Excel)")'); await p.waitForSelector('dialog[open]');
+  await p.click('button:text-is("Bulk add department admins / managers (Excel)")'); await p.waitForSelector('dialog[open]');
   await p.locator('#bulk-file').setInputFiles(S + '/sm-admins.xlsx');
   ok('bulk admins: the file is read (5 rows)', await eventually(async () => (await p.locator('dialog[open] p.muted').nth(1).textContent()).includes('5 users')));
   await p.click('dialog[open] button:text-is("Create people")');
@@ -94,6 +94,8 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   ok('bulk admins: no row for the unknown department / the plain user', sql(`select count(*) from public.profiles where full_name in ('SM Bad Row','SM Plain User')`) === '0');
   // the super admin adds a super manager and another super admin
   await p.click('dialog[open] button:text-is("Close")'); await p.waitForSelector('dialog[open]', { state: 'detached' });
+  await p.goto('http://localhost:4173/#/super'); await p.waitForSelector('#add-super');
+  ok('super admin: the Super users tab exists', /Super users/.test(await p.locator('.nav').innerText()));
   for (const [un, label, role] of [['smnew1', 'Super manager', 'super_manager'], ['smnew2', 'Super admin', 'super_admin']]) {
     await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.click('button:text-is("Add super admin / manager")'); await p.waitForSelector('dialog[open]');
     await p.fill('dialog[open] input[autocapitalize="none"]', un);

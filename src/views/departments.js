@@ -1,6 +1,5 @@
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
-import { state } from '../auth/session.js';
 import { fetchDepartments, fetchAllPeople, createDepartment, renameDepartment, callFn } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
@@ -46,28 +45,15 @@ export function departmentsView() {
     });
   }
 
-  // a super manager (read-only) or another super admin: no department, no timesheet
-  function addSuperManager() {
-    const p = personFields({ role: 'manager' }, { withLogin: true, isNew: true, roles: ['super_manager', 'super_admin'] });
-    for (const k of ['contract_no', 'work_location', 'residence', 'position', 'y_allowed', 'job_title', 'level', 'payroll']) { p.f[k].row.hidden = true; p.f[k].input.required = false; }
-    openDialog({
-      title: t('add_super_manager'), content: h('div', { class: 'form' }, p.f.username.row, p.f.password.row, p.f.full_name.row, p.f.opr.row, p.f.role.row, h('p', { class: 'muted' }, t('super_manager_hint')), h('p', { class: 'muted' }, t('share_password_hint'))),
-      buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {
-        await callFn('create_user', { username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value, opr: p.f.opr.input.value, role: p.role() });
-        toast(t('user_created'), 'success'); await load();
-      } }],
-    });
-  }
-
   function row(p) {
     return h('li', { class: 'person' },
-      h('div', { class: 'pinfo' }, h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' || p.role === 'super_manager' || p.role === 'super_admin' ? ' admin' : '') }, t('role_' + p.role)),
+      h('div', { class: 'pinfo' }, h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role)),
         h('span', { class: 'muted' }, `${p.username} · ${t('payroll_short')} ${p.payroll || '-'}`)),
       h('div', { class: 'pactions' },
         p.role === 'user' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'admin', load) }, t('promote')) : null,
         p.role === 'admin' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'user', load) }, t('demote')) : null,
-        ['admin', 'manager', 'super_manager', 'super_admin'].includes(p.role) && p.id !== state.profile.id ? h('button', { class: 'btn small', onclick: () => resetPasswordDialog(p) }, t('reset_password')) : null,
-        ['admin', 'manager', 'super_manager', 'super_admin'].includes(p.role) && p.id !== state.profile.id ? h('button', { class: 'btn small danger', onclick: () => deletePerson(p, load) }, t('delete')) : null));
+        ['admin', 'manager'].includes(p.role) ? h('button', { class: 'btn small', onclick: () => resetPasswordDialog(p) }, t('reset_password')) : null,
+        ['admin', 'manager'].includes(p.role) ? h('button', { class: 'btn small danger', onclick: () => deletePerson(p, load) }, t('delete')) : null));
   }
 
   function draw() {
@@ -76,9 +62,7 @@ export function departmentsView() {
         h('div', { class: 'actions' },
           h('button', { class: 'btn small', onclick: () => openBulkDepartments({ existing: () => depts, onDone: load }) }, t('bulk_add_departments')),
           h('button', { class: 'btn small', onclick: () => openBulkAdd({ departments: depts, onDone: load }) }, t('bulk_add_admins')),
-          h('button', { class: 'btn small', onclick: addSuperManager }, t('add_super_manager')),
           h('button', { class: 'btn small primary', onclick: () => nameDialog(t('add_department'), '', createDepartment) }, t('add_department')))),
-      ...(people.some((p) => !p.department_id) ? [h('div', { class: 'card dept' }, h('strong', {}, t('super_managers')), h('ul', { class: 'plist' }, people.filter((p) => !p.department_id).map(row)))] : []),
       ...depts.map((d) => {
         const members = people.filter((p) => p.department_id === d.id);
         const admins = members.filter((p) => p.role === 'admin');
