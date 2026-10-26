@@ -122,6 +122,13 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   ok('bulk super users: empty role = super manager, super admin as given, no department', sql(`select string_agg(username||'/'||role||'/'||coalesce(department_id::text,'none'), ',' order by username) from public.profiles where username in ('sms1','sms2','smsx3')`) === 'sms1/super_manager/none,sms2/super_admin/none');
   ok('super admin: no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
+// a touch-only phone: no drop area (nothing can be dragged in), the file picker stays
+{ const ctx = await b.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true }); const p = await ctx.newPage();
+  await p.goto('http://localhost:4173/'); await p.fill('#username', 'smsup'); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
+  await p.goto('http://localhost:4173/#/departments'); await p.waitForSelector('#bulk-menu'); await p.tap('#bulk-menu'); await p.waitForSelector('dialog[open]');
+  await p.tap('dialog[open] button:text-is("Bulk add departments (Excel)")'); await p.waitForSelector('#bulk-dept-file');
+  ok('phone: no drag and drop area is shown, the file picker is', !(await p.locator('.scan-drop').isVisible()) && (await p.locator('#bulk-dept-file').isVisible()));
+  await ctx.close(); }
 cleanup();
 await b.close();
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL SUPER-MANAGER TESTS PASSED ===');

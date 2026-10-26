@@ -474,3 +474,5 @@ body.has-install .floating { inset-block-start: 68px; }
 .flt-foot { display: flex; justify-content: space-between; gap: 8px; }
 
 .utable td, .utable tbody th { overflow: hidden; text-overflow: ellipsis; }
+/* phones / tablets (touch only): nothing can be dragged in from outside, so the drop areas are hidden */
+@media (hover: none) and (pointer: coarse) { .scan-drop { display: none; } }
