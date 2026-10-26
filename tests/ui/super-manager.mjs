@@ -85,7 +85,7 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   bs.addRow(['Nowhere', 'SM Bad Row', '', 'SMB-4']);
   bs.addRow(['SM Beta', 'SM Plain User', '', 'SMB-5', '', '', '', '', '', '', '', '', '', 'user']);
   await bw.xlsx.writeFile(S + '/sm-admins.xlsx');
-  await p.click('button:text-is("Bulk add admins (Excel)")'); await p.waitForSelector('dialog[open]');
+  await p.click('button:text-is("Bulk add admins and managers (Excel)")'); await p.waitForSelector('dialog[open]');
   await p.locator('#bulk-file').setInputFiles(S + '/sm-admins.xlsx');
   ok('bulk admins: the file is read (5 rows)', await eventually(async () => (await p.locator('dialog[open] p.muted').nth(1).textContent()).includes('5 users')));
   await p.click('dialog[open] button:text-is("Create people")');

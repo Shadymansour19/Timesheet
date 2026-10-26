@@ -89,7 +89,7 @@ export default {
   add_super_manager: "Add super manager",
   super_manager_hint: "A super manager sees the Team grid and Overtime of every department and can export them, but cannot change anything.",
   bulk_add_departments: "Bulk add departments (Excel)",
-  bulk_add_admins: "Bulk add admins (Excel)",
+  bulk_add_admins: "Bulk add admins and managers (Excel)",
   bulk_import_depts: "Create departments",
   bulk_import_multi: "Create people",
   bulk_dept_hint: "Excel file with one column Department (first row = header). Every other row is a department name. Names that already exist are skipped.",

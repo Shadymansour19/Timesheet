@@ -89,7 +89,7 @@ export default {
   add_super_manager: "إضافة مدير عام",
   super_manager_hint: "المدير العام يرى جدول الفريق والعمل الإضافي لكل الأقسام ويمكنه تصديرها، لكن لا يمكنه تغيير أي شيء.",
   bulk_add_departments: "إضافة أقسام دفعة واحدة (Excel)",
-  bulk_add_admins: "إضافة مسؤولين دفعة واحدة (Excel)",
+  bulk_add_admins: "إضافة مسؤولين ومديرين دفعة واحدة (Excel)",
   bulk_import_depts: "إنشاء الأقسام",
   bulk_import_multi: "إنشاء الأشخاص",
   bulk_dept_hint: "ملف Excel بعمود واحد اسمه Department (الصف الأول عنوان). كل صف آخر اسم قسم. الأسماء الموجودة مسبقاً يتم تخطيها.",
