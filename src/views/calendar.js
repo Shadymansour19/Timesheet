@@ -13,6 +13,7 @@ import * as live from '../live.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
 import { openDayEditor } from '../components/day-editor.js';
+import { guideAuto, guideCard } from '../components/guide.js';
 
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
 const sameMonth = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => b[k] && a[k].status === b[k].status && a[k].eff === b[k].eff && a[k].ot === b[k].ot && (a[k].note ?? '') === (b[k].note ?? '') && a[k].hol === b[k].hol); };
@@ -267,5 +268,6 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
   });
 
   load();
+  if (!admin && !readOnly && guideAuto()) return h('div', {}, guideCard(), root);      // a new user on a phone: the how-to card above the calendar
   return root;
 }

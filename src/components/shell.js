@@ -4,13 +4,14 @@ import { state, signOut, signOutAll, switchTo, addAccount, removeAccount, listAc
 import { navFor } from '../router.js';
 import { openDialog, confirmDialog } from './dialog.js';
 import { eligible as notifyEligible, enabled as notifyOn, setEnabled as setNotify } from '../notify.js';
-import { icon, BELL, BUILDING, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT, SUN, MOON, MONITOR } from './icons.js';
+import { icon, INFO, BELL, BUILDING, CHEVRON_UPDOWN, PLUS, KEY, LOGOUT, ARROW_LEFT, SUN, MOON, MONITOR } from './icons.js';
 import { getTheme, setTheme } from '../theme.js';
 import { field } from './form.js';
 import { choice } from './choice.js';
 import { acting, setActing } from '../acting.js';
 import { toast } from './toast.js';
 import { credit } from './credit.js';
+import { guideAvailable, openGuide } from './guide.js';
 
 const initials = (name) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 let closeOnOutside;
@@ -75,6 +76,7 @@ function accountMenu() {
       h('ul', { class: 'acct-list' }, accounts.map(row)),
       h('button', { class: 'menu-item', type: 'button', onclick: () => { close(); addAccountDialog(); } }, icon(PLUS, 18), t('add_account')),
       h('a', { class: 'menu-item', href: '#/account', onclick: close }, icon(KEY, 18), t('change_password')),
+      guideAvailable() ? h('button', { class: 'menu-item', type: 'button', id: 'guide-open', onclick: () => { close(); openGuide(); } }, icon(INFO, 18), t('guide_menu')) : null,
       themeRow(),
       notifyEligible() ? h('button', { class: 'menu-item', type: 'button', 'aria-pressed': String(notifyOn()), onclick: async () => {
         const r = await setNotify(!notifyOn());
