@@ -60,6 +60,14 @@ const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getB
   ok('Esc skips the tour', (await p.locator('.tour').count()) === 0);
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
+// the Arabic tour: the letter legend must not display flipped ("Y. E" next to each other)
+{ const ctx = await b.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true }); await ctx.addInitScript(() => localStorage.setItem('lang', 'ar'));
+  const p = await ctx.newPage(); await p.goto('http://localhost:4173/'); await p.fill('#username', 'gdnew'); await p.fill('#password', PW); await p.click('button[type=submit]');
+  await p.waitForSelector('.tour'); await p.tap('#tour-next'); await p.tap('#tour-next'); await p.waitForTimeout(600);
+  const txt = await p.locator('.tour-text').innerText();
+  ok('Arabic tour, step "tap a day": the sentences end in Arabic words (no "Y. E" run of Latin text)', txt.includes('ثم Y وهكذا. E يعني راحة') && !/[A-Za-z]\.\s+[A-Za-z]/.test(txt), txt);
+  if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/tour-ar.png' });
+  await ctx.close(); }
 { const p = await open('gdold'); await p.waitForSelector('.day');
   await p.waitForTimeout(1500);
   ok('phone, an older account: no tour by itself', (await p.locator('.tour').count()) === 0);
