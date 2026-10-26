@@ -28,12 +28,17 @@ async function open(un, { phone = true } = {}) {
 }
 const TARGETS = ['.cal > .cal-head', '.grid .day.today', '.grid', '.totals', '.cal-tools .icon-only', '.acct'];
 const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; });
-{ const p = await open('gdnew'); await p.waitForSelector('.day'); await p.waitForSelector('.tour');
+{ const p = await open('gdnew');
+  // the app re-renders (a profile refresh, a route change) while the first tour is still waiting for the calendar: no second tour may start behind it
+  await p.evaluate(() => { window.dispatchEvent(new HashChangeEvent('hashchange')); setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), 120); });
+  await p.waitForSelector('.day'); await p.waitForSelector('.tour'); await p.waitForTimeout(1500);
+  ok('re-rendering while the tour is starting does not stack a second tour (one overlay, one card)', (await p.locator('.tour').count()) === 1 && (await p.locator('.tour-card').count()) === 1, `${await p.locator('.tour').count()} / ${await p.locator('.tour-card').count()}`);
   ok('phone, new user: the tour starts by itself with a welcome card', /Welcome/.test(await p.locator('.tour-title').innerText()) && (await p.locator('.tour-dot').count()) === 7);
   const bf = await p.locator('.tour-dim').first().evaluate((e) => getComputedStyle(e).backdropFilter + '|' + getComputedStyle(e).backgroundColor);
   ok('the page behind is blurred and dimmed (backdrop blur on the panels)', bf.includes('blur'), bf);
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/tour-0.png' });
   await p.tap('#tour-next');
+  ok('after Next the welcome text is gone from the page', !(await p.locator('body').innerText()).includes('Take a quick tour'));
   for (let i = 0; i < TARGETS.length; i++) {
     await p.waitForTimeout(500);                                  // the spotlight glides to the next area
     const m = await p.evaluate((sel) => { const t = document.querySelector(sel).getBoundingClientRect(), r = document.querySelector('.tour-ring').getBoundingClientRect(); return { covers: r.left <= t.left + 1 && r.top <= t.top + 1 && r.right >= t.right - 1 && r.bottom >= t.bottom - 1, small: r.width < innerWidth * 1.2 }; }, TARGETS[i]);

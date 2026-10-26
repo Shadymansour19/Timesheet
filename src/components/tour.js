@@ -9,6 +9,7 @@ const PAD = 6;                                              // breathing room ar
 const MARGIN = 12;
 
 export function startTour({ steps, onEnd }) {
+  if (document.querySelector('.tour:not(.leaving)')) return null;                       // never two tours on top of each other
   const present = steps.filter((s) => !s.target || find(s.target));
   if (!present.length) { onEnd?.(false); return null; }
   let i = 0, done = false;

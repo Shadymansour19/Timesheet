@@ -24,13 +24,16 @@ const STEPS = [
   { target: '.acct', title: 'tour_6_title', text: 'tour_6_text' },
 ];
 
-let running = null;
-// waits for the calendar to be drawn, then starts; finishing or skipping both count as "seen"
+let running = null, waiting = false;
+// waits for the calendar to be drawn, then starts; finishing or skipping both count as "seen".
+// Only ONE tour at a time: the calendar view is built again on every re-render, and each build asks for the tour while the first is still waiting / running.
 export function startGuide() {
-  if (running) return;
+  if (running || waiting) return;
+  waiting = true;
   let tries = 0;
   const go = () => {
-    if (!document.querySelector('.cal .grid')) { if (++tries < 25) setTimeout(go, 300); return; }
+    if (!document.querySelector('.cal .grid')) { if (++tries < 25) setTimeout(go, 300); else waiting = false; return; }
+    waiting = false;
     running = startTour({ steps: STEPS, onEnd: () => { markSeen(); running = null; } });
   };
   go();

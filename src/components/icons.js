@@ -1,9 +1,9 @@
 // Small inline SVG icons (drawn paths, so they look identical in every font and text direction).
 const SVG = 'http://www.w3.org/2000/svg';
 
-export function icon(paths, size = 20) {
+export function icon(paths, size = 20, stroke = 2) {      // stroke: line width in the 24-unit drawing (a zoomed icon needs a thinner one to keep the same visual weight)
   const s = document.createElementNS(SVG, 'svg');
-  for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', width: size, height: size, fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' })) s.setAttribute(k, v);
+  for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', width: size, height: size, fill: 'none', stroke: 'currentColor', 'stroke-width': stroke, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' })) s.setAttribute(k, v);
   for (const d of paths) { const p = document.createElementNS(SVG, 'path'); p.setAttribute('d', d); s.append(p); }
   return s;
 }
@@ -22,7 +22,7 @@ export const SHIELD = ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'];
 export const GITHUB = ['M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22'];
 export const LINKEDIN = ['M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z', 'M2 9h4v12H2z', 'M4 2a2 2 0 100 4 2 2 0 000-4z'];
 export const MAIL = ['M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z', 'M22 6l-10 7L2 6'];
-export const WHATSAPP = ['M21 11.5a8.4 8.4 0 01-12.2 7.5L3 21l1.9-5.4A8.4 8.4 0 1121 11.5z', 'M9 8.3c0 3.7 3 6.7 6.7 6.7l1-1.6-2.1-1.1-.9.8a4.6 4.6 0 01-2.2-2.2l.8-.9L11.2 7.9z'];
+export const WHATSAPP = ['M7.9 20A9 9 0 1 0 4 16.1L2 22z', 'M8.3 7.8c0 4.1 3.6 7.7 7.7 7.7l1.1-1.75-2.4-1.25-1 .9a5 5 0 01-2.4-2.4l.9-1-1.25-2.4z'];
 export const FILTER = ['M3 4h18l-7 8.5V19l-4 2v-8.5z'];
 export const SEARCH = ['M21 21l-4.3-4.3', 'M11 18a7 7 0 100-14 7 7 0 000 14z'];
 export const INFO = ['M12 22a10 10 0 100-20 10 10 0 000 20z', 'M12 16v-4', 'M12 8h.01'];
