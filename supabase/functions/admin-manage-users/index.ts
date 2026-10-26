@@ -103,9 +103,9 @@ Deno.serve(async (req) => {
         if (body.y_allowed !== undefined && typeof body.y_allowed !== "boolean") throw new HttpError(400, "invalid y_allowed");
         const yAllowed = body.y_allowed !== false;
         if (residence !== null && residence !== "inside" && residence !== "outside") throw new HttpError(400, "residence must be inside or outside");
-        const deptId = uuid(body.department_id, "department_id");
         const role = str(body.role ?? "user", "role", 20);
-        if (role !== "manager" && payroll === null) throw new HttpError(400, "payroll is required");   // managers have no timesheet
+        const deptId = role === "super_manager" || role === "super_admin" ? null : uuid(body.department_id, "department_id");   // super managers / super admins belong to no department
+        if (role !== "manager" && role !== "super_manager" && role !== "super_admin" && payroll === null) throw new HttpError(400, "payroll is required");   // managers have no timesheet
 
         const { error: authzErr } = await caller.rpc("assert_can_create", { p_dept: deptId, p_role: role });
         if (authzErr) throw rpcError(authzErr);

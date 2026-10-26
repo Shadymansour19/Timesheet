@@ -37,7 +37,7 @@ export const fetchDeptPeople = (deptId) => fetchAll(() =>
 export const fetchTimesheetPeople = (deptId) => fetchDeptPeople(deptId).then((r) => r.filter((p) => p.role !== 'manager'));
 
 export const fetchAllPeople = () => fetchAll(() =>
-  supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).neq('role', 'super_admin').order('full_name').order('id')).then((r) => r.sort(comparePeople));
+  supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).order('full_name').order('id')).then((r) => r.sort(comparePeople));
 
 export async function fetchDepartments() {
   const { data, error } = await supabase.from('departments').select('id,name,code,sector,field,report,approved_engineer,approved_tech').order('name');

@@ -522,8 +522,12 @@ select t.denied('super manager direct UPDATE of a day status', $$update public.d
 select t.login('00000000-0000-0000-0000-0000000000a0');
 select t.ok('super_admin may create a super manager (no department)', $$select public.assert_can_create(null, 'super_manager')$$);
 select t.denied('super manager has no department: a department is refused', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'super_manager')$$);
+select t.ok('super_admin may create another super_admin (no department)', $$select public.assert_can_create(null, 'super_admin')$$);
+select t.denied('...a super_admin with a department is refused', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'super_admin')$$);
+select t.denied('super_admin cannot delete / reset themselves through the Edge Function checks', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000a0', 'delete')$$);
 select t.ok('super_admin may reset a super manager password', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000c1', 'reset')$$);
 select t.login('00000000-0000-0000-0000-0000000000b1');
+select t.denied('an admin of a department cannot create a super admin', $$select public.assert_can_create(null, 'super_admin')$$);
 select t.denied('an admin of a department cannot create a super manager', $$select public.assert_can_create(null, 'super_manager')$$);
 select t.su();
 select t.denied('nobody can give a super manager a day status (trigger)', $$insert into public.day_status (user_id, day, status) values ('00000000-0000-0000-0000-0000000000c1', current_date, 'X')$$, '22023');

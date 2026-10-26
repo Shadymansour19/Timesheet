@@ -11,7 +11,7 @@ const sql = (q) => execSync(`psql "$TS_DB_URL" -X -q -At -c "${q.replace(/"/g, '
 const PW = 'Sm-Pass-12345', DA = '3d000000-0000-0000-0000-00000000000a', DB = '3d000000-0000-0000-0000-00000000000b';
 const uid = (i) => `3d000000-0000-0000-0000-0000000001${String(i).padStart(2, '0')}`;
 const cleanup = () => sql(`delete from auth.users where id::text ~ '^3d000000-' or id in (select id from public.profiles where department_id in (select id from public.departments where name ~ '^SM '))
-  or id in (select id from public.profiles where username in ('smnew1'));
+  or id in (select id from public.profiles where username in ('smnew1', 'smnew2'));
   delete from public.departments where id::text ~ '^3d000000-' or name ~ '^SM ';
   delete from public.audit_log where (target_user is not null and target_user not in (select id from public.profiles)) or (department_id is not null and department_id not in (select id from public.departments));`);
 cleanup();
@@ -92,6 +92,17 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   ok('bulk admins: 3 created, 2 failed (unknown department, plain user not allowed)', await eventually(async () => (await p.locator('dialog[open]').textContent()).includes('Created: 3 · Failed: 2'), 120000));
   ok('bulk admins: admin in Alpha, manager in Gamma (username = OPR), admin in Delta; roles as given', sql(`select string_agg(p.username||'/'||p.role||'/'||d.name, ',' order by p.username) from public.profiles p join public.departments d on d.id=p.department_id where p.full_name like 'SM Bulk %'`) === 'smb1/admin/SM Alpha,smb3/admin/SM Delta,smoprg/manager/SM Gamma', sql(`select string_agg(p.username||'/'||p.role, ',') from public.profiles p where p.full_name like 'SM Bulk %'`));
   ok('bulk admins: no row for the unknown department / the plain user', sql(`select count(*) from public.profiles where full_name in ('SM Bad Row','SM Plain User')`) === '0');
+  // the super admin adds a super manager and another super admin
+  await p.click('dialog[open] button:text-is("Close")'); await p.waitForSelector('dialog[open]', { state: 'detached' });
+  for (const [un, label, role] of [['smnew1', 'Super manager', 'super_manager'], ['smnew2', 'Super admin', 'super_admin']]) {
+    await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.click('button:text-is("Add super admin / manager")'); await p.waitForSelector('dialog[open]');
+    await p.fill('dialog[open] input[autocapitalize="none"]', un);
+    await p.getByLabel('Full name').fill('SM New ' + label);
+    await p.locator('dialog[open] label:has-text("' + label + '") input[type=radio]').check();
+    await p.click('dialog[open] button:text-is("Add")');
+    ok(`super admin: adds a ${label.toLowerCase()} (no department)`, await eventually(() => sql(`select role||'|'||coalesce(department_id::text,'none') from public.profiles where username='${un}'`) === role + '|none', 30000));
+  }
+  ok('super admin: the new super admin and super manager are listed', await eventually(async () => /SM New Super admin/.test(await p.locator('.depts').innerText()) && /SM New Super manager/.test(await p.locator('.depts').innerText())));
   ok('super admin: no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 cleanup();
