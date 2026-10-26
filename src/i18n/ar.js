@@ -124,7 +124,7 @@ export default {
   ob_fill: "ابدأ تعبئة الجدول",
   ob_fill_text: "افتح جدول القسم: اضغط على اليوم لتحديد X أو Y أو E.",
   search_departments: "ابحث عن قسم أو شخص",
-  copyright_rights: "جميع الحقوق محفوظة.",
+  developed_by: "تطوير",
   promote: "ترقية إلى مسؤول",
   demote: "تحويل إلى مستخدم",
   promote_confirm: "ترقية إلى مسؤول القسم:",

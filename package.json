@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.1.0",
   "author": "Shady Mansour <shadymansour19@gmail.com> (https://github.com/shadymansour19)",
-  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -124,7 +124,7 @@ export default {
   ob_fill: "Start filling the timesheet",
   ob_fill_text: "Open the department grid: tap a day to set X, Y or E.",
   search_departments: "Search departments or people",
-  copyright_rights: "All rights reserved.",
+  developed_by: "Developed by",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",
