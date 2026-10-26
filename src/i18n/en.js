@@ -146,6 +146,8 @@ export default {
   tour_5_text: "Tap this button any time for more help and the colour guide.",
   tour_6_title: "Menu",
   tour_6_text: "Change the language, dark mode or your password here. You can start this tour again from this menu.",
+  tour_dash_title: "Dashed days",
+  tour_dash_text: "Fill the dashed days too: the last day of the previous month and the first day of the next one, like this one. This gives correct arrival and departure days. They are not counted in the month's totals.",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",

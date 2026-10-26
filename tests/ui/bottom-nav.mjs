@@ -27,6 +27,7 @@ let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
 async function open(w, scheme, un) {
   const ctx = await b.newContext({ viewport: { width: w, height: 800 }, colorScheme: scheme });
+  await ctx.addInitScript(() => { const g = Storage.prototype.getItem; Storage.prototype.getItem = function (k) { return String(k).startsWith('ts.guideSeen.') ? '1' : g.call(this, k); }; });   // the tour is tested in guide.mjs
   await ctx.addInitScript(() => { try { if (!localStorage.getItem('ts.teamView')) localStorage.setItem('ts.teamView', 'month'); } catch { /* ignore */ } });
   const p = await ctx.newPage(); p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message));
   await p.goto(BASE + '/');
