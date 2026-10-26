@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 import ExcelJS from 'exceljs';
 import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 const S = tmpdir();
 const sql = (q) => execSync(`psql "$TS_DB_URL" -X -q -At -c "${q.replace(/"/g, '\\"')}"`, { encoding: 'utf8' }).trim();
 const PW = 'Sm-Pass-12345', DA = '3d000000-0000-0000-0000-00000000000a', DB = '3d000000-0000-0000-0000-00000000000b';
@@ -64,8 +65,13 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   const dw = new ExcelJS.Workbook(); const ds = dw.addWorksheet('D'); ds.addRow(['Department']); ['SM Gamma', 'sm  alpha', 'SM Delta'].forEach((n) => ds.addRow([n]));
   await dw.xlsx.writeFile(S + '/sm-depts.xlsx');
   await p.click('button:text-is("Bulk add departments (Excel)")'); await p.waitForSelector('dialog[open]');
-  await p.locator('#bulk-dept-file').setInputFiles(S + '/sm-depts.xlsx');
-  ok('bulk departments: the file is read (3 found)', await eventually(async () => (await p.locator('dialog[open] p.muted').nth(1).textContent()).includes('3 departments')));
+  // dropped on the drop zone (not picked)
+  await p.evaluate((b64) => {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)); const dt = new DataTransfer();
+    dt.items.add(new File([bin], 'sm-depts.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    document.querySelector('dialog[open] .scan-drop').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  }, readFileSync(S + '/sm-depts.xlsx').toString('base64'));
+  ok('bulk departments: a dropped file is read (3 found)', await eventually(async () => (await p.locator('dialog[open] p.muted').nth(1).textContent()).includes('3 departments')));
   await p.click('dialog[open] button:text-is("Create departments")');
   ok('bulk departments: 2 created, 1 already existing (any capitalisation / spacing)', await eventually(async () => (await p.locator('dialog[open]').textContent()).includes('Created: 2 · Already exists: 1 · Failed: 0'), 60000));
   ok('bulk departments: in the database', sql(`select count(*) from public.departments where name in ('SM Gamma','SM Delta')`) === '2' && sql(`select count(*) from public.departments where name ilike 'sm  alpha' or name ilike 'sm alpha'`) === '1');

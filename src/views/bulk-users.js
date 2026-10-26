@@ -6,6 +6,7 @@ import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { callFn } from '../api/admin.js';
 import { explain } from '../api/errors.js';
+import { dropZone } from '../components/dropzone.js';
 import { openDialog } from '../components/dialog.js';
 import { randomPassword } from '../components/form.js';
 import { myDept } from '../auth/session.js';
@@ -124,7 +125,7 @@ export function openBulkAdd({ onDone, departments = null }) {
   const content = h('div', { class: 'form' },
     h('p', { class: 'muted' }, multi ? t('bulk_hint_multi') : t('bulk_hint')),
     h('button', { type: 'button', class: 'btn small', onclick: async () => save(await templateFile(multi), 'users_template.xlsx') }, t('bulk_template')),
-    h('div', { class: 'field' }, h('label', { for: 'bulk-file' }, t('bulk_file')), file), info, body);
+    h('div', { class: 'field' }, h('label', { for: 'bulk-file' }, t('bulk_file')), file), dropZone(file), info, body);
   file.addEventListener('change', async () => {
     rows = []; body.replaceChildren();
     const f = file.files[0]; if (!f) { info.textContent = ''; return; }

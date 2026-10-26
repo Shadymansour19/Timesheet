@@ -4,6 +4,7 @@ import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { createDepartment } from '../api/admin.js';
 import { explain } from '../api/errors.js';
+import { dropZone } from '../components/dropzone.js';
 import { openDialog } from '../components/dialog.js';
 
 const norm = (v) => String(v ?? '').trim().replace(/\s+/g, ' ');
@@ -43,7 +44,7 @@ export function openBulkDepartments({ existing, onDone }) {
   const body = h('div', { class: 'bulk-results' });
   const content = h('div', { class: 'form' }, h('p', { class: 'muted' }, t('bulk_dept_hint')),
     h('button', { type: 'button', class: 'btn small', onclick: async () => save(await departmentsTemplate(), 'departments_template.xlsx') }, t('bulk_template')),
-    h('div', { class: 'field' }, h('label', { for: 'bulk-dept-file' }, t('bulk_file')), file), info, body);
+    h('div', { class: 'field' }, h('label', { for: 'bulk-dept-file' }, t('bulk_file')), file), dropZone(file), info, body);
   file.addEventListener('change', async () => {
     rows = []; body.replaceChildren();
     const f = file.files[0]; if (!f) { info.textContent = ''; return; }

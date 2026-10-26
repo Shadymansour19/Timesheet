@@ -103,6 +103,8 @@ export default {
   filter_blanks: "(Blanks)",
   clear_filter: "Clear filter",
   search: "Search",
+  drop_file: "Or drag and drop the Excel file here",
+  drop_wrong_file: "Please drop an .xlsx file",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",

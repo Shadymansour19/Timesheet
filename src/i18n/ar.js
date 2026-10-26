@@ -103,6 +103,8 @@ export default {
   filter_blanks: "(فارغ)",
   clear_filter: "مسح التصفية",
   search: "بحث",
+  drop_file: "أو اسحب ملف Excel وأفلته هنا",
+  drop_wrong_file: "يرجى إفلات ملف بصيغة xlsx",
   promote: "ترقية إلى مسؤول",
   demote: "تحويل إلى مستخدم",
   promote_confirm: "ترقية إلى مسؤول القسم:",

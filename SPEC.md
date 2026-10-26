@@ -170,3 +170,4 @@ All answered 2026-10-19; see Decision log.
 - 2026-10-26 Users table column filters are Excel-style (funnel in each header: all values with check boxes, search, Select all, Clear filter). Bulk templates use Turbo / Mechanical / Electrical as sample departments.
 - 2026-10-26 Users table (list view): column widths are measured once per data load with everyone listed and then fixed, so filtering / sorting never moves the columns.
 - 2026-10-26 Users table column filters are cascading: a column's filter list offers only the values left by the other active filters (other columns, role chips, search).
+- 2026-10-26 The bulk add dialogs (users, admins, departments) accept the Excel file by drag and drop (src/components/dropzone.js) as well as the file picker.
