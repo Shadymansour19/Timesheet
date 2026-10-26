@@ -6,6 +6,7 @@ import { fetchSuperUsers, callFn } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { toast } from '../components/toast.js';
+import { openBulkAdd } from './bulk-users.js';
 import { personFields, resetPasswordDialog, deletePerson } from './users.js';
 
 export function superUsersView() {
@@ -43,7 +44,9 @@ export function superUsersView() {
   function draw() {
     root.replaceChildren(
       h('div', { class: 'cal-head' }, h('h2', {}, `${t('nav_super')} (${people.length})`),
-        h('button', { class: 'btn small primary', id: 'add-super', onclick: addSuper }, t('add_super_manager'))),
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn small', id: 'bulk-super', onclick: () => openBulkAdd({ superUsers: true, onDone: load }) }, t('bulk_add_super')),
+          h('button', { class: 'btn small primary', id: 'add-super', onclick: addSuper }, t('add_super_manager')))),
       h('p', { class: 'muted' }, t('super_manager_hint')),
       h('ul', { class: 'plist' }, people.map(row)));
   }

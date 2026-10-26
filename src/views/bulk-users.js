@@ -36,33 +36,43 @@ const cellText = (c) => {
 
 // -> { rows: [{ line, full_name, opr, ... }], problems: [] }
 const DEPT_COL = ['department', 'Department', ['department', 'dept']];
-const colsOf = (multi) => (multi ? [DEPT_COL, ...COLUMNS] : COLUMNS);
+const SUPER_KEYS = ['full_name', 'opr', 'username', 'password', 'role'];
+const SUPER_ROLES = { 'super admin': 'super_admin', super_admin: 'super_admin', 'super manager': 'super_manager', super_manager: 'super_manager' };
+const colsOf = (multi, sup = false) => (sup ? COLUMNS.filter((c) => SUPER_KEYS.includes(c[0])) : multi ? [DEPT_COL, ...COLUMNS] : COLUMNS);
 const plainName = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
 // multi: the super admin's file for SEVERAL departments (a Department column names each person's department)
-export async function parseWorkbook(buffer, multi = false) {
+export async function parseWorkbook(buffer, multi = false, sup = false) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer);
   const ws = wb.worksheets[0];
   if (!ws) return { rows: [], problems: [t('bulk_empty_file')] };
   const head = {};
-  ws.getRow(1).eachCell((c, i) => { const name = cellText(c).toLowerCase(); const col = colsOf(multi).find(([, , al]) => al.includes(name)); if (col && !head[col[0]]) head[col[0]] = i; });
+  ws.getRow(1).eachCell((c, i) => { const name = cellText(c).toLowerCase(); const col = colsOf(multi, sup).find(([, , al]) => al.includes(name)); if (col && !head[col[0]]) head[col[0]] = i; });
   const problems = [];
-  for (const need of multi ? ['department', 'full_name', 'payroll'] : ['full_name', 'payroll']) if (!head[need]) problems.push(`${t('bulk_missing_column')}: ${colsOf(multi).find((c) => c[0] === need)[1]}`);
+  for (const need of sup ? ['full_name'] : multi ? ['department', 'full_name', 'payroll'] : ['full_name', 'payroll']) if (!head[need]) problems.push(`${t('bulk_missing_column')}: ${colsOf(multi, sup).find((c) => c[0] === need)[1]}`);
   if (problems.length) return { rows: [], problems };
   const rows = [];
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = {}; let any = false;
-    for (const [key] of colsOf(multi)) { row[key] = head[key] ? cellText(ws.getRow(r).getCell(head[key])) : ''; if (row[key]) any = true; }
+    for (const [key] of colsOf(multi, sup)) { row[key] = head[key] ? cellText(ws.getRow(r).getCell(head[key])) : ''; if (row[key]) any = true; }
     if (any) rows.push({ line: r, ...row });
   }
   return { rows, problems };
 }
 
-export async function templateFile(multi = false) {
+export async function templateFile(multi = false, sup = false) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Users');
+  if (sup) {                          // super admins / super managers: no department, payroll or timesheet fields
+    ws.addRow(colsOf(false, true).map(([, label]) => label)).font = { bold: true };
+    ws.addRow(['Ahmed Ali Hassan', 'OPR-S1', 'ahmed.ali', '', 'super manager']);
+    ws.addRow(['Sara Mahmoud Ibrahim', 'OPR-S2', '', 'Pass-12345', 'super admin']);
+    ws.addRow(['Omar Khaled Samir', 'OPR-S3', '', '', '']);
+    [26, 14, 18, 16, 16].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+    return wb.xlsx.writeBuffer();
+  }
   const cols = colsOf(multi);
   ws.addRow(cols.map(([, label]) => label)).font = { bold: true };
   // rows showing the possible values: empty username / password (-> payroll letters+numbers / random), Y allowed yes | no, residence inside | outside, role user | admin | manager
@@ -92,8 +102,19 @@ async function resultsFile(results, multi = false) {
 }
 
 // one row -> create_user (validation first, so a bad row costs no request)
-async function createRow(r, dupError = '', departments = null) {
+async function createRow(r, dupError = '', departments = null, sup = false) {
   const out = { ...r, username: usernameOf(r), password: r.password || randomPassword(), ok: false, error: dupError };
+  if (sup && !out.error) {                                    // super admin / super manager: empty role = super manager (read-only)
+    const role = SUPER_ROLES[(r.role || 'super manager').toLowerCase()];
+    if (!r.full_name) out.error = t('bulk_err_required_super');
+    else if (!USERNAME.test(out.username)) out.error = t('bulk_err_username');
+    else if (out.password.length < 8 || out.password.length > 72) out.error = t('bulk_err_password');
+    else if (!role) out.error = t('bulk_err_role_super');
+    if (out.error) return out;
+    try { await callFn('create_user', { username: out.username, password: out.password, full_name: r.full_name, opr: r.opr, role }); out.ok = true; }
+    catch (e) { out.error = explain(e); }
+    return out;
+  }
   const level = r.level.trim() || null;                 // free text
   if (out.error) return out;
   const role = ROLES[(r.role || (departments ? 'admin' : 'user')).toLowerCase()];      // several departments (super admin): admins by default, never plain users
@@ -116,21 +137,21 @@ async function createRow(r, dupError = '', departments = null) {
 }
 
 // departments: the department list when the super admin adds people to SEVERAL departments from one file (Department column)
-export function openBulkAdd({ onDone, departments = null }) {
-  const multi = !!departments;
+export function openBulkAdd({ onDone, departments = null, superUsers = false }) {
+  const multi = !!departments, sup = superUsers;
   let rows = [], busy = false;
   const file = h('input', { type: 'file', accept: '.xlsx', id: 'bulk-file' });
   const info = h('p', { class: 'muted', 'aria-live': 'polite' });
   const body = h('div', { class: 'bulk-results' });
   const content = h('div', { class: 'form' },
-    h('p', { class: 'muted' }, multi ? t('bulk_hint_multi') : t('bulk_hint')),
-    h('button', { type: 'button', class: 'btn small', onclick: async () => save(await templateFile(multi), 'users_template.xlsx') }, t('bulk_template')),
+    h('p', { class: 'muted' }, sup ? t('bulk_hint_super') : multi ? t('bulk_hint_multi') : t('bulk_hint')),
+    h('button', { type: 'button', class: 'btn small', onclick: async () => save(await templateFile(multi, sup), 'users_template.xlsx') }, t('bulk_template')),
     h('div', { class: 'field' }, h('label', { for: 'bulk-file' }, t('bulk_file')), file), dropZone(file), info, body);
   file.addEventListener('change', async () => {
     rows = []; body.replaceChildren();
     const f = file.files[0]; if (!f) { info.textContent = ''; return; }
     try {
-      const parsed = await parseWorkbook(await f.arrayBuffer(), multi);
+      const parsed = await parseWorkbook(await f.arrayBuffer(), multi, sup);
       rows = parsed.rows;
       info.textContent = parsed.problems.length ? parsed.problems.join(' · ') : `${rows.length} ${t('bulk_rows_found')}`;
     } catch { info.textContent = t('bulk_bad_file'); }
@@ -148,7 +169,7 @@ export function openBulkAdd({ onDone, departments = null }) {
     let next = 0, done = 0;
     const worker = async () => {
       while (next < rows.length) {
-        const i = next++; const r = await createRow(rows[i], dups[i], departments); results[i] = r; done++;
+        const i = next++; const r = await createRow(rows[i], dups[i], departments, sup); results[i] = r; done++;
         info.textContent = `${done} / ${rows.length}`;
       }
     };
@@ -160,5 +181,5 @@ export function openBulkAdd({ onDone, departments = null }) {
     busy = false;
     onDone?.();
   }
-  openDialog({ title: multi ? t('bulk_add_admins') : t('bulk_add'), wide: 'xl', content, buttons: [{ label: t('close') }, { label: multi ? t('bulk_import_multi') : t('bulk_import'), kind: 'primary', onClick: async () => { await run(); return false; } }] });
+  openDialog({ title: sup ? t('bulk_add_super') : multi ? t('bulk_add_admins') : t('bulk_add'), wide: 'xl', content, buttons: [{ label: t('close') }, { label: multi || sup ? t('bulk_import_multi') : t('bulk_import'), kind: 'primary', onClick: async () => { await run(); return false; } }] });
 }

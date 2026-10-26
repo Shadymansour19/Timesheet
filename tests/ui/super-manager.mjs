@@ -11,7 +11,7 @@ const sql = (q) => execSync(`psql "$TS_DB_URL" -X -q -At -c "${q.replace(/"/g, '
 const PW = 'Sm-Pass-12345', DA = '3d000000-0000-0000-0000-00000000000a', DB = '3d000000-0000-0000-0000-00000000000b';
 const uid = (i) => `3d000000-0000-0000-0000-0000000001${String(i).padStart(2, '0')}`;
 const cleanup = () => sql(`delete from auth.users where id::text ~ '^3d000000-' or id in (select id from public.profiles where department_id in (select id from public.departments where name ~ '^SM '))
-  or id in (select id from public.profiles where username in ('smnew1', 'smnew2'));
+  or id in (select id from public.profiles where username in ('smnew1', 'smnew2', 'sms1', 'sms2', 'smsx3'));
   delete from public.departments where id::text ~ '^3d000000-' or name ~ '^SM ';
   delete from public.audit_log where (target_user is not null and target_user not in (select id from public.profiles)) or (department_id is not null and department_id not in (select id from public.departments));`);
 cleanup();
@@ -85,7 +85,7 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   bs.addRow(['Nowhere', 'SM Bad Row', '', 'SMB-4']);
   bs.addRow(['SM Beta', 'SM Plain User', '', 'SMB-5', '', '', '', '', '', '', '', '', '', 'user']);
   await bw.xlsx.writeFile(S + '/sm-admins.xlsx');
-  await p.click('button:text-is("Bulk add department admins / managers (Excel)")'); await p.waitForSelector('dialog[open]');
+  await p.click('button:text-is("Bulk add admins / managers (Excel)")'); await p.waitForSelector('dialog[open]');
   await p.locator('#bulk-file').setInputFiles(S + '/sm-admins.xlsx');
   ok('bulk admins: the file is read (5 rows)', await eventually(async () => (await p.locator('dialog[open] p.muted').nth(1).textContent()).includes('5 users')));
   await p.click('dialog[open] button:text-is("Create people")');
@@ -105,6 +105,19 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
     ok(`super admin: adds a ${label.toLowerCase()} (no department)`, await eventually(() => sql(`select role||'|'||coalesce(department_id::text,'none') from public.profiles where username='${un}'`) === role + '|none', 30000));
   }
   ok('super admin: the new super admin and super manager are listed', await eventually(async () => /SM New Super admin/.test(await p.locator('.depts').innerText()) && /SM New Super manager/.test(await p.locator('.depts').innerText())));
+  // bulk add super admins / super managers (no department)
+  const sw = new ExcelJS.Workbook(); const ss = sw.addWorksheet('U');
+  ss.addRow(['Full name', 'OPR', 'Username', 'Password', 'Role']);
+  ss.addRow(['SM Bulk Super One', 'SMS-1']);
+  ss.addRow(['SM Bulk Super Two', 'SMS-2', '', '', 'super admin']);
+  ss.addRow(['SM Bulk Super Bad', 'SMSX-3', '', '', 'admin']);
+  await sw.xlsx.writeFile(S + '/sm-supers.xlsx');
+  await p.click('#bulk-super'); await p.waitForSelector('dialog[open]');
+  await p.locator('#bulk-file').setInputFiles(S + '/sm-supers.xlsx');
+  ok('bulk super users: the file is read (3 rows)', await eventually(async () => (await p.locator('dialog[open]').textContent()).includes('3 users found')));
+  await p.click('dialog[open] button:text-is("Create people")');
+  ok('bulk super users: 2 created, 1 failed (an admin role is not allowed here)', await eventually(async () => (await p.locator('dialog[open]').textContent()).includes('Created: 2 · Failed: 1'), 60000));
+  ok('bulk super users: empty role = super manager, super admin as given, no department', sql(`select string_agg(username||'/'||role||'/'||coalesce(department_id::text,'none'), ',' order by username) from public.profiles where username in ('sms1','sms2','smsx3')`) === 'sms1/super_manager/none,sms2/super_admin/none');
   ok('super admin: no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 cleanup();
