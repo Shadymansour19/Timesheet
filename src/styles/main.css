@@ -448,3 +448,8 @@ body.has-install .floating { inset-block-start: 68px; }
 @media (max-width: 700px) { .scan-pickers { grid-template-columns: 1fr; } }
 .scan-drop { border: 2px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center; opacity: .8; margin: 8px 0; }
 .scan-drop.over { opacity: 1; border-style: solid; background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.utable .th-sort { all: unset; cursor: pointer; font: inherit; color: inherit; display: inline-flex; align-items: center; gap: 2px; }
+.utable .th-sort:hover, .utable th[aria-sort="ascending"] .th-sort, .utable th[aria-sort="descending"] .th-sort { color: var(--text); }
+.utable .th-sort:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+.utable .th-filters th { position: static; padding: 4px 8px; font-weight: 400; }
+.utable .th-filters input, .utable .th-filters select { width: 100%; min-width: 80px; padding: 4px 6px; font-size: .8rem; border-radius: 6px; }

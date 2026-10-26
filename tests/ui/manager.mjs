@@ -49,6 +49,22 @@ async function login(un) {
   await p.locator('.person:has-text("MG Person") >> text=Make manager').click();
   await p.click('dialog[open] button.primary'); await p.waitForTimeout(1500);
   ok('"Make manager" changes the role', sql(`select role from public.profiles where id='${uid(2)}'`) === 'manager');
+  // table view: sort / filter on the column headers
+  await p.click('.view-seg button[data-view="table"]'); await p.waitForSelector('.utable tbody tr.urow');
+  const names = async () => (await p.locator('.utable tbody tr.urow th').allTextContents()).map((x) => x.trim()).filter((x) => x.startsWith('MG '));
+  await p.locator('.utable th[data-k="full_name"] .th-sort').click();
+  const asc = await names();
+  ok('table: a click on a column title sorts ascending', asc.join() === [...asc].sort().join() && (await p.locator('.utable th[data-k="full_name"]').getAttribute('aria-sort')) === 'ascending', asc.join());
+  await p.locator('.utable th[data-k="full_name"] .th-sort').click();
+  const desc = await names();
+  ok('table: a second click sorts descending', desc.join() === [...asc].reverse().join() && (await p.locator('.utable th[data-k="full_name"]').getAttribute('aria-sort')) === 'descending', desc.join());
+  await p.locator('.utable th[data-k="full_name"] .th-sort').click();
+  ok('table: a third click returns to the default order', (await p.locator('.utable th[data-k="full_name"]').getAttribute('aria-sort')) === 'none');
+  await p.fill('.th-filters input[data-k="full_name"]', 'person');
+  ok('table: the box under a title filters that column', await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 1).then(() => true, () => false));
+  await p.fill('.th-filters input[data-k="full_name"]', '');
+  await p.selectOption('.th-filters select[data-k="role"]', 'manager');
+  ok('table: the Role column filters by role', await p.waitForFunction(() => { const r = [...document.querySelectorAll('.utable tbody tr.urow th')].map((x) => x.textContent.trim()).filter((x) => /^MG /.test(x)); return r.length === 2 && !r.includes('MG Admin'); }).then(() => true, () => false));
   await p.context().close(); }
 cleanup();
 await b.close();

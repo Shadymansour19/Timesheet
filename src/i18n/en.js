@@ -98,6 +98,8 @@ export default {
   bulk_hint_multi: "Excel columns (first row = headers): Department* (must already exist), Full name*, Payroll* (not needed for managers), OPR, Username, Password, Level, Job title, Contract no, Work location, Position, Residence (inside / outside), Y allowed (yes / no), Role (admin / manager; empty = admin). Empty username = the payroll with only English letters and numbers kept (managers: the OPR); empty password = a random one. One file can hold several departments.",
   bulk_err_dept: "Unknown department",
   bulk_err_role_admin: "Role must be admin or manager",
+  sort_by: "Sort by this column",
+  filter: "Filter",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",

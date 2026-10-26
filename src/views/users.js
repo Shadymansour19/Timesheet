@@ -172,7 +172,16 @@ export function usersView() {
         ...actionsOf(p).map((a) => (a.href ? h('a', { class: 'btn small' + (a.kind ? ' ' + a.kind : ''), href: a.href }, a.label) : h('button', { class: 'btn small' + (a.kind ? ' ' + a.kind : ''), onclick: a.run }, a.label)))));
   }
 
+  // table view: click a column title to sort (ascending, descending, back to the default order); the box under it filters that column
+  const COLS = [['full_name', 'full_name'], ['payroll', 'payroll_short'], ['opr', 'opr'], ['position', 'position_short'], ['job_title', 'job_title'], ['level', 'level'], ['role', 'role'], ['work_location', 'work_location_short']];
+  let sort = null;                                     // { key, dir: 1 | -1 }
+  const colFilter = {};                                // key -> lower-case text (role: the role value)
+  const cellText = (p, k) => (k === 'role' ? t('role_' + p.role) : String(p[k] ?? ''));
+  const colActive = () => Object.values(colFilter).some(Boolean);
+  const sorted = (list) => (sort ? [...list].sort((a, b) => sort.dir * cellText(a, sort.key).localeCompare(cellText(b, sort.key), undefined, { numeric: true, sensitivity: 'base' })) : list);
+
   const matches = (p) => (roleFilter === 'all' || p.role === roleFilter)
+    && COLS.every(([k]) => !colFilter[k] || (k === 'role' ? p.role === colFilter[k] : cellText(p, k).toLowerCase().includes(colFilter[k])))
     && (!query || `${p.full_name} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query));
 
   function build() {
@@ -184,7 +193,23 @@ export function usersView() {
     el.seg = h('div', { class: 'seg', role: 'group', 'aria-label': t('role_filter_all') });
     el.list = h('ul', { class: 'plist' });
     el.tableWrap = h('div', { class: 'utable-wrap', hidden: true }, h('table', { class: 'utable' },
-      h('thead', {}, h('tr', {}, [t('full_name'), t('payroll_short'), t('opr'), t('position_short'), t('job_title'), t('level'), t('role'), t('work_location_short')].map((x) => h('th', { scope: 'col' }, x)))), h('tbody', {})));
+      h('thead', {},
+        h('tr', {}, COLS.map(([k, label]) => h('th', { scope: 'col', 'data-k': k }, h('button', { type: 'button', class: 'th-sort', title: t('sort_by'), onclick: () => {
+          sort = sort?.key !== k ? { key: k, dir: 1 } : sort.dir === 1 ? { key: k, dir: -1 } : null; update();
+        } }, t(label), h('span', { class: 'sort-ind', 'aria-hidden': 'true' }))))),
+        h('tr', { class: 'th-filters' }, COLS.map(([k, label]) => {
+          let box;
+          if (k === 'role') {
+            box = h('select', { 'aria-label': `${t('filter')}: ${t(label)}`, onchange: () => { colFilter.role = box.value; update(); } }, h('option', { value: '' }, t('role_filter_all')), ...['user', 'admin', 'manager'].map((r) => h('option', { value: r }, t('role_' + r))));
+          } else {
+            let timer2;
+            box = h('input', { type: 'search', placeholder: t('filter'), 'aria-label': `${t('filter')}: ${t(label)}`, autocomplete: 'off' });
+            box.addEventListener('input', () => { clearTimeout(timer2); timer2 = setTimeout(() => { colFilter[k] = box.value.trim().toLowerCase(); update(); }, 120); });
+          }
+          box.dataset.k = k;
+          return h('th', {}, box);
+        }))),
+      h('tbody', {})));
     el.hint = h('p', { class: 'muted', hidden: true }, t('users_table_hint'));
     el.views = h('div', { class: 'seg view-seg', role: 'group', 'aria-label': t('users_view') });
     el.empty = h('div', { class: 'empty card', hidden: true });
@@ -199,7 +224,7 @@ export function usersView() {
     const visible = people.filter(matches);
     const nUsers = people.filter((p) => p.role === 'user').length, nAdmins = people.filter((p) => p.role === 'admin').length, nManagers = people.filter((p) => p.role === 'manager').length;
     el.title.textContent = `${t('nav_users')} (${people.length})`;
-    el.count.textContent = query || roleFilter !== 'all' ? `${visible.length}/${people.length}` : '';
+    el.count.textContent = query || roleFilter !== 'all' || colActive() ? `${visible.length}/${people.length}` : '';
     el.seg.replaceChildren(...[['all', t('role_filter_all'), people.length], ['user', t('role_filter_user'), nUsers], ['admin', t('role_filter_admin'), nAdmins], ...(nManagers ? [['manager', t('role_filter_manager'), nManagers]] : [])].map(([r, label, n]) =>
       h('button', { type: 'button', class: 'btn small' + (roleFilter === r ? ' on' : ''), 'aria-pressed': String(roleFilter === r), onclick: () => { roleFilter = r; update(); } }, `${label} ${n}`)));
     el.views.replaceChildren(...[['cards', GRID, t('view_cards')], ['table', LIST, t('view_table')]].map(([v, ic, label]) =>
@@ -207,13 +232,18 @@ export function usersView() {
         onclick: () => { view = v; try { localStorage.setItem(VKEY, v); } catch { /* ignore */ } closeMenu(); update(); } }, icon(ic, 18))));
     el.list.hidden = view !== 'cards'; el.tableWrap.hidden = view !== 'table'; el.hint.hidden = view !== 'table';
     el.list.replaceChildren(...(view === 'cards' ? visible.map(card) : []));
-    el.tableWrap.querySelector('tbody').replaceChildren(...(view === 'table' ? visible.map(row) : []));
+    el.tableWrap.querySelector('tbody').replaceChildren(...(view === 'table' ? sorted(visible).map(row) : []));
+    for (const th of el.tableWrap.querySelectorAll('thead tr:first-child th')) {
+      const on = sort?.key === th.dataset.k;
+      th.setAttribute('aria-sort', on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none');
+      th.querySelector('.sort-ind').textContent = on ? (sort.dir === 1 ? ' \u25B2' : ' \u25BC') : '';
+    }
     // empty states: nobody to show -> say why and what to do
     const none = visible.length === 0;
     el.empty.hidden = !(none || nUsers === 0);
     if (!el.empty.hidden) {
       el.empty.replaceChildren(...(none
-        ? [h('p', {}, t('users_none_match')), h('button', { class: 'btn small', onclick: () => { query = ''; roleFilter = 'all'; el.search.value = ''; update(); } }, t('clear_filters'))]
+        ? [h('p', {}, t('users_none_match')), h('button', { class: 'btn small', onclick: () => { query = ''; roleFilter = 'all'; el.search.value = ''; for (const k of Object.keys(colFilter)) delete colFilter[k]; for (const b of el.tableWrap.querySelectorAll('.th-filters [data-k]')) b.value = ''; update(); } }, t('clear_filters'))]
         : [h('strong', {}, t('users_empty_title')), h('p', { class: 'muted' }, t('users_empty_text')), h('button', { class: 'btn small primary', onclick: addUser }, t('add_user'))]));
     }
   }
