@@ -2,6 +2,7 @@ import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { signIn } from '../auth/session.js';
 import { passwordInput } from '../components/form.js';
+import { copyright } from '../components/copyright.js';
 
 export function loginView({ notice } = {}) {
   const err = h('p', { class: 'error', role: 'alert' }, notice ? t(notice) : '');
@@ -20,5 +21,5 @@ export function loginView({ notice } = {}) {
     h('label', { for: 'username' }, t('username')), username,
     h('label', { for: 'password' }, t('password')), pw.wrap,
     err, btn);
-  return form;
+  return h('div', {}, form, copyright());
 }

@@ -64,3 +64,6 @@ Export (Excel or PDF) and **Print** are on the Department tab and on the calenda
 
 ## Export template (simple grid)
 Default layout: `src/export/templates/default.js`. For the official form add a template with `mode: 'fill'` (see `templates/example-fill.js`), put the .xlsx in `public/templates/`, and set `activeTemplate` in `src/export/engine.js`.
+
+---
+© 2026 Shady Mansour (shadymansour19@gmail.com, https://github.com/shadymansour19). All rights reserved, see [LICENSE](LICENSE).

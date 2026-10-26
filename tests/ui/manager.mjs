@@ -37,8 +37,12 @@ async function login(un) {
   await p.goto('http://localhost:4173/#/users'); await p.waitForSelector('.person, table');
   const body = await p.locator('main, body').first().innerText();
   ok('Users lists the manager with the manager badge', /MG Manager/.test(body) && /Department manager/.test(body));
+  await p.goto('http://localhost:4173/#/account'); await p.waitForSelector('.copyright');
+  ok('Account page shows the copyright line with the GitHub link', /Shady Mansour/.test(await p.locator('.copyright').innerText()) && (await p.locator('.copyright a').getAttribute('href')) === 'https://github.com/shadymansour19');
   ok('no page errors (manager)', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
+{ const c = await b.newContext(); const q = await c.newPage(); await q.goto('http://localhost:4173/'); await q.waitForSelector('#username');
+  ok('the sign-in page shows the copyright line', /© 20\d\d.*Shady Mansour/.test(await q.locator('.copyright').innerText())); await c.close(); }
 { const p = await login('mgadm');
   await p.goto('http://localhost:4173/#/users'); await p.waitForSelector('.person');
   await p.click('text=Add user'); await p.waitForSelector('dialog[open]');
