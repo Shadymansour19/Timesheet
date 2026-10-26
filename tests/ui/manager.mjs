@@ -86,6 +86,11 @@ async function login(un) {
   await p.click('.th-filter[data-k="role"]'); await p.waitForSelector('.flt-pop');
   await p.locator('.flt-pop .flt-all input').uncheck(); await p.locator('.flt-pop .flt-opt:has-text("Department manager") input').check();
   ok('filter: the Role column filters by the checked roles', await p.waitForFunction(() => { const r = [...document.querySelectorAll('.utable tbody tr.urow th')].map((x) => x.textContent.trim()).filter((x) => /^MG /.test(x)); return r.length === 2 && !r.includes('MG Admin'); }).then(() => true, () => false));
+  // the values offered by another column leave out what the active filters already excluded
+  await p.keyboard.press('Escape');
+  await p.click('.th-filter[data-k="full_name"]'); await p.waitForSelector('.flt-pop');
+  const left = (await p.locator('.flt-pop .flt-list .flt-opt').allTextContents()).map((x) => x.trim());
+  ok('filter: a column offers only the values left by the other filters (Role = manager -> no MG Admin)', !left.includes('MG Admin') && left.includes('MG Manager'), left.join('|'));
   await p.keyboard.press('Escape');
   ok('filter: Escape closes the popup', (await p.locator('.flt-pop').count()) === 0);
   await p.context().close(); }

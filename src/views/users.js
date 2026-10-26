@@ -182,8 +182,9 @@ export function usersView() {
   const colActive = () => Object.keys(colFilter).length > 0;
   const sorted = (list) => (sort ? [...list].sort((a, b) => sort.dir * cellText(a, sort.key).localeCompare(cellText(b, sort.key), undefined, { numeric: true, sensitivity: 'base' })) : list);
 
-  const matches = (p) => (roleFilter === 'all' || p.role === roleFilter)
-    && COLS.every(([k]) => !colFilter[k] || colFilter[k].has(cellText(p, k)))
+  // skip: a column whose own filter is ignored (its filter list offers the values that the OTHER filters leave)
+  const matches = (p, skip = null) => (roleFilter === 'all' || p.role === roleFilter)
+    && COLS.every(([k]) => k === skip || !colFilter[k] || colFilter[k].has(cellText(p, k)))
     && (!query || `${p.full_name} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query));
 
   // Excel-style filter of one column: every value found in the column with a check box, a search box, Select all, and Clear
@@ -194,7 +195,7 @@ export function usersView() {
   window.addEventListener('resize', closePop);
   function openFilter(k, btn) {
     const was = pop?.dataset.k === k; closePop(); if (was) return;
-    const values = [...new Set(people.map((p) => cellText(p, k)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    const values = [...new Set(people.filter((p) => matches(p, k)).map((p) => cellText(p, k)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
     const sel = new Set(colFilter[k] ?? values);
     const shown = () => values.filter((v) => (v || t('filter_blanks')).toLowerCase().includes(search.value.trim().toLowerCase()));
     const apply = () => { if (values.every((v) => sel.has(v))) delete colFilter[k]; else colFilter[k] = new Set(sel); update(); };
