@@ -108,8 +108,12 @@ export function shell(content, { onLang }) {
   const link = (r, cls = '') => h('a', { href: '#' + r.path, class: (cls + (here === r.path ? ' active' : '')).trim(), title: t(r.label), 'aria-current': here === r.path ? 'page' : false },
     r.icon ? h('span', { class: 'ico' }, icon(r.icon, 22)) : null, h('span', { class: 'lbl' }, t(r.label)));
   const [primary, ...others] = items, cut = Math.ceil(others.length / 2);
-  const nav = h('nav', { class: 'nav' + (items.length < 2 ? ' solo' : ''), style: `--n:${Math.max(items.length, 1)}`, 'aria-label': t('app_name') },
-    primary ? link(primary, 'nav-center') : null, ...others.slice(0, cut).map((r) => link(r)), h('span', { class: 'nav-gap', 'aria-hidden': 'true' }), ...others.slice(cut).map((r) => link(r)));
+  // only a FIVE-tab bar gets the raised middle button; with fewer tabs the bar is flat (all tabs equal, in route order)
+  const raised = items.length === 5;
+  const nav = h('nav', { class: 'nav' + (items.length < 2 ? ' solo' : '') + (raised ? ' raised' : ''), style: `--n:${Math.max(items.length, 1)}`, 'aria-label': t('app_name') },
+    ...(raised
+      ? [link(primary, 'nav-center'), ...others.slice(0, cut).map((r) => link(r)), h('span', { class: 'nav-gap', 'aria-hidden': 'true' }), ...others.slice(cut).map((r) => link(r))]
+      : items.map((r) => link(r))));
   const home = navFor()[0];
   // sub-pages (change password, one person's timesheet) get a Back link to where they came from
   const sub = here === '/account' || here.startsWith('/person/');

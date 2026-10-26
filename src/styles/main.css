@@ -315,19 +315,22 @@ a.btn.primary { color: #fff; }
 .nav .ico { display: none; }
 @media (max-width: 640px) {
   :root { --bar-h: calc(64px + env(safe-area-inset-bottom)); }
-  /* dark bar with a notch and a raised round button in the middle (the landing tab); other tabs left / right of it */
-  .nav { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 40; display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); gap: 0; overflow: visible;
-    background: none; border: 0; padding-block-end: env(safe-area-inset-bottom); }
-  .nav::before { content: ''; position: absolute; inset-block-start: 0; left: 50%; width: 800px; height: 130px; transform: translateX(-50%); background: var(--bar-bg); z-index: -1; pointer-events: none;
+  .nav { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 40; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; overflow: visible;
+    background: var(--card); border-block-end: 0; border-block-start: 1px solid var(--line); padding-block-end: env(safe-area-inset-bottom); }
+  .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 6px 2px; border: 0; font-size: .68rem; font-weight: 500; min-width: 0; }
+  .nav a.active { border: 0; color: var(--brand); font-weight: 700; }
+  /* FIVE tabs only: dark bar with a notch and the landing tab as a raised round button in the middle; the others left / right of it */
+  .nav.raised { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(var(--n, 5), 1fr); background: none; border: 0; }
+  .nav.raised::before { content: ''; position: absolute; inset-block-start: 0; left: 50%; width: 800px; height: 130px; transform: translateX(-50%); background: var(--bar-bg); z-index: -1; pointer-events: none;
     clip-path: path('M0 0 L345 0 C365 0 368 34 400 34 C432 34 435 0 455 0 L800 0 L800 130 L0 130 Z'); }
-  .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 6px 2px; border: 0; font-size: .68rem; font-weight: 500; min-width: 0; color: rgba(204, 251, 241, .72); }
-  .nav a.active { border: 0; color: #fff; font-weight: 700; }
-  .nav .nav-gap { display: block; }
-  .nav a.nav-center { position: absolute; inset-inline: 0; margin-inline: auto; inset-block-start: 0; width: 64px; height: 64px; min-height: 0; padding: 0; transform: translateY(-58%);
+  .nav.raised a { color: rgba(204, 251, 241, .72); }
+  .nav.raised a.active { color: #fff; }
+  .nav.raised .nav-gap { display: block; }
+  .nav.raised a.nav-center { position: absolute; inset-inline: 0; margin-inline: auto; inset-block-start: 0; width: 64px; height: 64px; min-height: 0; padding: 0; transform: translateY(-58%);
     border-radius: 50%; background: #0d9488; color: rgba(255, 255, 255, .85); border: 3px solid rgba(204, 251, 241, .35); box-shadow: 0 8px 20px rgba(0, 0, 0, .35); }
-  .nav a.nav-center.active { background: #115e59; color: #fff; border-color: #fff; }       /* selected: a clear white ring, like the white icon + label of the other tabs */
-  .nav a.nav-center .ico { width: auto; height: auto; }
-  .nav a.nav-center .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .nav.raised a.nav-center.active { background: #115e59; color: #fff; border-color: #fff; }       /* selected: a clear white ring, like the white icon + label of the other tabs */
+  .nav.raised a.nav-center .ico { width: auto; height: auto; }
+  .nav.raised a.nav-center .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .nav .ico { display: grid; place-items: center; width: 54px; height: 28px; border-radius: 999px; transition: background .15s; }
   .nav .lbl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nav.solo { display: none; }                       /* one tab only: nothing to navigate */
