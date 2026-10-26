@@ -4,7 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',          // a new build waits until the person taps Refresh (src/update.js)
+      injectRegister: false,
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'Timesheet',

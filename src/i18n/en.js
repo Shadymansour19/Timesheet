@@ -111,6 +111,8 @@ export default {
   bulk_err_required_super: "Full name is required",
   bulk_err_role_super: "Role must be super admin or super manager",
   bulk_add_short: "Bulk add",
+  update_available: "A new version is available.",
+  update_refresh: "Refresh",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",

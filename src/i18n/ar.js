@@ -111,6 +111,8 @@ export default {
   bulk_err_required_super: "الاسم الكامل مطلوب",
   bulk_err_role_super: "الدور يجب أن يكون super admin أو super manager",
   bulk_add_short: "إضافة دفعة واحدة",
+  update_available: "يتوفر إصدار جديد.",
+  update_refresh: "تحديث",
   promote: "ترقية إلى مسؤول",
   demote: "تحويل إلى مستخدم",
   promote_confirm: "ترقية إلى مسؤول القسم:",

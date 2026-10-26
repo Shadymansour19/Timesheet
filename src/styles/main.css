@@ -476,3 +476,6 @@ body.has-install .floating { inset-block-start: 68px; }
 .utable td, .utable tbody th { overflow: hidden; text-overflow: ellipsis; }
 /* phones / tablets (touch only): nothing can be dragged in from outside, so the drop areas are hidden */
 @media (hover: none) and (pointer: coarse) { .scan-drop { display: none; } }
+.update-banner { position: fixed; inset-inline: 12px; inset-block-end: calc(var(--bar-h) + 12px); z-index: 70; display: flex; align-items: center; gap: 8px; justify-content: space-between;
+  background: var(--card); color: var(--text); border: 1px solid var(--brand); border-radius: var(--radius); padding: 10px 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); max-width: 520px; margin-inline: auto; }
+.update-banner span { flex: 1; font-size: .9rem; }
