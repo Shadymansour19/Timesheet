@@ -81,6 +81,7 @@ async function login(un) {
   await p.click('.flt-pop button:text-is("Clear filter")');
   await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 3);
   ok('table: the column widths stay the same when filters change', JSON.stringify(await widths()) === JSON.stringify(w0), JSON.stringify(w0) + JSON.stringify(await widths()));
+  for (const chip of ['Admins', 'Users', 'Managers', 'All']) { await p.locator('.team-row .seg:not(.view-seg) button', { hasText: new RegExp('^' + chip) }).first().click().catch(() => {}); await p.waitForTimeout(150); ok(`table: the column widths stay the same with the role chip ${chip}`, JSON.stringify(await widths()) === JSON.stringify(w0), JSON.stringify(await widths())); }
   ok('filter: Clear filter shows everything again', (await p.locator('.th-filter.on').count()) === 0);
   await p.click('.th-filter[data-k="role"]'); await p.waitForSelector('.flt-pop');
   await p.locator('.flt-pop .flt-all input').uncheck(); await p.locator('.flt-pop .flt-opt:has-text("Department manager") input').check();
