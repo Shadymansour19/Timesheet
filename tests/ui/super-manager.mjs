@@ -64,7 +64,8 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   await p.goto('http://localhost:4173/#/departments'); await p.waitForSelector('.dept');
   const dw = new ExcelJS.Workbook(); const ds = dw.addWorksheet('D'); ds.addRow(['Department']); ['SM Gamma', 'sm  alpha', 'SM Delta'].forEach((n) => ds.addRow([n]));
   await dw.xlsx.writeFile(S + '/sm-depts.xlsx');
-  await p.click('button:text-is("Bulk add departments (Excel)")'); await p.waitForSelector('dialog[open]');
+  await p.click('#bulk-menu'); await p.waitForSelector('dialog[open]');
+  await p.click('dialog[open] button:text-is("Bulk add departments (Excel)")'); await p.waitForSelector('#bulk-dept-file');
   // dropped on the drop zone (not picked)
   await p.evaluate((b64) => {
     const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)); const dt = new DataTransfer();
@@ -85,7 +86,8 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   bs.addRow(['Nowhere', 'SM Bad Row', '', 'SMB-4']);
   bs.addRow(['SM Beta', 'SM Plain User', '', 'SMB-5', '', '', '', '', '', '', '', '', '', 'user']);
   await bw.xlsx.writeFile(S + '/sm-admins.xlsx');
-  await p.click('button:text-is("Bulk add admins / managers (Excel)")'); await p.waitForSelector('dialog[open]');
+  await p.click('#bulk-menu'); await p.waitForSelector('dialog[open]');
+  await p.click('dialog[open] button:text-is("Bulk add admins / managers (Excel)")'); await p.waitForSelector('#bulk-file');
   await p.locator('#bulk-file').setInputFiles(S + '/sm-admins.xlsx');
   ok('bulk admins: the file is read (5 rows)', await eventually(async () => (await p.locator('dialog[open] p.muted').nth(1).textContent()).includes('5 users')));
   await p.click('dialog[open] button:text-is("Create people")');

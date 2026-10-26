@@ -110,6 +110,7 @@ export default {
   bulk_hint_super: "أعمدة Excel (الصف الأول عناوين): الاسم الكامل*، OPR، اسم المستخدم، كلمة المرور، Role (super admin / super manager؛ الفارغ = super manager للعرض فقط). اسم المستخدم الفارغ = OPR بحروف إنجليزية وأرقام فقط، وكلمة المرور الفارغة = كلمة عشوائية.",
   bulk_err_required_super: "الاسم الكامل مطلوب",
   bulk_err_role_super: "الدور يجب أن يكون super admin أو super manager",
+  bulk_add_short: "إضافة دفعة واحدة",
   promote: "ترقية إلى مسؤول",
   demote: "تحويل إلى مستخدم",
   promote_confirm: "ترقية إلى مسؤول القسم:",

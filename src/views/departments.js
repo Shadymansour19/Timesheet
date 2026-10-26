@@ -45,6 +45,13 @@ export function departmentsView() {
     });
   }
 
+  // one "Bulk add" button; the two imports are chosen in a small dialog (keeps the phone header short)
+  function bulkMenu() {
+    const dlg = openDialog({ title: t('bulk_add_short'), content: h('div', { class: 'form' },
+      h('button', { type: 'button', class: 'btn', onclick: () => { dlg.close(); openBulkDepartments({ existing: () => depts, onDone: load }); } }, t('bulk_add_departments')),
+      h('button', { type: 'button', class: 'btn', onclick: () => { dlg.close(); openBulkAdd({ departments: depts, onDone: load }); } }, t('bulk_add_admins'))), buttons: [{ label: t('close') }] });
+  }
+
   function row(p) {
     return h('li', { class: 'person' },
       h('div', { class: 'pinfo' }, h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role)),
@@ -60,8 +67,7 @@ export function departmentsView() {
     root.replaceChildren(
       h('div', { class: 'cal-head' }, h('h2', {}, t('nav_departments')),
         h('div', { class: 'actions' },
-          h('button', { class: 'btn small', onclick: () => openBulkDepartments({ existing: () => depts, onDone: load }) }, t('bulk_add_departments')),
-          h('button', { class: 'btn small', onclick: () => openBulkAdd({ departments: depts, onDone: load }) }, t('bulk_add_admins')),
+          h('button', { class: 'btn small', id: 'bulk-menu', onclick: bulkMenu }, t('bulk_add_short')),
           h('button', { class: 'btn small primary', onclick: () => nameDialog(t('add_department'), '', createDepartment) }, t('add_department')))),
       ...depts.map((d) => {
         const members = people.filter((p) => p.department_id === d.id);

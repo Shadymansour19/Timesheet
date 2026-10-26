@@ -110,6 +110,7 @@ export default {
   bulk_hint_super: "Excel columns (first row = headers): Full name*, OPR, Username, Password, Role (super admin / super manager; empty = super manager, read-only). Empty username = the OPR with only English letters and numbers kept; empty password = a random one.",
   bulk_err_required_super: "Full name is required",
   bulk_err_role_super: "Role must be super admin or super manager",
+  bulk_add_short: "Bulk add",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",
