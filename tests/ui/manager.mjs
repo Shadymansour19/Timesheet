@@ -27,7 +27,7 @@ async function login(un) {
 }
 { const p = await login('mgmgr');
   await p.waitForSelector('.tgrid');
-  ok('working screens: no Developed by line in the page (only in the account menu)', (await p.locator('.credit').count()) === 0 && !(await p.locator('.menu-credit').isVisible()));
+  ok('working screens: the Developed by line closes the page (and the account menu has its own)', (await p.locator('main .credit').count()) === 1 && !(await p.locator('.menu-credit').isVisible()));
   await p.click('.acct > summary');
   ok('the account menu ends with the Developed by line and its three icon links', (await p.locator('.menu-credit').isVisible()) && /Developed by Shady Mansour/.test(await p.locator('.menu-credit').innerText()) && (await p.locator('.menu-credit a.credit-link').count()) === 3 && (await p.locator('.menu-credit a[data-link=github]').getAttribute('href')) === 'https://github.com/shadymansour19');
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/menu.png' });

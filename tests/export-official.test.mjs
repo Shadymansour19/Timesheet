@@ -60,6 +60,7 @@ async function build(name, opts) { const file = join(dir, name); const wb = awai
 const file = await build('official.xlsx', { loadAsset });
 const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(file);   // read back from disk
 const names = wb.worksheets.map((w) => w.name);
+ok('the exported workbook carries no Developed by / credit text (the credit is only on screen)', !wb.worksheets.some((w) => { let hit = false; w.eachRow((r) => r.eachCell((c) => { if (/developed by|shadymansour19/i.test(String(c.value ?? ''))) hit = true; })); return hit; }));
 const f = (cell) => (cell.value && cell.value.formula) || '';
 const res = (cell) => (cell.value && typeof cell.value === 'object' && 'formula' in cell.value ? (cell.value.result ?? 0) : cell.value);
 

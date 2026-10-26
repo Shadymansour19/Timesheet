@@ -3,7 +3,6 @@ import { t } from '../i18n/index.js';
 import { changePassword, state, refreshProfile } from '../auth/session.js';
 import { passwordInput, field } from '../components/form.js';
 import { updateSuperUser } from '../api/admin.js';
-import { credit } from '../components/credit.js';
 import { explain } from '../api/errors.js';
 
 // super admin / super manager: they have no Edit data screen, so they fix their own name / OPR here
@@ -20,7 +19,7 @@ function ownProfileForm() {
 export function accountView() {
   const own = ['super_admin', 'super_manager'].includes(state.profile?.role) ? ownProfileForm() : null;
   const pwForm = passwordForm();
-  return h('div', {}, ...(own ? [own] : []), pwForm, credit());
+  return h('div', {}, ...(own ? [own] : []), pwForm);       // the Developed by line comes from the shell
 }
 
 function passwordForm() {
