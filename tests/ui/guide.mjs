@@ -46,6 +46,12 @@ const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getB
     ok(`step ${i + 1}: the explanation card is fully on screen and shows a title`, (await inView(p)) && (await p.locator('.tour-title').innerText()).length > 2);
     if (process.env.SHOTS && i === 1) await p.screenshot({ path: process.env.SHOTS + '/tour-2.png' });
     if (process.env.SHOTS && i === 3) await p.screenshot({ path: process.env.SHOTS + '/tour-dash.png' });
+    if (TARGETS[i] === '.grid .day.ctx') {                          // BOTH dashed days are highlighted: two rings, the second around the last dashed day
+      const two = await p.evaluate(() => { const ctx = [...document.querySelectorAll('.grid .day.ctx')], rings = [...document.querySelectorAll('.tour-ring')].filter((r) => getComputedStyle(r).opacity === '1');
+        const around = (r, el) => { const a = r.getBoundingClientRect(), b = el.getBoundingClientRect(); return a.left <= b.left + 1 && a.top <= b.top + 1 && a.right >= b.right - 1 && a.bottom >= b.bottom - 1; };
+        return { n: ctx.length, rings: rings.length, first: around(rings[0], ctx[0]), last: around(rings[1], ctx[ctx.length - 1]) }; });
+      ok('dashed-days step: both dashed days get their own spotlight ring', two.n === 2 && two.rings === 2 && two.first && two.last, JSON.stringify(two));
+    }
     if (i < TARGETS.length - 1) await p.tap('#tour-next');
   }
   ok('the last step says Done', (await p.locator('#tour-next').innerText()) === 'Done');

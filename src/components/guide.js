@@ -20,7 +20,8 @@ const STEPS = [
   { target: '.cal > .cal-head', title: 'tour_1_title', text: 'tour_1_text' },
   { target: ['.grid .day.today', '.grid .day:not(.ctx)'], title: 'tour_2_title', text: 'tour_2_text' },
   { target: '.grid', title: 'tour_3_title', text: 'tour_3_text' },
-  { target: '.grid .day.ctx', title: 'tour_dash_title', text: 'tour_dash_text' },
+  // BOTH dashed days: the last day of the previous month (first one on the grid) and the first day of the next month (last one)
+  { targets: [() => document.querySelector('.grid .day.ctx'), () => [...document.querySelectorAll('.grid .day.ctx')].pop()], title: 'tour_dash_title', text: 'tour_dash_text' },
   { target: '.totals', title: 'tour_4_title', text: 'tour_4_text' },
   { target: '.cal-tools .icon-only', title: 'tour_5_title', text: 'tour_5_text' },
   { target: '.acct', title: 'tour_6_title', text: 'tour_6_text' },
