@@ -48,6 +48,13 @@ async function login(un) {
   await p.context().close(); }
 { const c = await b.newContext(); const q = await c.newPage(); await q.goto('http://localhost:4173/'); await q.waitForSelector('#username');
   ok('the sign-in page shows the Developed by line', /Developed by Shady Mansour/.test(await q.locator('.credit').innerText())); await c.close(); }
+// the plain user's help dialog in Arabic: short, simple sentences
+{ const p = await login('mgu1'); await p.waitForSelector('.day'); await p.click('button:text-is("العربية")'); await p.waitForSelector('.day');
+  await p.click('button[aria-label="مساعدة"]'); await p.waitForSelector('dialog[open]');
+  const txt = await p.locator('dialog[open]').innerText();
+  ok('Arabic help for users: simple wording', txt.includes('اضغط على اليوم لتغيير حالته بالترتيب E ثم X ثم Y وهكذا') && txt.includes('الدائرة الصغيرة') && !txt.includes('الكهرماني'), txt.slice(0, 120));
+  if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/help-ar.png' });
+  await p.context().close(); }
 { const p = await login('mgadm');
   await p.goto('http://localhost:4173/#/users'); await p.waitForSelector('.person');
   await p.click('text=Add user'); await p.waitForSelector('dialog[open]');
