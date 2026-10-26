@@ -110,6 +110,20 @@ async function login(un) {
   await p.keyboard.press('Escape');
   ok('filter: Escape closes the popup', (await p.locator('.flt-pop').count()) === 0);
   await p.context().close(); }
+// a phone: tapping a column filter must keep the popup open when the on-screen keyboard changes the window HEIGHT (it used to close at once)
+{ const ctx = await b.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true }); const p = await ctx.newPage();
+  await p.goto('http://localhost:4173/'); await p.fill('#username', 'mgadm'); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
+  await p.goto('http://localhost:4173/#/users'); await p.waitForSelector('.person'); await p.tap('.view-seg button[data-view="table"]'); await p.waitForSelector('.utable tbody tr.urow');
+  await p.tap('.th-filter[data-k="role"]'); await p.waitForSelector('.flt-pop');
+  ok('phone: the filter popup opens without focusing its search box (no keyboard by itself)', await p.evaluate(() => document.activeElement?.type !== 'search' || !document.querySelector('.flt-pop').contains(document.activeElement)));
+  await p.setViewportSize({ width: 390, height: 380 });                                // what the on-screen keyboard does
+  await p.waitForTimeout(500);
+  ok('phone: the keyboard (height change) does not close the popup, and it stays on screen', (await p.locator('.flt-pop').count()) === 1 && await p.locator('.flt-pop').evaluate((e) => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1; }));
+  await p.tap('.flt-pop .flt-list .flt-opt:has-text("Department manager") input'); await p.waitForTimeout(300);
+  ok('phone: a value can be ticked and the filter applies', (await p.locator('.th-filter.on[data-k="role"]').count()) === 1);
+  await p.setViewportSize({ width: 700, height: 380 }); await p.waitForTimeout(300);
+  ok('phone: turning the screen (a width change) closes the popup', (await p.locator('.flt-pop').count()) === 0);
+  await ctx.close(); }
 cleanup();
 await b.close();
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL MANAGER TESTS PASSED ===');

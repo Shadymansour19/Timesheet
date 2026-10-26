@@ -9,7 +9,16 @@ export function createColumnFilter({ rows, matches, cellText, filters, labelOf, 
   const close = () => { if (pop) { pop.remove(); pop = null; } };
   document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !e.target.closest('.th-filter')) close(); }, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-  window.addEventListener('resize', close);
+  // The on-screen keyboard of a phone changes only the HEIGHT of the window: that must not close the popup (it used to, so a filter could not be applied
+  // on a phone). A real change of width (rotation) closes it; a height change just moves the popup back on screen.
+  let lastW = innerWidth, anchor = null;
+  const place = () => {
+    if (!pop || !anchor) return;
+    const r = anchor.getBoundingClientRect(), rtl = document.documentElement.dir === 'rtl';
+    pop.style.top = `${Math.max(8, Math.min(r.bottom + 4, innerHeight - pop.offsetHeight - 8))}px`;
+    const left = rtl ? r.right - pop.offsetWidth : r.left; pop.style.left = `${Math.max(8, Math.min(left, innerWidth - pop.offsetWidth - 8))}px`;
+  };
+  window.addEventListener('resize', () => { if (innerWidth !== lastW) { lastW = innerWidth; close(); } else place(); });
 
   function open(k, btn) {
     const was = pop?.dataset.k === k; close(); if (was) return;
@@ -37,10 +46,9 @@ export function createColumnFilter({ rows, matches, cellText, filters, labelOf, 
       search, h('label', { class: 'flt-opt flt-all' }, all, t('select_all')), list,
       h('div', { class: 'flt-foot' }, h('button', { type: 'button', class: 'btn small', onclick: () => { delete filters[k]; onChange(); close(); } }, t('clear_filter')), h('button', { type: 'button', class: 'btn small primary', onclick: close }, t('done'))));
     document.body.append(pop);
-    const r = btn.getBoundingClientRect(), rtl = document.documentElement.dir === 'rtl';
-    pop.style.top = `${Math.min(r.bottom + 4, window.innerHeight - 300)}px`;
-    const left = rtl ? r.right - pop.offsetWidth : r.left; pop.style.left = `${Math.max(8, Math.min(left, window.innerWidth - pop.offsetWidth - 8))}px`;
-    draw(); search.focus();
+    anchor = btn; lastW = innerWidth; draw(); place();
+    // a touch screen: no automatic focus (it would pop the keyboard up over the list); the person taps the search box if they want it
+    if (!matchMedia('(hover: none) and (pointer: coarse)').matches) search.focus();
   }
   return { open, close };
 }
