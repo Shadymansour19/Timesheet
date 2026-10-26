@@ -42,6 +42,7 @@ const links = ph.locator('.shell > .nav a');
 ok('admin has 4 tabs, each with an icon AND a label', (await links.count()) === 4 && (await ph.locator('.shell > .nav a svg').count()) === 4 && (await links.allTextContents()).map((s) => s.trim()).join('|') === 'Department|Overtime|Users|My calendar');
 const boxes = await ph.locator('.shell > .nav a:not(.nav-center)').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
 ok('the landing tab is the raised round button in the middle of the bar', await ph.locator('.nav a.nav-center').evaluate((e) => { const r = e.getBoundingClientRect(), v = window.innerWidth; return Math.abs(r.left + r.width / 2 - v / 2) < 2 && r.width >= 60 && r.top < document.querySelector('.shell > .nav').getBoundingClientRect().top + 5; }));
+ok('the raised button shows when it is selected (white ring) and not when another tab is', (await ph.locator('.nav a.nav-center').evaluate((e) => getComputedStyle(e).borderTopColor)) === 'rgb(255, 255, 255)');
 ok('the other tabs share the width evenly', Math.max(...boxes) - Math.min(...boxes) <= 2, JSON.stringify(boxes));
 ok('the active tab icon has NO highlight background (colour of icon and text only)', (await ph.locator('.nav a.active .ico').evaluate((e) => getComputedStyle(e).backgroundColor)) === 'rgba(0, 0, 0, 0)');
 ok('tap targets are at least 44px tall', (await links.evaluateAll((els) => els.every((e) => e.getBoundingClientRect().height >= 44))));
