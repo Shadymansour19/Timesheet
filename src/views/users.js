@@ -1,5 +1,6 @@
 import { choice } from '../components/choice.js';
 import { openBulkAdd } from './bulk-users.js';
+import { renderOnboarding } from '../components/onboarding.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
@@ -86,7 +87,8 @@ export function usersView() {
     catch (e) { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, explain(e))); return; }
     if (quiet && built && JSON.stringify(fresh) === JSON.stringify(people)) return;   // nothing new
     people = fresh;
-    colsFixed = false;                         // new data: measure the column widths again (filters and sorting never do)
+    colsFixed = false;
+    if (!quiet || !built) renderOnboarding(el.onboard ?? (el.onboard = h('div', {})), { dept: myDept(), people, addUser });                         // new data: measure the column widths again (filters and sorting never do)
     if (!built) build();
     update();
   }
@@ -122,7 +124,7 @@ export function usersView() {
   function actionsOf(p) {
     const self = p.id === me.id;
     return [
-      { label: t('timesheet'), kind: 'primary', href: '#/person/' + p.id },
+      ...(p.role === 'manager' ? [] : [{ label: t('timesheet'), kind: 'primary', href: '#/person/' + p.id }]),   // a manager has no timesheet
       { label: t('edit_data'), run: () => editUser(p) },
       ...(self ? [] : [{ label: t('reset_password'), run: () => resetPasswordDialog(p) }]),
       ...(p.role === 'user' ? [{ label: t('promote'), run: () => changeRole(p, 'admin', load) }] : []),
@@ -240,13 +242,14 @@ export function usersView() {
             t(label), h('span', { class: 'sort-ind', 'aria-hidden': 'true' })),
           h('button', { type: 'button', class: 'th-filter', 'data-k': k, title: t('filter'), 'aria-label': `${t('filter')}: ${t(label)}`, 'aria-haspopup': 'dialog', onclick: (e) => openFilter(k, e.currentTarget) }, icon(FILTER, 14)))))),
       h('tbody', {})));
+    el.onboard ??= h('div', {});
     el.hint = h('p', { class: 'muted', hidden: true }, t('users_table_hint'));
     el.views = h('div', { class: 'seg view-seg', role: 'group', 'aria-label': t('users_view') });
     el.empty = h('div', { class: 'empty card', hidden: true });
     root.replaceChildren(
       h('div', { class: 'cal-head' }, el.title, h('div', { class: 'actions' }, h('button', { class: 'btn small', onclick: () => openBulkAdd({ onDone: load }) }, t('bulk_add')), h('button', { class: 'btn small primary', onclick: addUser }, t('add_user')))),
       h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), el.search, el.count), el.seg, el.views),
-      el.hint, el.list, el.tableWrap, el.empty);
+      el.onboard, el.hint, el.list, el.tableWrap, el.empty);
     built = true;
   }
 

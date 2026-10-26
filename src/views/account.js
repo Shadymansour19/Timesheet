@@ -1,9 +1,28 @@
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
-import { changePassword } from '../auth/session.js';
-import { passwordInput } from '../components/form.js';
+import { changePassword, state, refreshProfile } from '../auth/session.js';
+import { passwordInput, field } from '../components/form.js';
+import { updateSuperUser } from '../api/admin.js';
+import { explain } from '../api/errors.js';
+
+// super admin / super manager: they have no Edit data screen, so they fix their own name / OPR here
+function ownProfileForm() {
+  const name = field(t('full_name'), { required: true, value: state.profile.full_name }), opr = field(t('opr'), { value: state.profile.opr ?? '' });
+  const msg = h('p', { role: 'status' });
+  return h('form', { class: 'card form', id: 'own-profile', onsubmit: async (e) => {
+    e.preventDefault();
+    try { await updateSuperUser(state.profile.id, name.input.value.trim(), opr.input.value.trim()); await refreshProfile(); msg.className = 'success'; msg.textContent = t('saved'); }
+    catch (err) { msg.className = 'error'; msg.textContent = explain(err); }
+  } }, h('h2', {}, t('my_profile')), name.row, opr.row, msg, h('div', { class: 'form-actions' }, h('button', { type: 'submit', class: 'btn primary' }, t('save'))));
+}
 
 export function accountView() {
+  const own = ['super_admin', 'super_manager'].includes(state.profile?.role) ? ownProfileForm() : null;
+  const pwForm = passwordForm();
+  return own ? h('div', {}, own, pwForm) : pwForm;
+}
+
+function passwordForm() {
   const msg = h('p', { role: 'status' });
   const curP = passwordInput({ id: 'cur', autocomplete: 'current-password', required: true });
   const nwP = passwordInput({ id: 'nw', autocomplete: 'new-password', required: true, minlength: 8 });

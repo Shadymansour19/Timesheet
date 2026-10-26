@@ -17,6 +17,7 @@
     "test:ui-overtime": "node tests/ui/overtime-tab.mjs",
     "test:ui-super-manager": "node tests/ui/super-manager.mjs",
     "test:ui-update": "node tests/ui/update.mjs",
+    "test:ui-onboarding": "node tests/ui/onboarding.mjs",
     "test:ui-team": "node tests/ui/team-grid.mjs",
     "test:ui-live": "node tests/ui/live-users-person.mjs",
     "test:ui-theme": "node tests/ui/theme.mjs",

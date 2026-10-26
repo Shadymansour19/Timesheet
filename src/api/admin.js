@@ -23,6 +23,7 @@ export const updateProfile = (uid, fullName, opr, level, jobTitle = null, contra
 // department print settings: report = { dept_print_name?, location? } (replaced as a whole); code / sector / field are columns ('' clears, null keeps)
 export const setDepartmentReport = (id, report, { code = null, sector = null, field = null, approvedEngineer = null, approvedTech = null } = {}) =>
   rpc('set_department_report', { p_dept: id, p_report: report, p_code: code, p_sector: sector, p_field: field, p_approved_engineer: approvedEngineer, p_approved_tech: approvedTech });
+export const updateSuperUser = (uid, fullName, opr) => rpc('update_super_user', { p_user: uid, p_full_name: fullName, p_opr: opr });
 export const setUserRole = (uid, role) => rpc('set_user_role', { p_user: uid, p_role: role });
 export const createDepartment = (name) => rpc('create_department', { p_name: name });
 export const renameDepartment = (id, name) => rpc('rename_department', { p_id: id, p_name: name });

@@ -107,6 +107,10 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
     ok(`super admin: adds a ${label.toLowerCase()} (no department)`, await eventually(() => sql(`select role||'|'||coalesce(department_id::text,'none') from public.profiles where username='${un}'`) === role + '|none', 30000));
   }
   ok('super admin: the new super admin and super manager are listed', await eventually(async () => /SM New Super admin/.test(await p.locator('.depts').innerText()) && /SM New Super manager/.test(await p.locator('.depts').innerText())));
+  // a super admin edits their own name in the Super users tab
+  await p.locator('.person', { hasText: 'SM Super' }).filter({ hasNotText: 'Manager' }).first().locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
+  await p.getByLabel('Full name').fill('SM Super Edited'); await p.click('dialog[open] button:text-is("Save")');
+  ok('super admin: edits their own name in the Super users tab', await eventually(() => sql(`select full_name from public.profiles where username='smsup'`) === 'SM Super Edited'));
   // bulk add super admins / super managers (no department)
   const sw = new ExcelJS.Workbook(); const ss = sw.addWorksheet('U');
   ss.addRow(['Full name', 'OPR', 'Username', 'Password', 'Role']);
@@ -121,6 +125,12 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   ok('bulk super users: 2 created, 1 failed (an admin role is not allowed here)', await eventually(async () => (await p.locator('dialog[open]').textContent()).includes('Created: 2 · Failed: 1'), 60000));
   ok('bulk super users: empty role = super manager, super admin as given, no department', sql(`select string_agg(username||'/'||role||'/'||coalesce(department_id::text,'none'), ',' order by username) from public.profiles where username in ('sms1','sms2','smsx3')`) === 'sms1/super_manager/none,sms2/super_admin/none');
   ok('super admin: no page errors', p.errs.length === 0, p.errs.join('|'));
+  await p.context().close(); }
+// a super manager fixes their own name / OPR on the Account page
+{ const p = await login('smgr');
+  await p.goto('http://localhost:4173/#/account'); await p.waitForSelector('#own-profile');
+  await p.locator('#own-profile').getByLabel('Full name').fill('SM Super Manager Edited'); await p.locator('#own-profile button[type=submit]').click();
+  ok('super manager: edits their own name on the Account page', await eventually(() => sql(`select full_name from public.profiles where username='smgr'`) === 'SM Super Manager Edited'));
   await p.context().close(); }
 // a touch-only phone: no drop area (nothing can be dragged in), the file picker stays
 { const ctx = await b.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true }); const p = await ctx.newPage();

@@ -479,3 +479,11 @@ body.has-install .floating { inset-block-start: 68px; }
 .update-banner { position: fixed; inset-inline: 12px; inset-block-end: calc(var(--bar-h) + 12px); z-index: 70; display: flex; align-items: center; gap: 8px; justify-content: space-between;
   background: var(--card); color: var(--text); border: 1px solid var(--brand); border-radius: var(--radius); padding: 10px 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); max-width: 520px; margin-inline: auto; }
 .update-banner span { flex: 1; font-size: .9rem; }
+.onboarding { max-width: none; margin: 10px 0; padding: 12px 14px; }
+.ob-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ob-steps { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ob-step { display: flex; align-items: center; gap: 10px; }
+.ob-mark { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--line); color: var(--text); font-weight: 700; font-size: .85rem; }
+.ob-step.done .ob-mark { background: var(--ok); color: #fff; }
+.ob-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ob-step.done .ob-text strong { text-decoration: line-through; opacity: .7; }

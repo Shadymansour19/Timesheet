@@ -1,12 +1,13 @@
 // Super admins and super managers (people without a department). Super admin only.
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
-import { state } from '../auth/session.js';
-import { fetchSuperUsers, callFn } from '../api/admin.js';
+import { state, refreshProfile } from '../auth/session.js';
+import { fetchSuperUsers, updateSuperUser, callFn } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
 import { toast } from '../components/toast.js';
 import { openBulkAdd } from './bulk-users.js';
+import { field } from '../components/form.js';
 import { personFields, resetPasswordDialog, deletePerson } from './users.js';
 
 export function superUsersView() {
@@ -32,11 +33,24 @@ export function superUsersView() {
     });
   }
 
+  function editSuper(p) {
+    const name = field(t('full_name'), { required: true, value: p.full_name }), opr = field(t('opr'), { value: p.opr ?? '' });
+    openDialog({
+      title: `${t('edit_data')}: ${p.full_name}`, content: h('div', { class: 'form' }, h('p', { class: 'muted' }, `${t('username')}: ${p.username}`), name.row, opr.row),
+      buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
+        await updateSuperUser(p.id, name.input.value.trim(), opr.input.value.trim());
+        if (p.id === state.profile.id) await refreshProfile();
+        await load();
+      } }],
+    });
+  }
+
   function row(p) {
     const self = p.id === state.profile.id;
     return h('li', { class: 'person' },
       h('div', { class: 'pinfo' }, h('strong', {}, p.full_name), h('span', { class: 'badge admin' }, t('role_' + p.role)), h('span', { class: 'muted' }, p.username)),
       h('div', { class: 'pactions' },
+        h('button', { class: 'btn small', onclick: () => editSuper(p) }, t('edit_data')),
         self ? null : h('button', { class: 'btn small', onclick: () => resetPasswordDialog(p) }, t('reset_password')),
         self ? null : h('button', { class: 'btn small danger', onclick: () => deletePerson(p, load) }, t('delete'))));
   }
