@@ -138,7 +138,7 @@ await p.click('.back-link'); await p.waitForSelector('.tgrid');
 await p.click('.acct > summary'); await p.click('.menu-item:text("Add account")'); await p.waitForSelector('dialog[open]');
 await p.locator('dialog[open]').getByLabel('Username').fill('plsa'); await p.locator('dialog[open]').getByLabel('Password', { exact: true }).fill(PW); await p.locator('dialog[open] button.primary').click();
 await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.waitForSelector('.depts');
-ok('super_admin tabs: Departments first, then the admin tabs (acting for a department)', (await p.locator('.nav a').allTextContents())[0] === 'Departments' && (await p.locator('.nav a').count()) === 4);
+ok('super_admin tabs: Departments first, the admin tabs (acting for a department), then Super users', (await p.locator('.nav a').allTextContents())[0] === 'Departments' && (await p.locator('.nav a').count()) === 5);
 await p.click('.acct > summary'); await p.click('.menu a.menu-item'); await p.waitForSelector('#cur');
 ok('super_admin: Change password via the menu, Back goes to Departments', (await p.locator('.back-link').count()) === 1);
 await p.click('.back-link'); await p.waitForSelector('.depts');

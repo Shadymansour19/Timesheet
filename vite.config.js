@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  build: {
+    rollupOptions: { output: { manualChunks(id) { if (id.includes('node_modules/pdfjs-dist')) return 'pdfjs-lib'; } } },   // the PDF reader used by the overtime scan: its own chunk, not precached
+  },
   plugins: [
     VitePWA({
       registerType: 'prompt',          // a new build waits until the person taps Refresh (src/update.js)
@@ -26,8 +29,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/functions\//, /^\/auth\//, /^\/rest\//],
         // the OCR engine (several MB) is NOT part of the app shell: cached on first use instead (works offline afterwards)
-        globIgnores: ['**/tesseract-core*', '**/pdf.worker*', '**/worker.min*'],
-        runtimeCaching: [{ urlPattern: /\/(ocr\/lang\/|assets\/(tesseract-core|pdf\.worker|worker\.min))/, handler: 'CacheFirst', options: { cacheName: 'ocr-engine', expiration: { maxEntries: 12 } } }],
+        globIgnores: ['**/tesseract-core*', '**/pdf.worker*', '**/worker.min*', '**/pdfjs-lib*'],
+        runtimeCaching: [{ urlPattern: /\/(ocr\/lang\/|assets\/(tesseract-core|pdf\.worker|worker\.min|pdfjs-lib))/, handler: 'CacheFirst', options: { cacheName: 'ocr-engine', expiration: { maxEntries: 12 } } }],
       },
     }),
   ],

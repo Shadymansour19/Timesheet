@@ -1,5 +1,9 @@
 # SPEC
 
+> Start with [CURRENT_STATE.md](CURRENT_STATE.md) (what exists today) and [CHANGELOG.md](CHANGELOG.md). This file is the WHY: section 1 is the original
+> requirements (older than some later decisions: the decision log wins), section 3 is the dated decision log, newest at the bottom.
+> Find a topic with `grep -n -i "<word>" SPEC.md` (e.g. manager, super manager, payroll, departure, overtime, export, notification, bulk, filter).
+
 ## 1. Requirements
 
 ### Roles
@@ -175,3 +179,4 @@ All answered 2026-10-19; see Decision log.
 - 2026-10-26 Super admin: separate Super users tab (list, add super admin / super manager, reset / delete) moved out of Departments; 5 tabs on a phone. Phone bottom bar redesigned like the supermarket-price-board project: dark green bar with a notch, the landing tab as a raised round button in the middle, the other tabs left / right (white active, light inactive). Bulk button renamed: Bulk add department admins / managers (Excel).
 - 2026-10-26 Super users tab: bulk add super admins / managers from Excel (columns Full name, OPR, Username, Password, Role = super admin | super manager; empty role = super manager, read-only; empty username = the OPR). Departments tab button is named Bulk add admins / managers (Excel).
 - 2026-10-26 Departments tab: one Bulk add button opens a small chooser (departments / admins and managers), so the phone header stays short.
+- 2026-10-26 Super users tab buttons are named Add Super User / Bulk add super users. The PDF reader of the overtime scan is its own chunk and not precached (OCR assets download when first needed). Column filter, bulk-fill dialog and bulk import parsing moved to src/components/column-filter.js, src/components/bulk-fill.js, src/lib/bulk-parse.js. New docs: CURRENT_STATE.md and CHANGELOG.md.

@@ -160,7 +160,7 @@ ok('admin own calendar: Y on days 10-12', (await p.locator('.day:not(.ctx)').nth
 // ================= super admin =================
 const sa = await session('uisa'); await sa.waitForSelector('.dept');
 ok('super_admin lands on departments', sa.url().endsWith('#/departments'));
-ok('super_admin has Departments plus the admin tabs (Team, Overtime, Users)', (await sa.locator('.nav a').count()) === 4 && (await sa.locator('.nav a').first().textContent()).includes('Departments'));
+ok('super_admin has Departments, the admin tabs (Team, Overtime, Users) and Super users', (await sa.locator('.nav a').count()) === 5 && (await sa.locator('.nav a').first().textContent()).includes('Departments') && (await sa.locator('.nav').innerText()).includes('Super users'));
 // ---- acting as the admin of ANY department (header x-acting-dept; migration 13)
 await sa.goto('http://localhost:4173/#/team'); await sa.waitForSelector('.tgrid tbody tr', { timeout: 30000 });
 await sa.waitForSelector('.dept-switch');

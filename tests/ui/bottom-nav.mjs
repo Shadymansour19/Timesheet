@@ -56,7 +56,7 @@ for (const [label, hash, sel] of [['Overtime', '#/overtime', '.ot-day'], ['Users
   await ph.locator(`.shell > .nav a:has(.lbl:text-is("${label}"))`).click(); await ph.waitForSelector(sel);
   ok(`tap "${label}" opens it and marks it active`, ph.url().endsWith(hash) && (await ph.locator('.nav a.active .lbl').textContent()) === label);
 }
-await ph.locator('.shell > .nav a:has(.lbl:text-is("Users"))').click(); await ph.waitForSelector('.person');
+await ph.locator('.shell > .nav a:has(.lbl:text-is("Users"))').click(); await ph.waitForSelector('.person'); await ph.waitForSelector('#onboarding'); await ph.waitForTimeout(500);   // the first-run checklist loads after the list
 await ph.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await ph.waitForTimeout(300);
 const lastCard = await ph.locator('.person').last().boundingBox(); nb = await bar(ph);
 ok('Users page scrolled to the end: the last card is fully above the bar', lastCard.y + lastCard.height <= nb.top + 1, JSON.stringify({ lastCard, top: nb.top }));

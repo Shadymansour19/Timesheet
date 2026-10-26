@@ -1,5 +1,7 @@
 # PLAN
 
+> The current state is in [CURRENT_STATE.md](CURRENT_STATE.md); what changed when is in [CHANGELOG.md](CHANGELOG.md). This file keeps the original phases and the open backlog.
+
 Each phase ends with local commits (never pushed) and a hand-off of push + Supabase commands.
 
 0. **Discovery** (DONE): docs, open questions answered, recorded in SPEC.md.

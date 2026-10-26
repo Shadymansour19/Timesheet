@@ -11,12 +11,16 @@ Mobile-first PWA for recording daily work status (X / Y / E) and overtime, with 
 |---|---|
 | user | Record own daily status, view own overtime, change own password |
 | admin | Everything for users in own department: statuses, overtime, user management, export |
-| super_admin | Manage departments and department admins only |
+| manager | Like an admin, but not part of the timesheet (no calendar, not in grids or reports) |
+| super_manager | Read-only view (and export) of every department's grid and overtime |
+| super_admin | Manage departments, admins, super users; can act as the admin of any department |
 
 ## Docs
 - [SPEC.md](SPEC.md) – requirements and dated decision log
 - [PLAN.md](PLAN.md) – phases
 - [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) – repo layout
+- [CURRENT_STATE.md](CURRENT_STATE.md) – one page: what exists today (roles, tabs, features, known gaps)
+- [CHANGELOG.md](CHANGELOG.md) – what changed, by day
 - [MAINTAINING.md](MAINTAINING.md) – how to change, test and deploy things yourself
 
 ## Setup

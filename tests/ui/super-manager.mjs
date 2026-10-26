@@ -108,7 +108,7 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   await p.goto('http://localhost:4173/#/super'); await p.waitForSelector('#add-super');
   ok('super admin: the Super users tab exists', /Super users/.test(await p.locator('.nav').innerText()));
   for (const [un, label, role] of [['smnew1', 'Super manager', 'super_manager'], ['smnew2', 'Super admin', 'super_admin']]) {
-    await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.click('button:text-is("Add super admin / manager")'); await p.waitForSelector('dialog[open]');
+    await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.click('button:text-is("Add Super User")'); await p.waitForSelector('dialog[open]');
     await p.fill('dialog[open] input[autocapitalize="none"]', un);
     await p.getByLabel('Full name').fill('SM New ' + label);
     await p.locator('dialog[open] label:has-text("' + label + '") input[type=radio]').check();

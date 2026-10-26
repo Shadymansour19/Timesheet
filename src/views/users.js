@@ -1,6 +1,7 @@
 import { choice } from '../components/choice.js';
 import { openBulkAdd } from './bulk-users.js';
 import { renderOnboarding } from '../components/onboarding.js';
+import { createColumnFilter } from '../components/column-filter.js';
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
@@ -189,43 +190,8 @@ export function usersView() {
     && COLS.every(([k]) => k === skip || !colFilter[k] || colFilter[k].has(cellText(p, k)))
     && (!query || `${p.full_name} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query));
 
-  // Excel-style filter of one column: every value found in the column with a check box, a search box, Select all, and Clear
-  let pop = null;
-  const closePop = () => { if (pop) { pop.remove(); pop = null; } };
-  document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !e.target.closest('.th-filter')) closePop(); }, true);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
-  window.addEventListener('resize', closePop);
-  function openFilter(k, btn) {
-    const was = pop?.dataset.k === k; closePop(); if (was) return;
-    const values = [...new Set(people.filter((p) => matches(p, k)).map((p) => cellText(p, k)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-    const sel = new Set(colFilter[k] ?? values);
-    const shown = () => values.filter((v) => (v || t('filter_blanks')).toLowerCase().includes(search.value.trim().toLowerCase()));
-    const apply = () => { if (values.every((v) => sel.has(v))) delete colFilter[k]; else colFilter[k] = new Set(sel); update(); };
-    const search = h('input', { type: 'search', placeholder: t('search'), 'aria-label': t('search'), autocomplete: 'off' });
-    const all = h('input', { type: 'checkbox', id: 'flt-all' });
-    const list = h('div', { class: 'flt-list' });
-    function draw() {
-      const vs = shown(), n = vs.filter((v) => sel.has(v)).length;
-      all.checked = vs.length > 0 && n === vs.length; all.indeterminate = n > 0 && n < vs.length;
-      list.replaceChildren(...vs.map((v) => { const box = h('input', { type: 'checkbox', checked: sel.has(v), value: v }); box.addEventListener('change', () => { if (box.checked) sel.add(v); else sel.delete(v); apply(); draw(); }); return h('label', { class: 'flt-opt' }, box, v || t('filter_blanks')); }));
-      if (!vs.length) list.append(h('p', { class: 'muted' }, t('users_none_match')));
-    }
-    all.addEventListener('change', () => {          // acts on what the search shows; checking it while searching keeps ONLY the found values (like Excel)
-      const vs = shown(), searching = search.value.trim() !== '';
-      if (vs.every((v) => sel.has(v))) vs.forEach((v) => sel.delete(v));
-      else { if (searching) sel.clear(); vs.forEach((v) => sel.add(v)); }
-      apply(); draw();
-    });
-    search.addEventListener('input', draw);
-    pop = h('div', { class: 'flt-pop', role: 'dialog', 'aria-label': `${t('filter')}: ${t(COLS.find((c) => c[0] === k)[1])}`, 'data-k': k },
-      search, h('label', { class: 'flt-opt flt-all' }, all, t('select_all')), list,
-      h('div', { class: 'flt-foot' }, h('button', { type: 'button', class: 'btn small', onclick: () => { delete colFilter[k]; update(); closePop(); } }, t('clear_filter')), h('button', { type: 'button', class: 'btn small primary', onclick: closePop }, t('done'))));
-    document.body.append(pop);
-    const r = btn.getBoundingClientRect(), rtl = document.documentElement.dir === 'rtl';
-    pop.style.top = `${Math.min(r.bottom + 4, window.innerHeight - 300)}px`;
-    const left = rtl ? r.right - pop.offsetWidth : r.left; pop.style.left = `${Math.max(8, Math.min(left, window.innerWidth - pop.offsetWidth - 8))}px`;
-    draw(); search.focus();
-  }
+  const columnFilter = createColumnFilter({ rows: () => people, matches: (p, skip) => matches(p, skip), cellText, filters: colFilter, labelOf: (k) => t(COLS.find((c) => c[0] === k)[1]), onChange: () => update() });
+  const openFilter = (k, btn) => columnFilter.open(k, btn);
 
   function build() {
     el.title = h('h2', {});
