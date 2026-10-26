@@ -60,11 +60,30 @@ async function login(un) {
   ok('table: a second click sorts descending', desc.join() === [...asc].reverse().join() && (await p.locator('.utable th[data-k="full_name"]').getAttribute('aria-sort')) === 'descending', desc.join());
   await p.locator('.utable th[data-k="full_name"] .th-sort').click();
   ok('table: a third click returns to the default order', (await p.locator('.utable th[data-k="full_name"]').getAttribute('aria-sort')) === 'none');
-  await p.fill('.th-filters input[data-k="full_name"]', 'person');
-  ok('table: the box under a title filters that column', await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 1).then(() => true, () => false));
-  await p.fill('.th-filters input[data-k="full_name"]', '');
-  await p.selectOption('.th-filters select[data-k="role"]', 'manager');
-  ok('table: the Role column filters by role', await p.waitForFunction(() => { const r = [...document.querySelectorAll('.utable tbody tr.urow th')].map((x) => x.textContent.trim()).filter((x) => /^MG /.test(x)); return r.length === 2 && !r.includes('MG Admin'); }).then(() => true, () => false));
+  // Excel-style column filter: every value with a check box, search, Select all
+  await p.click('.th-filter[data-k="full_name"]'); await p.waitForSelector('.flt-pop');
+  const opts = await p.locator('.flt-pop .flt-list .flt-opt').allTextContents();
+  ok('filter: the popup lists every value of the column', ['MG Admin', 'MG Manager', 'MG Person'].every((x) => opts.map((o) => o.trim()).includes(x)), opts.join('|'));
+  await p.fill('.flt-pop input[type=search]', 'person'); await p.waitForTimeout(150);
+  ok('filter: the search narrows the list of values', (await p.locator('.flt-pop .flt-list .flt-opt').count()) === 1);
+  await p.locator('.flt-pop .flt-all input').uncheck(); await p.locator('.flt-pop .flt-all input').check();
+  const only = async () => (await p.locator('.utable tbody tr.urow th').allTextContents()).map((x) => x.trim()).filter((x) => /^MG /.test(x));
+  await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 1);
+  ok('filter: Select all / none acts on the values the search shows', (await only()).join() === 'MG Person', (await only()).join());
+  await p.fill('.flt-pop input[type=search]', ''); await p.waitForTimeout(150);
+  await p.locator('.flt-pop .flt-all input').check();
+  await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 3);
+  await p.locator('.flt-pop .flt-opt:has-text("MG Admin") input').uncheck();
+  await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 2);
+  ok('filter: unchecking a value hides its rows and the funnel is marked', (await only()).join().includes('MG Admin') === false && (await p.locator('.th-filter.on[data-k="full_name"]').count()) === 1);
+  await p.click('.flt-pop button:text-is("Clear filter")');
+  await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 3);
+  ok('filter: Clear filter shows everything again', (await p.locator('.th-filter.on').count()) === 0);
+  await p.click('.th-filter[data-k="role"]'); await p.waitForSelector('.flt-pop');
+  await p.locator('.flt-pop .flt-all input').uncheck(); await p.locator('.flt-pop .flt-opt:has-text("Department manager") input').check();
+  ok('filter: the Role column filters by the checked roles', await p.waitForFunction(() => { const r = [...document.querySelectorAll('.utable tbody tr.urow th')].map((x) => x.textContent.trim()).filter((x) => /^MG /.test(x)); return r.length === 2 && !r.includes('MG Admin'); }).then(() => true, () => false));
+  await p.keyboard.press('Escape');
+  ok('filter: Escape closes the popup', (await p.locator('.flt-pop').count()) === 0);
   await p.context().close(); }
 cleanup();
 await b.close();

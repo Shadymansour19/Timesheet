@@ -451,5 +451,14 @@ body.has-install .floating { inset-block-start: 68px; }
 .utable .th-sort { all: unset; cursor: pointer; font: inherit; color: inherit; display: inline-flex; align-items: center; gap: 2px; }
 .utable .th-sort:hover, .utable th[aria-sort="ascending"] .th-sort, .utable th[aria-sort="descending"] .th-sort { color: var(--text); }
 .utable .th-sort:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
-.utable .th-filters th { position: static; padding: 4px 8px; font-weight: 400; }
-.utable .th-filters input, .utable .th-filters select { width: 100%; min-width: 80px; padding: 4px 6px; font-size: .8rem; border-radius: 6px; }
+
+.utable .th-filter { all: unset; cursor: pointer; margin-inline-start: 6px; display: inline-flex; vertical-align: middle; opacity: .6; border-radius: 4px; padding: 2px; }
+.utable .th-filter:hover, .utable .th-filter.on { opacity: 1; color: var(--brand); }
+.utable .th-filter:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.flt-pop { position: fixed; z-index: 60; width: 240px; max-width: calc(100vw - 16px); background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,.25); padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.flt-pop input[type=search] { width: 100%; padding: 6px 8px; font-size: .85rem; }
+.flt-list { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; border-block: 1px solid var(--line); padding-block: 4px; }
+.flt-opt { display: flex; align-items: center; gap: 8px; padding: 3px 4px; font-size: .88rem; color: var(--text); cursor: pointer; margin: 0; }
+.flt-opt input { width: auto; margin: 0; }
+.flt-all { font-weight: 600; }
+.flt-foot { display: flex; justify-content: space-between; gap: 8px; }

@@ -507,8 +507,8 @@ insert into public.profiles (id, username, full_name, opr, department_id, role) 
 select t.login('00000000-0000-0000-0000-0000000000c1');
 select t.eq('super manager: app_role() is super_manager', $$select public.app_role()$$, 'super_manager');
 select t.count('super manager sees people of department A and B', $$select 1 from public.profiles where username in ('ua1', 'ub1')$$, 2);
-select t.count('super manager sees the timesheet of dept A and dept B', $$select 1 from public.day_status where user_id in ('00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-0000000000b2')$$, 2);
-select t.count('super manager sees both departments', $$select 1 from public.departments$$, 2);
+select t.count('super manager sees the timesheet of dept A and dept B', $$select distinct user_id from public.day_status where user_id in ('00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-0000000000b2')$$, 2);
+select t.count('super manager sees both departments', $$select 1 from public.departments where id in ('10000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-00000000000b')$$, 2);
 select t.denied('super manager cannot set a day status', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 50, 'X')$$);
 select t.denied('super manager cannot set overtime', $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date + 50, 2, 'x')$$);
 select t.denied('super manager cannot set a holiday', $$select public.set_holiday(current_date + 51, true)$$);

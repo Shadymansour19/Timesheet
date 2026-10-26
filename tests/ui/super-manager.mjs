@@ -38,7 +38,7 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
 { const p = await login('smgr');
   await p.waitForSelector('.tgrid');
   const tabs = (await p.locator('nav a').allTextContents()).join('|');
-  ok('super manager: only Team and Overtime tabs', /Team/.test(tabs) && /Overtime/.test(tabs) && !/Users|Departments|Calendar/.test(tabs), tabs);
+  ok('super manager: only Team and Overtime tabs', /^Department\|Overtime$/.test(tabs) && !/Users|Departments|Calendar/.test(tabs), tabs);
   ok('super manager: department switcher is there', (await p.locator('.dept-switch').count()) === 1);
   const names = await p.locator('.tgrid tbody').innerText();
   ok('super manager: sees the people of a department', /SM Person (Alpha|Beta)/.test(names), names);

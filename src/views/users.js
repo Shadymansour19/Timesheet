@@ -8,7 +8,7 @@ import { explain } from '../api/errors.js';
 import { openDialog, confirmDialog } from '../components/dialog.js';
 import { field, randomPassword } from '../components/form.js';
 import { toast } from '../components/toast.js';
-import { icon, SEARCH, GRID, LIST } from '../components/icons.js';
+import { icon, SEARCH, GRID, LIST, FILTER } from '../components/icons.js';
 import * as live from '../live.js';
 
 // Shared by the admin (own department) and the super admin (admins of any department).
@@ -175,14 +175,52 @@ export function usersView() {
   // table view: click a column title to sort (ascending, descending, back to the default order); the box under it filters that column
   const COLS = [['full_name', 'full_name'], ['payroll', 'payroll_short'], ['opr', 'opr'], ['position', 'position_short'], ['job_title', 'job_title'], ['level', 'level'], ['role', 'role'], ['work_location', 'work_location_short']];
   let sort = null;                                     // { key, dir: 1 | -1 }
-  const colFilter = {};                                // key -> lower-case text (role: the role value)
+  const colFilter = {};                                // key -> Set of the values that stay (a column with no entry shows everything)
   const cellText = (p, k) => (k === 'role' ? t('role_' + p.role) : String(p[k] ?? ''));
-  const colActive = () => Object.values(colFilter).some(Boolean);
+  const colActive = () => Object.keys(colFilter).length > 0;
   const sorted = (list) => (sort ? [...list].sort((a, b) => sort.dir * cellText(a, sort.key).localeCompare(cellText(b, sort.key), undefined, { numeric: true, sensitivity: 'base' })) : list);
 
   const matches = (p) => (roleFilter === 'all' || p.role === roleFilter)
-    && COLS.every(([k]) => !colFilter[k] || (k === 'role' ? p.role === colFilter[k] : cellText(p, k).toLowerCase().includes(colFilter[k])))
+    && COLS.every(([k]) => !colFilter[k] || colFilter[k].has(cellText(p, k)))
     && (!query || `${p.full_name} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query));
+
+  // Excel-style filter of one column: every value found in the column with a check box, a search box, Select all, and Clear
+  let pop = null;
+  const closePop = () => { if (pop) { pop.remove(); pop = null; } };
+  document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !e.target.closest('.th-filter')) closePop(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
+  window.addEventListener('resize', closePop);
+  function openFilter(k, btn) {
+    const was = pop?.dataset.k === k; closePop(); if (was) return;
+    const values = [...new Set(people.map((p) => cellText(p, k)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    const sel = new Set(colFilter[k] ?? values);
+    const shown = () => values.filter((v) => (v || t('filter_blanks')).toLowerCase().includes(search.value.trim().toLowerCase()));
+    const apply = () => { if (values.every((v) => sel.has(v))) delete colFilter[k]; else colFilter[k] = new Set(sel); update(); };
+    const search = h('input', { type: 'search', placeholder: t('search'), 'aria-label': t('search'), autocomplete: 'off' });
+    const all = h('input', { type: 'checkbox', id: 'flt-all' });
+    const list = h('div', { class: 'flt-list' });
+    function draw() {
+      const vs = shown(), n = vs.filter((v) => sel.has(v)).length;
+      all.checked = vs.length > 0 && n === vs.length; all.indeterminate = n > 0 && n < vs.length;
+      list.replaceChildren(...vs.map((v) => { const box = h('input', { type: 'checkbox', checked: sel.has(v), value: v }); box.addEventListener('change', () => { if (box.checked) sel.add(v); else sel.delete(v); apply(); draw(); }); return h('label', { class: 'flt-opt' }, box, v || t('filter_blanks')); }));
+      if (!vs.length) list.append(h('p', { class: 'muted' }, t('users_none_match')));
+    }
+    all.addEventListener('change', () => {          // acts on what the search shows; checking it while searching keeps ONLY the found values (like Excel)
+      const vs = shown(), searching = search.value.trim() !== '';
+      if (vs.every((v) => sel.has(v))) vs.forEach((v) => sel.delete(v));
+      else { if (searching) sel.clear(); vs.forEach((v) => sel.add(v)); }
+      apply(); draw();
+    });
+    search.addEventListener('input', draw);
+    pop = h('div', { class: 'flt-pop', role: 'dialog', 'aria-label': `${t('filter')}: ${t(COLS.find((c) => c[0] === k)[1])}`, 'data-k': k },
+      search, h('label', { class: 'flt-opt flt-all' }, all, t('select_all')), list,
+      h('div', { class: 'flt-foot' }, h('button', { type: 'button', class: 'btn small', onclick: () => { delete colFilter[k]; update(); closePop(); } }, t('clear_filter')), h('button', { type: 'button', class: 'btn small primary', onclick: closePop }, t('done'))));
+    document.body.append(pop);
+    const r = btn.getBoundingClientRect(), rtl = document.documentElement.dir === 'rtl';
+    pop.style.top = `${Math.min(r.bottom + 4, window.innerHeight - 300)}px`;
+    const left = rtl ? r.right - pop.offsetWidth : r.left; pop.style.left = `${Math.max(8, Math.min(left, window.innerWidth - pop.offsetWidth - 8))}px`;
+    draw(); search.focus();
+  }
 
   function build() {
     el.title = h('h2', {});
@@ -194,21 +232,10 @@ export function usersView() {
     el.list = h('ul', { class: 'plist' });
     el.tableWrap = h('div', { class: 'utable-wrap', hidden: true }, h('table', { class: 'utable' },
       h('thead', {},
-        h('tr', {}, COLS.map(([k, label]) => h('th', { scope: 'col', 'data-k': k }, h('button', { type: 'button', class: 'th-sort', title: t('sort_by'), onclick: () => {
-          sort = sort?.key !== k ? { key: k, dir: 1 } : sort.dir === 1 ? { key: k, dir: -1 } : null; update();
-        } }, t(label), h('span', { class: 'sort-ind', 'aria-hidden': 'true' }))))),
-        h('tr', { class: 'th-filters' }, COLS.map(([k, label]) => {
-          let box;
-          if (k === 'role') {
-            box = h('select', { 'aria-label': `${t('filter')}: ${t(label)}`, onchange: () => { colFilter.role = box.value; update(); } }, h('option', { value: '' }, t('role_filter_all')), ...['user', 'admin', 'manager'].map((r) => h('option', { value: r }, t('role_' + r))));
-          } else {
-            let timer2;
-            box = h('input', { type: 'search', placeholder: t('filter'), 'aria-label': `${t('filter')}: ${t(label)}`, autocomplete: 'off' });
-            box.addEventListener('input', () => { clearTimeout(timer2); timer2 = setTimeout(() => { colFilter[k] = box.value.trim().toLowerCase(); update(); }, 120); });
-          }
-          box.dataset.k = k;
-          return h('th', {}, box);
-        }))),
+        h('tr', {}, COLS.map(([k, label]) => h('th', { scope: 'col', 'data-k': k },
+          h('button', { type: 'button', class: 'th-sort', title: t('sort_by'), onclick: () => { sort = sort?.key !== k ? { key: k, dir: 1 } : sort.dir === 1 ? { key: k, dir: -1 } : null; update(); } },
+            t(label), h('span', { class: 'sort-ind', 'aria-hidden': 'true' })),
+          h('button', { type: 'button', class: 'th-filter', 'data-k': k, title: t('filter'), 'aria-label': `${t('filter')}: ${t(label)}`, 'aria-haspopup': 'dialog', onclick: (e) => openFilter(k, e.currentTarget) }, icon(FILTER, 14)))))),
       h('tbody', {})));
     el.hint = h('p', { class: 'muted', hidden: true }, t('users_table_hint'));
     el.views = h('div', { class: 'seg view-seg', role: 'group', 'aria-label': t('users_view') });
@@ -236,6 +263,7 @@ export function usersView() {
     for (const th of el.tableWrap.querySelectorAll('thead tr:first-child th')) {
       const on = sort?.key === th.dataset.k;
       th.setAttribute('aria-sort', on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none');
+      th.querySelector('.th-filter').classList.toggle('on', !!colFilter[th.dataset.k]);
       th.querySelector('.sort-ind').textContent = on ? (sort.dir === 1 ? ' \u25B2' : ' \u25BC') : '';
     }
     // empty states: nobody to show -> say why and what to do
@@ -243,7 +271,7 @@ export function usersView() {
     el.empty.hidden = !(none || nUsers === 0);
     if (!el.empty.hidden) {
       el.empty.replaceChildren(...(none
-        ? [h('p', {}, t('users_none_match')), h('button', { class: 'btn small', onclick: () => { query = ''; roleFilter = 'all'; el.search.value = ''; for (const k of Object.keys(colFilter)) delete colFilter[k]; for (const b of el.tableWrap.querySelectorAll('.th-filters [data-k]')) b.value = ''; update(); } }, t('clear_filters'))]
+        ? [h('p', {}, t('users_none_match')), h('button', { class: 'btn small', onclick: () => { query = ''; roleFilter = 'all'; el.search.value = ''; for (const k of Object.keys(colFilter)) delete colFilter[k]; update(); } }, t('clear_filters'))]
         : [h('strong', {}, t('users_empty_title')), h('p', { class: 'muted' }, t('users_empty_text')), h('button', { class: 'btn small primary', onclick: addUser }, t('add_user'))]));
     }
   }

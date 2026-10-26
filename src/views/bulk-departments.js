@@ -25,7 +25,7 @@ export async function departmentsTemplate() {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Departments');
   ws.addRow(['Department']).font = { bold: true };
-  ['Turbo', 'Boilers', 'Electrical'].forEach((n) => ws.addRow([n]));
+  ['Turbo', 'Mechanical', 'Electrical'].forEach((n) => ws.addRow([n]));
   ws.getColumn(1).width = 30;
   return wb.xlsx.writeBuffer();
 }

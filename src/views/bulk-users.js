@@ -70,7 +70,7 @@ export async function templateFile(multi = false) {
     ['Sara Mahmoud Ibrahim', 'OPRCTR124', 'EMC-124', 'sara.m', 'Pass-12345', '3A', 'Technician', '033/2019', 'IDKU Site', 'Tech', 'outside', 'no', multi ? 'manager' : 'user'],
     ['Omar Khaled Samir', 'OPRCTR125', 'EMC-125', '', 'Temp-Pass-9', 'Senior', 'Supervisor', '', '', 'Engineer', '', 'yes', multi ? '' : 'manager'],
   ];
-  rows.forEach((r, i) => ws.addRow(multi ? [['Turbo', 'Turbo', 'Boilers'][i], ...r] : r));
+  rows.forEach((r, i) => ws.addRow(multi ? [['Turbo', 'Turbo', 'Mechanical'][i], ...r] : r));
   cols.forEach((_, i) => { ws.getColumn(i + 1).width = 18; });
   return wb.xlsx.writeBuffer();
 }
