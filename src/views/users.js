@@ -86,6 +86,7 @@ export function usersView() {
     catch (e) { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, explain(e))); return; }
     if (quiet && built && JSON.stringify(fresh) === JSON.stringify(people)) return;   // nothing new
     people = fresh;
+    colsFixed = false;                         // new data: measure the column widths again (filters and sorting never do)
     if (!built) build();
     update();
   }
@@ -175,6 +176,7 @@ export function usersView() {
   // table view: click a column title to sort (ascending, descending, back to the default order); the box under it filters that column
   const COLS = [['full_name', 'full_name'], ['payroll', 'payroll_short'], ['opr', 'opr'], ['position', 'position_short'], ['job_title', 'job_title'], ['level', 'level'], ['role', 'role'], ['work_location', 'work_location_short']];
   let sort = null;                                     // { key, dir: 1 | -1 }
+  let colsFixed = false;
   const colFilter = {};                                // key -> Set of the values that stay (a column with no entry shows everything)
   const cellText = (p, k) => (k === 'role' ? t('role_' + p.role) : String(p[k] ?? ''));
   const colActive = () => Object.keys(colFilter).length > 0;
@@ -259,7 +261,17 @@ export function usersView() {
         onclick: () => { view = v; try { localStorage.setItem(VKEY, v); } catch { /* ignore */ } closeMenu(); update(); } }, icon(ic, 18))));
     el.list.hidden = view !== 'cards'; el.tableWrap.hidden = view !== 'table'; el.hint.hidden = view !== 'table';
     el.list.replaceChildren(...(view === 'cards' ? visible.map(card) : []));
-    el.tableWrap.querySelector('tbody').replaceChildren(...(view === 'table' ? sorted(visible).map(row) : []));
+    const tbl = el.tableWrap.querySelector('table'), tbody = tbl.tBodies[0];
+    if (view === 'table' && !colsFixed) {
+      // column widths are measured once per data load with EVERYONE listed, then kept: filtering / sorting must not make the columns jump
+      tbl.querySelector('colgroup')?.remove(); tbl.style.tableLayout = ''; tbl.style.minWidth = '';
+      tbody.replaceChildren(...people.map(row));
+      const ws = [...tbl.tHead.rows[0].cells].map((c) => Math.ceil(c.getBoundingClientRect().width));
+      tbl.prepend(h('colgroup', {}, ws.map((w) => h('col', { style: `width:${w}px` }))));
+      tbl.style.minWidth = ws.reduce((a, b) => a + b, 0) + 'px'; tbl.style.tableLayout = 'fixed';
+      colsFixed = true;
+    }
+    tbody.replaceChildren(...(view === 'table' ? sorted(visible).map(row) : []));
     for (const th of el.tableWrap.querySelectorAll('thead tr:first-child th')) {
       const on = sort?.key === th.dataset.k;
       th.setAttribute('aria-sort', on ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none');

@@ -76,8 +76,11 @@ async function login(un) {
   await p.locator('.flt-pop .flt-opt:has-text("MG Admin") input').uncheck();
   await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 2);
   ok('filter: unchecking a value hides its rows and the funnel is marked', (await only()).join().includes('MG Admin') === false && (await p.locator('.th-filter.on[data-k="full_name"]').count()) === 1);
+  const widths = () => p.locator('.utable thead th').evaluateAll((e) => e.map((x) => Math.round(x.getBoundingClientRect().width)));
+  const w0 = await widths();
   await p.click('.flt-pop button:text-is("Clear filter")');
   await p.waitForFunction(() => [...document.querySelectorAll('.utable tbody tr.urow th')].filter((x) => /^MG /.test(x.textContent)).length === 3);
+  ok('table: the column widths stay the same when filters change', JSON.stringify(await widths()) === JSON.stringify(w0), JSON.stringify(w0) + JSON.stringify(await widths()));
   ok('filter: Clear filter shows everything again', (await p.locator('.th-filter.on').count()) === 0);
   await p.click('.th-filter[data-k="role"]'); await p.waitForSelector('.flt-pop');
   await p.locator('.flt-pop .flt-all input').uncheck(); await p.locator('.flt-pop .flt-opt:has-text("Department manager") input').check();

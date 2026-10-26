@@ -462,3 +462,5 @@ body.has-install .floating { inset-block-start: 68px; }
 .flt-opt input { width: auto; margin: 0; }
 .flt-all { font-weight: 600; }
 .flt-foot { display: flex; justify-content: space-between; gap: 8px; }
+
+.utable td, .utable tbody th { overflow: hidden; text-overflow: ellipsis; }
