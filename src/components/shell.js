@@ -10,6 +10,7 @@ import { field } from './form.js';
 import { choice } from './choice.js';
 import { acting, setActing } from '../acting.js';
 import { toast } from './toast.js';
+import { credit } from './credit.js';
 
 const initials = (name) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 let closeOnOutside;
@@ -82,7 +83,8 @@ function accountMenu() {
       } }, icon(BELL, 18), `${t('notify_menu')}: ${notifyOn() ? t('on') : t('off')}`) : null,
       h('hr'),
       h('button', { class: 'menu-item', type: 'button', onclick: () => { close(); signOut(); } }, withFlip(icon(LOGOUT, 18)), t('sign_out')),
-      accounts.length > 1 ? h('button', { class: 'menu-item danger-text', type: 'button', onclick: () => { close(); signOutAll(); } }, withFlip(icon(LOGOUT, 18)), t('sign_out_all')) : null));
+      accounts.length > 1 ? h('button', { class: 'menu-item danger-text', type: 'button', onclick: () => { close(); signOutAll(); } }, withFlip(icon(LOGOUT, 18)), t('sign_out_all')) : null,
+      h('hr'), credit({ compact: true })));
 
   if (closeOnOutside) document.removeEventListener('click', closeOnOutside);
   closeOnOutside = (e) => { if (!det.contains(e.target)) det.open = false; };

@@ -27,6 +27,11 @@ async function login(un) {
 }
 { const p = await login('mgmgr');
   await p.waitForSelector('.tgrid');
+  ok('working screens: no Developed by line in the page (only in the account menu)', (await p.locator('.credit').count()) === 0 && !(await p.locator('.menu-credit').isVisible()));
+  await p.click('.acct > summary');
+  ok('the account menu ends with the Developed by line and its three icon links', (await p.locator('.menu-credit').isVisible()) && /Developed by Shady Mansour/.test(await p.locator('.menu-credit').innerText()) && (await p.locator('.menu-credit a.credit-link').count()) === 3 && (await p.locator('.menu-credit a[data-link=github]').getAttribute('href')) === 'https://github.com/shadymansour19');
+  if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/menu.png' });
+  await p.click('.acct > summary');
   const tabs = await p.locator('nav a, .topbar a').allTextContents();
   ok('manager lands on Team and has no Calendar tab', /#\/team/.test(p.url()) && !tabs.some((x) => /calendar/i.test(x)), `${p.url()} ${tabs}`);
   await p.goto('http://localhost:4173/#/calendar');

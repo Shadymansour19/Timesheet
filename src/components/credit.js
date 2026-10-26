@@ -10,9 +10,10 @@ const LINKS = [
   ['Email', `mailto:${USER}@gmail.com`, MAIL],
 ];
 
-export const credit = () => h('div', { class: 'credit muted' },
+// compact: one small row for the bottom of the account menu
+export const credit = ({ compact = false } = {}) => h('div', { class: compact ? 'menu-credit muted' : 'credit muted' },
   h('span', {}, `${t('developed_by')} Shady Mansour`),
   h('span', { class: 'credit-links' }, LINKS.map(([name, href, ic]) => h('a', {
     href, title: name, 'aria-label': `Shady Mansour \u2013 ${name}`, class: 'credit-link', 'data-link': name.toLowerCase(),
     ...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {}),
-  }, icon(ic, 20)))));
+  }, icon(ic, compact ? 16 : 20)))));

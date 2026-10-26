@@ -495,3 +495,7 @@ body.has-install .floating { inset-block-start: 68px; }
 .credit-link { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: inherit; border: 1px solid var(--line); }
 .credit-link:hover { color: var(--brand); border-color: var(--brand); }
 .credit-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.menu-credit { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 2px; font-size: .72rem; }
+.menu-credit .credit-links { gap: 6px; }
+.menu-credit .credit-link { width: 28px; height: 28px; }
