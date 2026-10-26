@@ -531,3 +531,6 @@ body.has-install .floating { inset-block-start: 68px; }
 
 .flt-pop { max-height: calc(100dvh - 16px); }
 .flt-list { max-height: min(240px, 38dvh); }
+/* the totals chips hold Latin letters (X: 5): in Arabic the page font stack starts with an Arabic-metric font, whose tall line box lifted them off the middle of the pill.
+   A fixed line height and a Latin-first font stack give both languages the same pill and the same centring. */
+.chip { line-height: 1.35; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, 'Noto Sans Arabic', sans-serif; }

@@ -36,6 +36,8 @@ sql(`insert into public.day_status (user_id, day, status) values ('${uid(1)}', $
 
 sql(`update public.profiles set payroll = opr where payroll is null and opr is not null`);   // reports print the payroll number
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
+// the phone tour (tested in guide.mjs) must not cover the pages of the fixture users on narrow screens
+{ const nc = b.newContext.bind(b); b.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { const g = Storage.prototype.getItem; Storage.prototype.getItem = function (k) { return String(k).startsWith('ts.guideSeen.') ? '1' : g.call(this, k); }; }); return c; }; }
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
 const month = sql("select to_char(current_date,'YYYY-MM')");

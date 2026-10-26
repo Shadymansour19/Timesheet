@@ -74,6 +74,17 @@ const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getB
   const txt = await p.locator('.tour-text').innerText();
   ok('Arabic tour, step "tap a day": the sentences end in Arabic words (no "Y. E" run of Latin text)', txt.includes('ثم Y وهكذا. E يعني راحة') && !/[A-Za-z]\.\s+[A-Za-z]/.test(txt), txt);
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/tour-ar.png' });
+  await p.keyboard.press('Escape'); await p.waitForSelector('.tour', { state: 'detached' });
+  // the Latin text of the totals chips (X: 5 ...) must sit in the vertical middle of the pill in Arabic as well
+  const off = await p.evaluate(() => [...document.querySelectorAll('.totals .chip.s-x, .totals .chip.s-y, .totals .chip.s-xh, .totals .chip.s-yh')].map((c) => {
+    const probe = document.createElement('span'); probe.style.cssText = 'display:inline-block;width:0;height:0'; c.append(probe);
+    const base = probe.getBoundingClientRect().bottom, box = c.getBoundingClientRect(); probe.remove();
+    const cs = getComputedStyle(c), ctx2 = document.createElement('canvas').getContext('2d'); ctx2.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const cap = ctx2.measureText('X').actualBoundingBoxAscent;
+    return Math.round(((base - cap / 2) - (box.top + box.height / 2)) * 10) / 10;
+  }));
+  ok('Arabic: the X / Y / XH / YH totals are vertically centred in their pills (within 1px)', off.length === 4 && off.every((v) => Math.abs(v) <= 1), JSON.stringify(off));
+  if (process.env.SHOTS) await p.locator('.totals').screenshot({ path: process.env.SHOTS + '/totals-ar.png' });
   await ctx.close(); }
 { const p = await open('gdold'); await p.waitForSelector('.day');
   await p.waitForTimeout(1500);
