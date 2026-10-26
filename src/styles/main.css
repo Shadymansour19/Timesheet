@@ -490,5 +490,8 @@ body.has-install .floating { inset-block-start: 68px; }
 .ob-step.done .ob-mark { background: var(--ok); color: #fff; }
 .ob-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .ob-step.done .ob-text strong { text-decoration: line-through; opacity: .7; }
-.credit { text-align: center; font-size: .78rem; margin: 18px 0 6px; }
-.credit a { color: inherit; text-decoration: underline; }
+.credit { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: .78rem; margin: 18px 0 6px; }
+.credit-links { display: flex; gap: 14px; }
+.credit-link { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: inherit; border: 1px solid var(--line); }
+.credit-link:hover { color: var(--brand); border-color: var(--brand); }
+.credit-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

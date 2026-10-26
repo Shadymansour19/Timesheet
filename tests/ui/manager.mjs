@@ -38,7 +38,7 @@ async function login(un) {
   const body = await p.locator('main, body').first().innerText();
   ok('Users lists the manager with the manager badge', /MG Manager/.test(body) && /Department manager/.test(body));
   await p.goto('http://localhost:4173/#/account'); await p.waitForSelector('.credit');
-  ok('Account page shows the Developed by line with the GitHub link', /Developed by Shady Mansour/.test(await p.locator('.credit').innerText()) && (await p.locator('.credit a').getAttribute('href')) === 'https://github.com/shadymansour19');
+  ok('Account page shows the Developed by line with GitHub / LinkedIn / email icon links', /Developed by Shady Mansour/.test(await p.locator('.credit').innerText()) && (await p.locator('.credit a[data-link=github]').getAttribute('href')) === 'https://github.com/shadymansour19' && (await p.locator('.credit a[data-link=github] svg').count()) === 1 && (await p.locator('.credit a[data-link=github]').innerText()).trim() === '' && (await p.locator('.credit a[data-link=linkedin]').getAttribute('href')) === 'https://www.linkedin.com/in/shadymansour19' && (await p.locator('.credit a[data-link=email]').getAttribute('href')) === 'mailto:shadymansour19@gmail.com');
   ok('no page errors (manager)', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 { const c = await b.newContext(); const q = await c.newPage(); await q.goto('http://localhost:4173/'); await q.waitForSelector('#username');
