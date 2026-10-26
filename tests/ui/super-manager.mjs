@@ -62,6 +62,15 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
 // ---- the super admin: bulk departments, bulk admins across departments
 { const p = await login('smsup');
   await p.goto('http://localhost:4173/#/departments'); await p.waitForSelector('.dept');
+  // search departments by name or by person
+  await p.fill('#dept-search', 'sm beta');
+  ok('departments: searching by name keeps only the matching department', await eventually(async () => (await p.locator('details.dept').count()) === 1 && /SM Beta/.test(await p.locator('details.dept summary').innerText())));
+  await p.fill('#dept-search', 'person alpha');
+  ok('departments: searching by person opens their department and lists only that person', await eventually(async () => { const d = p.locator('details.dept'); return (await d.count()) === 1 && (await d.getAttribute('open')) !== null && (await d.locator('.person').count()) === 1; }));
+  await p.fill('#dept-search', 'zzzz-nothing');
+  ok('departments: no match shows a message', await eventually(async () => (await p.locator('details.dept').count()) === 0 && (await p.locator('.dept-list').innerText()).length > 0));
+  await p.fill('#dept-search', '');
+  ok('departments: counts in the closed row (admins, managers, people)', /\d+ Admins?.*\d+ people/i.test(await p.locator('details.dept summary').first().innerText()), await p.locator('details.dept summary').first().innerText());
   const dw = new ExcelJS.Workbook(); const ds = dw.addWorksheet('D'); ds.addRow(['Department']); ['SM Gamma', 'sm  alpha', 'SM Delta'].forEach((n) => ds.addRow([n]));
   await dw.xlsx.writeFile(S + '/sm-depts.xlsx');
   await p.click('#bulk-menu'); await p.waitForSelector('dialog[open]');

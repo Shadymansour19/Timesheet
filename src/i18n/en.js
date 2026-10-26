@@ -123,6 +123,7 @@ export default {
   ob_data_text: "Code, sector, field and print name used on the official report.",
   ob_fill: "Start filling the timesheet",
   ob_fill_text: "Open the department grid: tap a day to set X, Y or E.",
+  search_departments: "Search departments or people",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",

@@ -8,6 +8,7 @@ import { toast } from '../components/toast.js';
 import { openReportSettings } from '../components/report-settings.js';
 import { openBulkAdd } from './bulk-users.js';
 import { openBulkDepartments } from './bulk-departments.js';
+import { icon, SEARCH } from '../components/icons.js';
 import { personFields, resetPasswordDialog, deletePerson, changeRole } from './users.js';
 
 export function departmentsView() {
@@ -63,25 +64,44 @@ export function departmentsView() {
         ['admin', 'manager'].includes(p.role) ? h('button', { class: 'btn small danger', onclick: () => deletePerson(p, load) }, t('delete')) : null));
   }
 
+  // the search box lives outside draw() so typing keeps the focus
+  let query = '';
+  const search = h('input', { type: 'search', class: 'team-search', id: 'dept-search', placeholder: t('search_departments'), 'aria-label': t('search_departments'), autocomplete: 'off' });
+  let timer;
+  search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { query = search.value.trim().toLowerCase(); drawList(); }, 120); });
+  const head = h('div', {}), list = h('div', { class: 'dept-list' });
+  root.append(head, h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), search)), list);
+  const personMatch = (p) => `${p.full_name} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query);
+
   function draw() {
-    root.replaceChildren(
-      h('div', { class: 'cal-head' }, h('h2', {}, t('nav_departments')),
-        h('div', { class: 'actions' },
-          h('button', { class: 'btn small', id: 'bulk-menu', onclick: bulkMenu }, t('bulk_add_short')),
-          h('button', { class: 'btn small primary', onclick: () => nameDialog(t('add_department'), '', createDepartment) }, t('add_department')))),
-      ...depts.map((d) => {
-        const members = people.filter((p) => p.department_id === d.id);
-        const admins = members.filter((p) => p.role === 'admin');
-        const det = h('details', { class: 'card dept', open: open.has(d.id), 'data-dept': d.id },
-          h('summary', {}, h('strong', {}, d.name), h('span', { class: 'muted' }, ` · ${admins.length} ${t('admins')} · ${members.length} ${t('people')}`)),
-          h('div', { class: 'pactions top' },
-            h('button', { class: 'btn small', onclick: () => nameDialog(t('rename_department'), d.name, (n) => renameDepartment(d.id, n)) }, t('rename')),
-            h('button', { class: 'btn small', onclick: () => openReportSettings({ dept: d, onSaved: load }) }, t('report_settings')),
-            h('button', { class: 'btn small primary', onclick: () => addAdmin(d) }, t('add_admin'))),
-          h('ul', { class: 'plist' }, members.map(row)));
-        det.addEventListener('toggle', () => (det.open ? open.add(d.id) : open.delete(d.id)));
-        return det;
-      }));
+    head.replaceChildren(h('div', { class: 'cal-head' }, h('h2', {}, `${t('nav_departments')} (${depts.length})`),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn small', id: 'bulk-menu', onclick: bulkMenu }, t('bulk_add_short')),
+        h('button', { class: 'btn small primary', onclick: () => nameDialog(t('add_department'), '', createDepartment) }, t('add_department')))));
+    drawList();
+  }
+
+  function drawList() {
+    const shown = depts.map((d) => {
+      const all = people.filter((p) => p.department_id === d.id);
+      const byName = !query || d.name.toLowerCase().includes(query);
+      const found = query ? all.filter(personMatch) : [];
+      return byName || found.length ? { d, all, members: byName ? all : found, byPerson: !byName } : null;
+    }).filter(Boolean);
+    list.replaceChildren(...(shown.length ? shown : [h('p', { class: 'muted center' }, t('users_none_match'))]).map((x) => {
+      if (!x.d) return x;
+      const { d, all, members, byPerson } = x;
+      const admins = all.filter((p) => p.role === 'admin').length, managers = all.filter((p) => p.role === 'manager').length;
+      const det = h('details', { class: 'card dept', open: open.has(d.id) || byPerson, 'data-dept': d.id },
+        h('summary', {}, h('strong', {}, d.name), h('span', { class: 'muted' }, ` · ${admins} ${t('admins')}${managers ? ` · ${managers} ${t('role_filter_manager')}` : ''} · ${all.length} ${t('people')}`)),
+        h('div', { class: 'pactions top' },
+          h('button', { class: 'btn small', onclick: () => nameDialog(t('rename_department'), d.name, (n) => renameDepartment(d.id, n)) }, t('rename')),
+          h('button', { class: 'btn small', onclick: () => openReportSettings({ dept: d, onSaved: load }) }, t('report_settings')),
+          h('button', { class: 'btn small primary', onclick: () => addAdmin(d) }, t('add_admin'))),
+        h('ul', { class: 'plist' }, members.map(row)));
+      det.addEventListener('toggle', () => { if (!byPerson) (det.open ? open.add(d.id) : open.delete(d.id)); });
+      return det;
+    }));
   }
 
   load();
