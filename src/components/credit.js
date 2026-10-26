@@ -10,7 +10,7 @@ const links = () => [
   ['GitHub', `https://github.com/${USER}`, GITHUB],
   ['LinkedIn', `https://www.linkedin.com/in/${USER}`, LINKEDIN],
   ['Email', `mailto:${USER}@gmail.com`, MAIL],
-  ['WhatsApp', `https://wa.me/${PHONE}?text=${encodeURIComponent(t('wa_message'))}`, WHATSAPP, 1.3, 1.4],      // zoomed inside the same circle, with a thinner line so it looks as light as the others
+  ['WhatsApp', `https://wa.me/${PHONE}?text=${encodeURIComponent(t('wa_message'))}`, WHATSAPP, 1.3, 1.15],      // zoomed inside the same circle, with a thinner line so it looks as light as the others
 ];
 
 // compact: one small row for the bottom of the account menu
