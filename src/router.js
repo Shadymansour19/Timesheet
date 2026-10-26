@@ -25,6 +25,11 @@ const routes = {
     { path: '/overtime', label: 'nav_overtime', icon: CLOCK, view: overtimeView },
     { path: '/users', label: 'nav_users', icon: USERS, view: usersView },
   ],
+  // super manager: read-only view of every department's Team grid and Overtime (a department switcher, no editing)
+  super_manager: [
+    { path: '/team', label: 'nav_team', icon: GRID, view: teamView },
+    { path: '/overtime', label: 'nav_overtime', icon: CLOCK, view: overtimeView },
+  ],
   // super admin: department management, plus the admin tabs for ANY department (acting as its admin, see acting.js)
   super_admin: [
     { path: '/departments', label: 'nav_departments', icon: BUILDING, view: departmentsView },
@@ -42,11 +47,11 @@ export function resolve() {
   const all = [...navFor(), ...common];
   const match = all.find((r) => r.path === path);
   // the department header is sent on every route except Departments (management) and Account
-  acting.active = state.profile?.role === 'super_admin' && !['/departments', '/account'].includes(path);
+  acting.active = ['super_admin', 'super_manager'].includes(state.profile?.role) && !['/departments', '/account'].includes(path);
   if (match) return match;
   // admin only: one employee's timesheet, #/person/<uuid>
   const person = path.match(/^\/person\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
-  if (person && ['admin', 'manager', 'super_admin'].includes(state.profile.role)) return { path, view: () => personView(person[1]) };
+  if (person && ['admin', 'manager', 'super_admin', 'super_manager'].includes(state.profile.role)) return { path, view: () => personView(person[1]) };
   const home = navFor()[0];
   if (path === '/' && home) { location.replace('#' + home.path); return null; }
   return { path, view: placeholderView('not_found') };

@@ -43,6 +43,7 @@ Put the DB connection string in an untracked `.env.db` (`TS_DB_URL='postgresql:/
 | `npm run test:ui-team` | Department grid v2: week/month, swipe, search, totals, headcount, today/holiday columns, painting banner, Undo (exact state), bulk-fill preview, export month |
 | `npm run test:ui-live` | Several sessions at once: live updates (grid, calendar, overtime, users), isolation on the wire between departments, role/deactivation live, reconnect resync, Users tab search/filter/empty states, per-person timesheet editor |
 | `npm run test:ui-overtime` | Browser E2E of the admin Overtime tab: totals, day dialog, edits/notes/removal, validation, filters, other departments untouched, roles, Arabic |
+| `npm run test:ui-super-manager` | Browser E2E of the read-only super manager (tabs, department switcher, nothing editable) and the super admin bulk add of departments / admins across departments |
 | `npm run test:ui-keyboard` | Grid keyboard use: roving tabindex, arrows/Home/End/PageUp, X/Y/E/Delete, Enter, H, Ctrl+Z, focus kept across live redraws, Arabic arrows, week view, accessibility labels |
 | `npm run test:ui-bottom-nav` | Phone bottom tab bar: layout, spacing above grid/toasts, keyboard hiding, single-tab roles, Arabic mirroring, desktop unchanged |
 | `npm run test:ui-theme` | Light/Dark/System: device vs manual choice, no flash before the app loads, persistence, Arabic labels, all roles, navigation unchanged |

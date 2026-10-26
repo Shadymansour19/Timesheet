@@ -32,6 +32,7 @@ const writePref = (v) => { try { localStorage.setItem(PREF, v); } catch { /* ign
 let viewMode = null, weekStart = null;      // module state: survives switching tabs
 
 export function teamView() {
+  const RO = state.profile.role === 'super_manager';       // read-only: every write below is refused here (and by the database)
   const deptId = myDept();
   viewMode ??= readPref();
   weekStart ??= weekStartOf(todayStr());
@@ -119,6 +120,7 @@ export function teamView() {
     renderTop();
   }
   async function undo() {
+    if (RO) return;
     const e = undoStack.pop();
     renderTop();
     if (!e) return;
@@ -146,6 +148,7 @@ export function teamView() {
 
   // ---------- painting / holiday / edit ----------
   async function brush(uid, day, status, stroke = true, drag = null) {
+    if (RO) return;
     const prev = statusOf(uid, day);
     if (prev === status) return;
     if (status === 'Y' && !yOk(uid)) { toast(t('y_not_allowed')); return; }
@@ -170,6 +173,7 @@ export function teamView() {
   const cycle = (uid, day) => brush(uid, day, nextStatus(statusOf(uid, day), yOk(uid)), false);
 
   async function toggleHoliday(day) {
+    if (RO) return;
     const on = !data.holidays.has(day);
     if (on) data.holidays.add(day); else data.holidays.delete(day);
     pushUndo({ type: 'holiday', day, wasOn: !on });
@@ -179,6 +183,7 @@ export function teamView() {
   }
 
   function openEditor(uid, day) {
+    if (RO) return;
     const p = people.find((x) => x.id === uid);
     openDayEditor({
       person: p, day, status: statusOf(uid, day), overtime: data.overtime.get(key(uid, day)) ?? null, holiday: data.holidays.has(day), run: track,
@@ -194,6 +199,7 @@ export function teamView() {
 
   // ---------- bulk fill (with a live "N cells will change" preview) ----------
   function openBulk() {
+    if (RO) return;
     const cache = new Map();                                   // 'from|to' -> Promise<status map>
     const statusMap = (from, to) => { const k = `${from}|${to}`; if (!cache.has(k)) cache.set(k, fetchRangeData(from, to).then((d) => d.status)); return cache.get(k); };
     const all = h('input', { type: 'checkbox', checked: true, id: 'bulk-all' });
@@ -392,6 +398,7 @@ export function teamView() {
     works: statusOf(uid, date) !== 'E', prevWorks: statusOf(uid, addDays(date, -1)) !== 'E', nextWorks: statusOf(uid, addDays(date, 1)) !== 'E',
     movedHere: data.moves?.has(`${uid}|${date}`), movedPrev: data.moves?.has(`${uid}|${addDays(date, -1)}`) });
   async function moveDeparture(uid, workDate, on) {
+    if (RO) return;
     if (on) data.moves.add(`${uid}|${workDate}`); else data.moves.delete(`${uid}|${workDate}`);
     updateRow(uid);
     try { await track(() => setDepartureMove(uid, workDate, on)); }
@@ -520,7 +527,7 @@ export function teamView() {
       keyOf: (td) => `${td.dataset.u}|${td.dataset.d}`,
       rowCells: (c) => [...(el.table.querySelector(`tr[data-u="${c.dataset.u}"]`)?.querySelectorAll('td.c') ?? [])],
       statusOf: (td) => statusOf(td.dataset.u, td.dataset.d),
-      canFill: (td, status) => !(status === 'Y' && !yOk(td.dataset.u)),
+      canFill: (td, status) => !RO && !(status === 'Y' && !yOk(td.dataset.u)),
       fill: (td, status, drag) => brush(td.dataset.u, td.dataset.d, status, false, drag),
       press: () => { dragging = true; },
       release: (drag) => { dragging = false; if (drag.active) { dragEndedAt = Date.now(); updateRow(drag.start.dataset.u); } },
@@ -545,11 +552,11 @@ export function teamView() {
         el.sub, el.head,
         h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), el.search, el.count), el.views),
         h('div', { class: 'team-row tools' },
-          h('button', { type: 'button', class: 'btn small', onclick: openBulk }, t('bulk_fill')), el.undo,
+          ...(RO ? [] : [h('button', { type: 'button', class: 'btn small', onclick: openBulk }, t('bulk_fill')), el.undo]),
           h('button', { type: 'button', class: 'btn small icon-only', onclick: () => load({ quiet: false, withPeople: true }), 'aria-label': t('refresh'), title: t('refresh') }, icon(REFRESH, 18)),
           h('button', { type: 'button', class: 'btn small', onclick: printGrid }, icon(PRINT, 16), t('print')),
           h('button', { type: 'button', class: 'btn small primary', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
-          h('button', { type: 'button', class: 'btn small', onclick: () => openReportSettings({ dept, onSaved: () => renderTop() }) }, t('report_settings')),
+          RO ? null : h('button', { type: 'button', class: 'btn small', onclick: () => openReportSettings({ dept, onSaved: () => renderTop() }) }, t('report_settings')),
           h('button', { type: 'button', class: 'btn small icon-only', onclick: openInfo, 'aria-label': t('info_title'), title: t('info_title') }, icon(INFO, 18)))),
       el.wrap, el.empty, legend, el.announce);
     built = true;

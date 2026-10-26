@@ -40,7 +40,7 @@ function render() {
   startNotifications();                                   // admins on the installed desktop app: "somebody filled his timesheet" (src/notify.js)
   const route = resolve();
   if (!route) return; // redirecting to the landing page; hashchange re-renders
-  if (state.profile.role === 'super_admin' && acting.active && !acting.list.length) {   // first admin tab of this session: choose / load the department
+  if (['super_admin', 'super_manager'].includes(state.profile.role) && acting.active && !acting.list.length) {   // first admin tab of this session: choose / load the department
     root.append(h('p', { class: 'muted center' }, t('loading')));
     ensureActing(fetchDepartments).then(render, () => { acting.list = [{ id: acting.dept, name: '' }]; render(); });
     return;

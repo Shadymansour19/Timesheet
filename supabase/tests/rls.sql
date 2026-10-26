@@ -500,6 +500,36 @@ select t.denied('super_admin may not reset a plain user password', $$select publ
 select t.denied('super_admin direct UPDATE profiles', $$update public.profiles set role = 'super_admin'$$);
 select t.ok('super_admin soft-deletes an admin', $$select public.soft_delete_user('00000000-0000-0000-0000-0000000000a1')$$);
 
+-- ---------------------------------------------------------------- super manager: read-only, every department, no timesheet
+select t.su();
+insert into auth.users (id, email, aud, role) values ('00000000-0000-0000-0000-0000000000c1', 'sm@timesheet.local', 'authenticated', 'authenticated');
+insert into public.profiles (id, username, full_name, opr, department_id, role) values ('00000000-0000-0000-0000-0000000000c1', 'smgr', 'Super Manager', null, null, 'super_manager');
+select t.login('00000000-0000-0000-0000-0000000000c1');
+select t.eq('super manager: app_role() is super_manager', $$select public.app_role()$$, 'super_manager');
+select t.count('super manager sees people of department A and B', $$select 1 from public.profiles where username in ('ua1', 'ub1')$$, 2);
+select t.count('super manager sees the timesheet of dept A and dept B', $$select 1 from public.day_status where user_id in ('00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-0000000000b2')$$, 2);
+select t.count('super manager sees both departments', $$select 1 from public.departments$$, 2);
+select t.denied('super manager cannot set a day status', $$select public.set_day_status('00000000-0000-0000-0000-0000000000a2', current_date + 50, 'X')$$);
+select t.denied('super manager cannot set overtime', $$select public.set_overtime('00000000-0000-0000-0000-0000000000a2', current_date + 50, 2, 'x')$$);
+select t.denied('super manager cannot set a holiday', $$select public.set_holiday(current_date + 51, true)$$);
+select t.denied('super manager cannot change a role', $$select public.set_user_role('00000000-0000-0000-0000-0000000000a2', 'admin')$$);
+select t.denied('super manager cannot edit a person', $$select public.update_profile('00000000-0000-0000-0000-0000000000a2', 'x', 'OPR-A2', '1')$$);
+select t.denied('super manager cannot change report settings', $$select public.set_department_report('10000000-0000-0000-0000-00000000000a', '{}'::jsonb)$$);
+select t.denied('super manager cannot create a department', $$select public.create_department('Nope')$$);
+select t.denied('super manager cannot create people', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'user')$$);
+select t.denied('super manager cannot reset passwords', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000a2', 'reset')$$);
+select t.denied('super manager direct UPDATE of a day status', $$update public.day_status set status = 'Y'$$);
+select t.login('00000000-0000-0000-0000-0000000000a0');
+select t.ok('super_admin may create a super manager (no department)', $$select public.assert_can_create(null, 'super_manager')$$);
+select t.denied('super manager has no department: a department is refused', $$select public.assert_can_create('10000000-0000-0000-0000-00000000000a', 'super_manager')$$);
+select t.ok('super_admin may reset a super manager password', $$select public.assert_can_manage('00000000-0000-0000-0000-0000000000c1', 'reset')$$);
+select t.login('00000000-0000-0000-0000-0000000000b1');
+select t.denied('an admin of a department cannot create a super manager', $$select public.assert_can_create(null, 'super_manager')$$);
+select t.su();
+select t.denied('nobody can give a super manager a day status (trigger)', $$insert into public.day_status (user_id, day, status) values ('00000000-0000-0000-0000-0000000000c1', current_date, 'X')$$, '22023');
+delete from public.profiles where id = '00000000-0000-0000-0000-0000000000c1';
+delete from auth.users where id = '00000000-0000-0000-0000-0000000000c1';
+
 -- ---------------------------------------------------------------- last super_admin guard (owner / service-role path)
 -- ---- super_admin ACTING as the admin of a department (header x-acting-dept, migration 13)
 select t.login('00000000-0000-0000-0000-0000000000a0');

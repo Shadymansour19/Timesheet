@@ -119,7 +119,7 @@ export function shell(content, { onLang }) {
     h('header', { class: 'topbar' },
       accountMenu(),
       h('div', { class: 'actions' },
-        acting.active && state.profile.role === 'super_admin' ? departmentSwitcher(onLang) : null,
+        acting.active && ['super_admin', 'super_manager'].includes(state.profile.role) ? departmentSwitcher(onLang) : null,
         h('button', { class: 'btn small', onclick: () => { setLang(otherLang()); onLang(); } }, t('language')))),
     nav,
     h('main', { class: 'content' }, back, content));

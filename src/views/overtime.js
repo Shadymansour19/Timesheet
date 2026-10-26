@@ -18,6 +18,7 @@ const key = (uid, day) => `${uid}|${day}`;
 // Department overtime: a month grid like the user calendar, but each day shows the TOTAL for all employees;
 // tapping a day opens a dialog to add / edit overtime (hours + note) for every employee on that day.
 export function overtimeView() {
+  const RO = state.profile.role === 'super_manager';       // read-only (the database refuses the writes as well)
   const deptId = myDept();
   const root = h('section', { class: 'cal ot-view' });
   let people = [], data = null;
@@ -85,6 +86,7 @@ export function overtimeView() {
     }
     for (const r of rows) { r.hours.addEventListener('input', refresh); r.note.addEventListener('input', refresh); }
     search.addEventListener('input', refresh); only.addEventListener('change', refresh);
+    if (RO) for (const r of rows) { r.hours.disabled = true; r.note.disabled = true; }
     refresh();
 
     const date = new Date(day + 'T00:00:00');
@@ -99,7 +101,7 @@ export function overtimeView() {
       autofocus: false,                       // keep the phone keyboard closed until the admin taps a field
       title: `${t('nav_overtime')} · ${fmt({ weekday: 'long', day: 'numeric', month: 'long' }, date)}`,
       content,
-      buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
+      buttons: RO ? [{ label: t('close') }] : [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
         const bad = rows.find((r) => parse(r) === null);
         if (bad) {
           bad.el.hidden = false; bad.el.scrollIntoView({ block: 'center' }); bad.hours.focus();
@@ -146,7 +148,7 @@ export function overtimeView() {
 
     root.replaceChildren(
       monthHead(fmt({ month: 'long', year: 'numeric' }, first), { onPrev: () => go(-1), onNext: () => go(1), onToday: () => { goToday(); load(); } }),
-      h('div', { class: 'cal-tools' }, h('button', { type: 'button', class: 'btn small', id: 'scan-open', onclick: () => import('../components/overtime-scan.js').then((m) => m.openOvertimeScan({ people, onSaved: () => load() })) }, t('scan_open'))),
+      h('div', { class: 'cal-tools' }, RO ? null : h('button', { type: 'button', class: 'btn small', id: 'scan-open', onclick: () => import('../components/overtime-scan.js').then((m) => m.openOvertimeScan({ people, onSaved: () => load() })) }, t('scan_open'))),
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         h('span', { class: 'chip ot' }, `${t('ot_total')}: ${sum}${t('hour_abbr')}`),

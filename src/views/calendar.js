@@ -19,7 +19,7 @@ const sameMonth = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); re
 
 // Month calendar for ONE person. Default: the signed-in person recording their own days (tap cycles E -> X -> Y).
 // admin + userId: a department admin editing someone's timesheet (tap cycles, or opens the day editor with overtime).
-export function calendarView({ userId, admin = false, person = null } = {}) {
+export function calendarView({ userId, admin = false, person = null, readOnly = false } = {}) {   // readOnly: a super manager looking at someone's month
   const me = state.profile.id;
   const uid = userId ?? me;
   const dept = myDept();
@@ -67,6 +67,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
 
   // set a day to a given status (optimistic, then saved in order); `patch` = update only that button in place (drag-fill)
   async function setTo(day, next, patch = null) {
+    if (readOnly) return;
     const cur = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
     if (cur.status === next && !patch) return;
     data[day] = { ...cur, status: next, eff: effOf(next, cur.hol) };
@@ -175,7 +176,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     const toWork = kind === 'rest';                          // tap on the rest-day marker -> move it onto the last working day; tap on the work-day marker -> back
     const workDate = toWork ? addDay(date, -1) : date;
     const label = toWork ? t('dep_to_work') : t('dep_to_rest');
-    const go = (e) => { e.stopPropagation(); e.preventDefault(); moveDeparture(workDate, toWork); };
+    const go = (e) => { e.stopPropagation(); e.preventDefault(); if (!readOnly) moveDeparture(workDate, toWork); };
     return h('span', { class: 'dep dep-' + kind, role: 'button', tabindex: 0, title: label, 'aria-label': `${t('departure')}: ${label}`,
       onpointerdown: (e) => e.stopPropagation(), onclick: go, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') go(e); }, 'data-t': t('dep_short') });
   }
@@ -183,7 +184,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
   function cell(day) {
     const d = Number(day.slice(8)), v = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false }, ctx = !!v.ctx;
     const lim = earliest();
-    const locked = lim !== null && day < lim;
+    const locked = readOnly || (lim !== null && day < lim);
     const cls = ['day', ctx ? 'ctx' : '', 's-' + v.eff.toLowerCase(), day === todayStr ? 'today' : '', v.hol ? 'holiday' : '', v.ot ? 'has-ot' : ''].filter(Boolean).join(' ');
     const dt = new Date(day + 'T00:00:00');
     const label = `${fmt({ weekday: 'long', day: 'numeric', month: 'long' }, dt)}: ${v.eff}${v.ot ? `, ${v.ot} ${t('overtime_h')}` : ''}`;
@@ -214,12 +215,12 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     // trips of the month = arrivals (a work day after a rest day) + departures (the tag, wherever it sits)
     const trips = monthDates.reduce((a, d) => a + (data[d].status !== 'E' && statusOn(addDay(d, -1)) === 'E' ? 1 : 0) + (depOn(d) ? 1 : 0), 0);
     const go = (delta) => { shiftMonth(delta); load(); };
-    const seg = admin ? h('div', { class: 'seg cal-mode', role: 'group', 'aria-label': t('tap_mode') },
+    const seg = admin && !readOnly ? h('div', { class: 'seg cal-mode', role: 'group', 'aria-label': t('tap_mode') },
       [['cycle', t('mode_cycle')], ['details', t('mode_details')]].map(([m, label]) =>
         h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m), onclick: () => { mode = m; redraw(); } }, label))) : null;
 
     const tools = h('div', { class: 'cal-tools' },
-      h('button', { type: 'button', class: 'btn small danger-outline', onclick: clearMonth }, icon(TRASH, 16), t('clear')),
+      readOnly ? null : h('button', { type: 'button', class: 'btn small danger-outline', onclick: clearMonth }, icon(TRASH, 16), t('clear')),
       h('button', { type: 'button', class: 'btn small', onclick: printMine }, icon(PRINT, 16), t('print')),
       h('button', { type: 'button', class: 'btn small', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
       h('button', { type: 'button', class: 'btn small icon-only', onclick: openHelp, 'aria-label': t('help'), title: t('help') }, icon(INFO, 18)));
@@ -248,7 +249,7 @@ export function calendarView({ userId, admin = false, person = null } = {}) {
     press: () => { dragging = true; },
     release: () => { dragging = false; setTimeout(() => { if (pendingDraw && !dragging) { pendingDraw = false; draw(); } }, 0); },     // after the click event, which needs the pressed button to still be there
     touchHold: 0,
-    enabled: () => !(admin && mode === 'details'),
+    enabled: () => !readOnly && !(admin && mode === 'details'),
   });
 
   // live: refetch quietly when this person's days (or the department holidays) change somewhere else

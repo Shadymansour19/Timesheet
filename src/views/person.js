@@ -20,7 +20,7 @@ export function personView(personId) {
         h('div', { class: 'acct-text' },
           h('strong', {}, p.full_name),
           h('span', { class: 'muted' }, `${t('role_' + p.role)} · ${p.username} · ${t('payroll_short')} ${p.payroll || '-'} · ${t('level')} ${p.level ?? '-'}`))),
-      calendarView({ userId: p.id, admin: true, person: p }));
+      calendarView({ userId: p.id, admin: true, person: p, readOnly: state.profile.role === 'super_manager' }));
   })();
   return root;
 }

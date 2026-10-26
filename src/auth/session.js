@@ -2,7 +2,7 @@ import { supabase, usernameToEmail, revokeSession } from '../supabase.js';
 
 import { acting } from '../acting.js';
 // The department the signed-in person administers: their own, or (super admin) the one they are acting for.
-export const myDept = () => (state.profile.role === 'super_admin' ? acting.dept : state.profile.department_id);
+export const myDept = () => (['super_admin', 'super_manager'].includes(state.profile.role) ? acting.dept : state.profile.department_id);
 export const state = { profile: null };
 let pendingNotice = null;
 // A message for the login screen after the account was ended elsewhere (deactivated by an admin, etc.).
