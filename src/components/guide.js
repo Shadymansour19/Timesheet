@@ -15,6 +15,7 @@ const isNew = () => Date.now() - new Date(state.profile.created_at).getTime() < 
 const autoAllowed = () => { try { return !navigator.webdriver || localStorage.getItem('ts.forceGuide') === '1'; } catch { return !navigator.webdriver; } };
 
 // the landing screen of each role: where the tour starts by itself for a new account
+const yOk = () => state.profile?.y_allowed !== false;                                              // a person without Y (shift days) sees texts without it
 const touch = () => matchMedia('(hover: none) and (pointer: coarse)').matches;                  // a phone / tablet: no keyboard shortcuts to show
 const AUTO = { user: '/calendar', admin: '/team', manager: '/team', super_manager: '/team', super_admin: '/departments' };
 // the screens of each role in tab order: a tour runs through them one after the other (the person can skip at any time)
@@ -31,11 +32,11 @@ const PAGES = {
   '/calendar': { ready: '.cal .grid', steps: (last) => [
     st('tour_0_title', 'tour_0_text'),
     st('tour_1_title', 'tour_1_text', '.cal > .cal-head'),
-    st('tour_2_title', 'tour_2_text', ['.grid .day.today', '.grid .day:not(.ctx)']),
+    st('tour_2_title', yOk() ? 'tour_2_text' : 'tour_2_text_noy', ['.grid .day.today', '.grid .day:not(.ctx)']),
     st('tour_3_title', 'tour_3_text', '.grid'),
     // BOTH dashed days: the last day of the previous month (first one on the grid) and the first day of the next month (last one)
     st('tour_dash_title', 'tour_dash_text', () => document.querySelector('.grid .day.ctx'), () => [...document.querySelectorAll('.grid .day.ctx')].pop()),
-    st('tour_4_title', 'tour_4_text', '.totals'),
+    st('tour_4_title', yOk() ? 'tour_4_text' : 'tour_4_text_noy', '.totals'),
     st('tour_5_title', 'tour_5_text', '.cal-tools .icon-only'),
     ...(last ? [MENU] : []),
   ] },

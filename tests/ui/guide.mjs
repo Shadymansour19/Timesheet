@@ -11,12 +11,12 @@ const cleanup = () => sql(`delete from auth.users where id::text ~ '^3f000000-' 
   delete from public.audit_log where (target_user is not null and target_user not in (select id from public.profiles)) or (department_id is not null and department_id not in (select id from public.departments));`);
 cleanup();
 sql(`insert into public.departments (id,name) values ('${DA}','GD Alpha')`);
-const people = [[0, 'gdnew', 'GD New User', 'user', '0 days'], [1, 'gdold', 'GD Old User', 'user', '90 days'], [2, 'gdadm', 'GD Admin', 'admin', '0 days'], [3, 'gdmgr', 'GD Manager', 'manager', '0 days'], [4, 'gdsm', 'GD Super Manager', 'super_manager', '0 days'], [5, 'gdsa', 'GD Super Admin', 'super_admin', '0 days']];
+const people = [[0, 'gdnew', 'GD New User', 'user', '0 days'], [1, 'gdold', 'GD Old User', 'user', '90 days'], [2, 'gdadm', 'GD Admin', 'admin', '0 days'], [3, 'gdmgr', 'GD Manager', 'manager', '0 days'], [4, 'gdsm', 'GD Super Manager', 'super_manager', '0 days'], [5, 'gdsa', 'GD Super Admin', 'super_admin', '0 days'], [6, 'gdnoy', 'GD No Y User', 'user', '0 days']];
 for (const [i, un, name, role, age] of people) sql(`
  insert into auth.users (instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at,confirmation_token,recovery_token,email_change_token_new,email_change)
  values ('00000000-0000-0000-0000-000000000000','${uid(i)}','authenticated','authenticated','${un}@timesheet.local',crypt('${PW}',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{}',now(),now(),'','','','');
  insert into auth.identities (id,user_id,provider_id,identity_data,provider,last_sign_in_at,created_at,updated_at) values (gen_random_uuid(),'${uid(i)}','${uid(i)}','{"sub":"${uid(i)}"}','email',now(),now(),now());
- insert into public.profiles (id,username,full_name,opr,payroll,level,department_id,role,created_at) values ('${uid(i)}','${un}','${name}',${role.startsWith('super') ? 'null' : `'GDO-${i}'`},${role.startsWith('super') ? 'null' : `'GDP-${i}'`},'2',${role.startsWith('super') ? 'null' : `'${DA}'`},'${role}', now() - interval '${age}');`);
+ insert into public.profiles (id,username,full_name,opr,payroll,level,department_id,role,created_at) values ('${uid(i)}','${un}','${name}',${role.startsWith('super') ? 'null' : `'GDO-${i}'`},${role.startsWith('super') ? 'null' : `'GDP-${i}'`},'2',${role.startsWith('super') ? 'null' : `'${DA}'`},'${role}', now() - interval '${age}');${un === 'gdnoy' ? ` update public.profiles set y_allowed = false where id = '${uid(i)}';` : ''}`);
 
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 let fails = 0;
@@ -132,6 +132,19 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   ok('desktop: the menu has "How to use the app"', await p.locator('#guide-open').isVisible());
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
+// a user whose admin switched Y off: no Y anywhere in the calendar legend, the totals or the tour
+{ const p = await open('gdnoy', { phone: false }); await p.waitForSelector('.day'); await p.waitForSelector('.tour');
+  await p.click('#tour-next'); await p.click('#tour-next'); await p.waitForTimeout(500);
+  const step = await p.locator('.tour-text').innerText();
+  ok('no-Y user: the "tap a day" step leaves Y out', !/\bY\b/.test(step) && /E/.test(step) && /X/.test(step), step);
+  await p.click('#tour-skip'); await p.waitForSelector('.tour', { state: 'detached' });
+  const chips = await p.locator('.totals .chip').allInnerTexts();
+  ok('no-Y user: the totals below the calendar have no Y / YH chip', !chips.some((c) => /^Y/.test(c)) && chips.some((c) => /^X:/.test(c)) && chips.some((c) => /^XH:/.test(c)), chips.join(' | '));
+  await p.click('.cal-tools .icon-only'); await p.waitForSelector('dialog[open]');
+  const help = await p.locator('dialog[open]').innerText();
+  ok('no-Y user: the help legend does not mention Y (operation / shift)', !/\bY\b/.test(help.split('\n').find((l) => /Tap a day/.test(l)) ?? '') && /switch between E and X/.test(help), help.slice(0, 160));
+  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
+  await p.context().close(); }
 // a department admin (phone): one tour through ALL his tabs: Department -> Overtime -> Users -> My calendar
 { const p = await open('gdadm'); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
   ok('phone, admin: the tour starts on the Department screen (Screen 1 of 4, 7 steps)', (await p.locator('.tour-dot').count()) === 7 && (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 4' && /Department grid/.test(await p.locator('.tour-title').innerText()));
@@ -139,6 +152,7 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   ok('phone, admin: no Keyboard step on a touch screen', !r.titles.includes('Keyboard'));
   ok('phone, admin: Department 7, Overtime 5, Users 4, My calendar 8 steps (the menu step only on the last screen)', r.pages.join() === '7,5,4,8', r.pages.join());
   ok('phone, admin: each screen ends with "Next: <next tab>" and the last with Done', r.labels.join('|') === 'Next: Overtime|Next: Users|Next: My calendar|Done', r.labels.join('|'));
+  await p.waitForFunction(() => /#\/team/.test(location.hash) && document.querySelector('.tgrid'), null, { timeout: 15000 }).catch(() => {});       // the return happens right after the last click (the remote data may take a moment)
   ok('phone, admin: at the end the view returns to the tab where the tour started (Department), not the last one it visited', /#\/team/.test(p.url()) && (await p.locator('.tgrid').count()) === 1);
   await p.reload(); await p.waitForSelector('.tgrid'); await p.waitForTimeout(1500);
   ok('phone, admin: finished = seen, no tour after a reload', (await p.locator('.tour').count()) === 0);

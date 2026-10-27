@@ -23,6 +23,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
   const me = state.profile.id;
   const uid = userId ?? me;
   const dept = myDept();
+  const yOk = () => (admin ? person?.y_allowed : state.profile.y_allowed) !== false;       // may this person have Y (shift days)? if not, Y is left out of the legend, the totals and the cycle
   const root = h('section', { class: 'cal' });
   let data = {};                 // shown values by day (optimistic)
   let editWindow = null;
@@ -62,7 +63,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
   // Serialise writes per day: tapping fast sends only the latest wanted value, one request at a time.
   async function change(day) {
     const cur = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
-    return setTo(day, nextStatus(cur.status, (admin ? person?.y_allowed : state.profile.y_allowed) !== false));
+    return setTo(day, nextStatus(cur.status, yOk()));
   }
 
   // set a day to a given status (optimistic, then saved in order); `patch` = update only that button in place (drag-fill)
@@ -94,7 +95,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
 
   // Help text lives behind the "i" button (keeps the calendar compact)
   const openHelp = () => openDialog({ title: t('help'), content: h('div', { class: 'form' },
-    ...(admin ? [h('p', {}, t('person_hint'))] : []), h('p', {}, `${t('legend')} ${t('legend_ot')}`), h('p', {}, t('hint_drag_cal')), h('p', {}, t('hint_departure')),
+    ...(admin ? [h('p', {}, t('person_hint'))] : []), h('p', {}, `${t(yOk() ? 'legend' : 'legend_noy')} ${t('legend_ot')}`), h('p', {}, t('hint_drag_cal')), h('p', {}, t('hint_departure')),
     ...(editWindow !== null && !admin ? [h('p', { class: 'muted' }, t('edit_window_note').replace('{n}', editWindow))] : [])), buttons: [{ label: t('close') }] });
 
   // Download THIS person's Monthly Time Report for the shown month (Excel or PDF)
@@ -230,7 +231,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
       ...(seg ? [seg] : []),
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
-        ['X', 'Y', 'XH', 'YH'].map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
+        ['X', 'Y', 'XH', 'YH'].filter((s) => yOk() || s[0] !== 'Y').map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
         h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`),
         h('span', { class: 'chip trips', title: t('trips_hint') }, `${t('trips')}: ${trips}`)));
   }
@@ -241,7 +242,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     keyOf: (btn) => btn.dataset.d,
     rowCells: () => [...root.querySelectorAll('.grid .day')],
     statusOf: (btn) => data[btn.dataset.d]?.status ?? 'E',
-    canFill: (btn, status) => !btn.disabled && !(status === 'Y' && (admin ? person?.y_allowed : state.profile.y_allowed) === false),
+    canFill: (btn, status) => !btn.disabled && !(status === 'Y' && !yOk()),
     fill: (btn, status) => {
       const day = btn.dataset.d;
       setTo(day, status, () => { const fresh = cell(day); btn.className = fresh.className; btn.replaceChildren(...fresh.childNodes); btn.setAttribute('aria-label', fresh.getAttribute('aria-label')); });
