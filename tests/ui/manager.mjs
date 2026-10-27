@@ -49,8 +49,10 @@ async function login(un) {
 { const c = await b.newContext(); const q = await c.newPage(); await q.goto('http://localhost:4173/'); await q.waitForSelector('#username');
   ok('the sign-in page shows the Developed by line', /Developed by Shady Mansour/.test(await q.locator('.credit').innerText()));
   await q.evaluate(() => document.fonts.ready);
-  const f = await q.locator('.dev-name').evaluate((e) => ({ fam: getComputedStyle(e).fontFamily, w: getComputedStyle(e).fontWeight, clip: getComputedStyle(e).webkitBackgroundClip || getComputedStyle(e).backgroundClip, loaded: document.fonts.check('800 20px "Cairo Name"', e.textContent) }));
-  ok('the developer name uses the modern Cairo ExtraBold font (loaded) with a gradient fill', /Cairo Name/.test(f.fam) && f.w === '800' && f.clip === 'text' && f.loaded, JSON.stringify(f));
+  const f = await q.locator('.dev-name').evaluate((e) => ({ fam: getComputedStyle(e).fontFamily, w: getComputedStyle(e).fontWeight, clip: getComputedStyle(e).webkitBackgroundClip || getComputedStyle(e).backgroundClip, loaded: document.fonts.check('400 20px "Kaushan Name"', e.textContent) }));
+  ok('the developer name uses the Kaushan Script brush font (loaded) with a gradient fill', /Kaushan Name/.test(f.fam) && f.w === '400' && f.clip === 'text' && f.loaded, JSON.stringify(f));
+  const sz = await q.evaluate(() => { const c = document.querySelector('.credit'), a = document.querySelector('.credit-link'), w = document.querySelector('.credit-link[data-link=whatsapp] svg'); return { font: parseFloat(getComputedStyle(c).fontSize), circle: Math.round(a.getBoundingClientRect().width), icon: Math.round(a.querySelector('svg').getBoundingClientRect().width), wa: Math.round(w.getBoundingClientRect().width) }; });
+  ok('desktop: a bigger Developed by line (17px+) and bigger icons (48px circles, 27px icons, WhatsApp 31px)', sz.font >= 17 && sz.circle === 48 && sz.icon === 27 && sz.wa === 31, JSON.stringify(sz));
 
   // the greeting follows the local time (checked when the link is used)
   for (const [iso, word] of [['2026-10-27T05:00:00', 'morning'], ['2026-10-27T09:30:00', 'morning'], ['2026-10-27T12:00:00', 'afternoon'], ['2026-10-27T16:59:00', 'afternoon'], ['2026-10-27T17:00:00', 'evening'], ['2026-10-27T23:00:00', 'evening'], ['2026-10-27T02:00:00', 'evening']]) {
@@ -126,6 +128,7 @@ async function login(un) {
   await p.goto('http://localhost:4173/'); await p.fill('#username', 'mgadm'); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
   await p.goto('http://localhost:4173/#/users'); await p.waitForSelector('.person'); await p.tap('.view-seg button[data-view="table"]'); await p.waitForSelector('.utable tbody tr.urow');
   await p.tap('.th-filter[data-k="role"]'); await p.waitForSelector('.flt-pop');
+  ok('phone: the credit line and its icons keep their compact size (14px text, 36px circles)', await p.evaluate(() => { const c = document.querySelector('main .credit'), a = c.querySelector('.credit-link'); return parseFloat(getComputedStyle(c).fontSize) < 14 && Math.round(a.getBoundingClientRect().width) === 36; }));
   ok('phone: the filter popup opens without focusing its search box (no keyboard by itself)', await p.evaluate(() => document.activeElement?.type !== 'search' || !document.querySelector('.flt-pop').contains(document.activeElement)));
   await p.setViewportSize({ width: 390, height: 380 });                                // what the on-screen keyboard does
   await p.waitForTimeout(500);

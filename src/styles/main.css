@@ -545,24 +545,32 @@ body.has-install .floating { inset-block-start: 68px; }
    A fixed line height and a Latin-first font stack give both languages the same pill and the same centring. */
 .chip { line-height: 1.35; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, 'Noto Sans Arabic', sans-serif; }
 
-/* the developer's name: Cairo ExtraBold (a 4 KB subset with just these letters, Latin and Arabic) with a teal-to-blue gradient */
-@font-face { font-family: 'Cairo Name'; src: url('/fonts/cairo-extrabold-name.woff2') format('woff2'); font-weight: 800; font-display: swap; }
+/* the developer's name (English): Kaushan Script, a brush-pen calligraphy that matches the Arabic one, with a teal-to-blue gradient that glides on hover */
+@font-face { font-family: 'Kaushan Name'; src: url('/fonts/kaushan-script-latin-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
 :root { --dev-to: #0284c7; }
 :root[data-theme="dark"] { --dev-to: #38bdf8; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --dev-to: #38bdf8; } }
-.dev-name { font-family: 'Cairo Name', 'Cairo', system-ui, sans-serif; font-weight: 800; font-size: 1.28em; letter-spacing: .02em; line-height: 1.2;
+.dev-name { font-family: 'Kaushan Name', 'Brush Script MT', cursive; font-weight: 400; font-size: 1.45em; letter-spacing: .01em; line-height: 1.2; padding-inline: .06em .18em;   /* the script's swashes overhang the box: the gradient clip must not cut them */
   background: linear-gradient(90deg, var(--brand), var(--dev-to), var(--brand)); background-size: 220% 100%; background-position: 0 0;
   -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; transition: background-position .8s ease; }
 .credit:hover .dev-name, .menu-credit:hover .dev-name { background-position: 100% 0; }
 @media (prefers-reduced-motion: reduce) { .dev-name { transition: none; } }
-.tour-screen { flex: 1; text-align: center; font-size: .72rem; color: var(--muted); white-space: nowrap; }
 
 /* ARABIC name: Aref Ruqaa Ink Bold (a colour font: ink strokes that fade). Its colour layers are recoloured to the app's teal / blue through font-palette
    (Chrome, Edge, Firefox); where colour fonts are not supported (Safari) the letters are solid teal. No text gradient here: it would flatten the colour layers. */
 @font-face { font-family: 'Aref Ink Name'; src: url('/fonts/aref-ruqaa-ink-bold-name.woff2') format('woff2'); font-weight: 700; font-display: swap; }
 @font-palette-values --dev-ink { font-family: 'Aref Ink Name'; override-colors: 0 rgba(15, 118, 110, .5), 1 #0f766e, 2 #0284c7, 3 rgba(2, 132, 199, .5), 4 #0284c7; }
 @font-palette-values --dev-ink-dark { font-family: 'Aref Ink Name'; override-colors: 0 rgba(45, 212, 191, .5), 1 #2dd4bf, 2 #38bdf8, 3 rgba(56, 189, 248, .5), 4 #38bdf8; }
-:lang(ar) .dev-name { font-family: 'Aref Ink Name', 'Cairo Name', serif; font-weight: 700; font-size: 1.7em; line-height: 1; letter-spacing: 0; background: none;
+:lang(ar) .dev-name { font-family: 'Aref Ink Name', serif; font-weight: 700; font-size: 1.7em; line-height: 1; letter-spacing: 0; background: none;
   -webkit-text-fill-color: currentColor; color: var(--brand); font-palette: --dev-ink; transition: none; }
 :root[data-theme="dark"]:lang(ar) .dev-name, :root[data-theme="dark"] :lang(ar) .dev-name { font-palette: --dev-ink-dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):lang(ar) .dev-name { font-palette: --dev-ink-dark; } }
+
+/* a computer (mouse, hover): a bigger "Developed by" line and bigger icons below it */
+@media (hover: hover) and (pointer: fine) {
+  .credit { font-size: 1.08rem; gap: 10px; margin-block: 26px 10px; }
+  .credit-links { gap: 18px; }
+  .credit-link { width: 48px; height: 48px; }
+  .credit-link svg { width: 27px; height: 27px; }
+  .credit-link[data-link="whatsapp"] svg { width: 31px; height: 31px; }
+}
