@@ -202,6 +202,8 @@ export default {
   tour_su_person_title: "شخص",
   tour_su_person_text: "عدّل اسمه أو أعد تعيين كلمة مروره أو احذفه. لا يمكنك حذف نفسك.",
   developer_name: "شادي منصور",
+  tour_next_screen: "التالي: {name}",
+  tour_screen: "الشاشة {n} من {of}",
   promote: "ترقية إلى مسؤول",
   demote: "تحويل إلى مستخدم",
   promote_confirm: "ترقية إلى مسؤول القسم:",

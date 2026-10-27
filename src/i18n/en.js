@@ -202,6 +202,8 @@ export default {
   tour_su_person_title: "A person",
   tour_su_person_text: "Edit their name, reset their password or delete them. You cannot delete yourself.",
   developer_name: "Shady Mansour",
+  tour_next_screen: "Next: {name}",
+  tour_screen: "Screen {n} of {of}",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",

@@ -2,6 +2,8 @@
 // and a card with the explanation slides in next to them. Steps move with animation; Next / Back / Skip, Esc and the arrow keys work.
 // steps: [{ target, title, text }] or [{ targets: [target, target], ... }] to spotlight SEVERAL areas at once. A target is a css selector, a list of
 // selectors (the first that exists), or a function returning an element; no target = a centred card. A step whose targets are all missing is skipped.
+// Several screens in a row: give nextLabel (the button text of the last step), screen { n, of } (a small "Screen 2 of 4" label) and onNext() -> Promise of
+// { steps, nextLabel, screen } for the following screen (the overlay stays up meanwhile) or null to finish.
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 
@@ -16,21 +18,22 @@ const PAD = 6;                                              // breathing room ar
 const MARGIN = 12;
 const PANELS = 7, RINGS = 2;                                // one hole needs 4 panels (above, left, right, below), two holes 7
 
-export function startTour({ steps, onEnd }) {
+export function startTour({ steps, onEnd, nextLabel = null, screen = null, onNext = null }) {
   if (document.querySelector('.tour:not(.leaving)')) return null;                       // never two tours on top of each other
-  const present = steps.filter((s) => !wants(s) || elementsOf(s).length);
+  let present = steps.filter((s) => !wants(s) || elementsOf(s).length);
   if (!present.length) { onEnd?.(false); return null; }
-  let i = 0, done = false;
+  let i = 0, done = false, busy = false, label = nextLabel, scr = screen;
 
   const dims = Array.from({ length: PANELS }, () => h('div', { class: 'tour-dim', 'aria-hidden': 'true' }));
   const rings = Array.from({ length: RINGS }, () => h('div', { class: 'tour-ring', 'aria-hidden': 'true' }));
   const title = h('strong', { class: 'tour-title' }), text = h('p', { class: 'tour-text' });
   const dots = h('div', { class: 'tour-dots', 'aria-hidden': 'true' });
+  const screenEl = h('span', { class: 'tour-screen', 'aria-hidden': 'true' });
   const back = h('button', { type: 'button', class: 'btn small', onclick: () => go(-1) }, t('tour_back'));
   const next = h('button', { type: 'button', class: 'btn small primary', id: 'tour-next', onclick: () => go(1) });
   const skip = h('button', { type: 'button', class: 'tour-skip', id: 'tour-skip', onclick: () => end(false) }, t('tour_skip'));
   const card = h('div', { class: 'tour-card', role: 'dialog', 'aria-modal': 'true', 'aria-live': 'polite', 'aria-label': t('guide_title') },
-    h('div', { class: 'tour-head' }, dots, skip), title, text, h('div', { class: 'tour-actions' }, back, next));
+    h('div', { class: 'tour-head' }, dots, screenEl, skip), title, text, h('div', { class: 'tour-actions' }, back, next));
   const root = h('div', { class: 'tour' }, ...dims, ...rings, card);
 
   const box = (el, o) => Object.assign(el.style, { top: o.top + 'px', left: o.left + 'px', width: Math.max(0, o.width) + 'px', height: Math.max(0, o.height) + 'px' });
@@ -75,7 +78,9 @@ export function startTour({ steps, onEnd }) {
   function show() {
     const s = present[i], els = elementsOf(s);
     title.textContent = t(s.title); text.textContent = t(s.text);
-    back.hidden = i === 0; next.textContent = i === present.length - 1 ? t('tour_done') : t('tour_next');
+    back.hidden = i === 0; next.textContent = i === present.length - 1 ? (label ?? t('tour_done')) : t('tour_next');
+    screenEl.textContent = scr && scr.of > 1 ? t('tour_screen').replace('{n}', scr.n).replace('{of}', scr.of) : '';
+    next.disabled = false; busy = false;
     dots.replaceChildren(...present.map((_, k) => h('span', { class: 'tour-dot' + (k === i ? ' on' : '') })));
     card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter');      // restart the slide-in animation
     // one area: bring it to the middle; several: bring the area that contains them (the first one's grid / container) into view
@@ -85,9 +90,29 @@ export function startTour({ steps, onEnd }) {
     next.focus({ preventScroll: true });
   }
 
-  function go(d) { const n = i + d; if (n < 0) return; if (n >= present.length) { end(true); return; } i = n; show(); }
+  // between two screens the overlay stays (dimmed, card hidden) while the next screen opens and draws
+  function hold() {
+    card.hidden = true; next.disabled = true;
+    const vw = innerWidth, vh = innerHeight;
+    dims.forEach((d, k) => box(d, k === 0 ? { top: 0, left: 0, width: vw, height: vh } : nothing(vw / 2, vh / 2)));
+    rings.forEach((r) => { r.style.opacity = '0'; });
+  }
+  async function go(d) {
+    if (busy) return;
+    const n = i + d; if (n < 0) return;
+    if (n >= present.length) {
+      if (!onNext) { end(true); return; }
+      busy = true; hold();
+      let r = null; try { r = await onNext(); } catch { r = null; }
+      if (done) return;
+      if (!r || !r.steps?.length) { end(true); return; }
+      present = r.steps; i = 0; label = r.nextLabel ?? null; scr = r.screen ?? null; card.hidden = false; show();
+      return;
+    }
+    i = n; show();
+  }
   function end(completed) {
-    if (done) return; done = true;
+    if (done) return; done = true; card.hidden = false;
     removeEventListener('resize', layout); removeEventListener('keydown', key, true);
     root.classList.add('leaving'); setTimeout(() => root.remove(), 220);
     onEnd?.(completed);

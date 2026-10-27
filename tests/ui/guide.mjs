@@ -30,20 +30,30 @@ async function open(un, { phone = true } = {}) {
 }
 const TARGETS = ['.cal > .cal-head', '.grid .day.today', '.grid', '.grid .day.ctx', '.totals', '.cal-tools .icon-only', '.acct'];
 const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; });
-// walks a whole tour: every step has a card on screen and (after the welcome) a spotlight ring of real size; the last step finishes it
-async function walk(p, label) {
-  const n = await p.locator('.tour-dot').count(), bad = [];
-  for (let i = 0; i < n; i++) {
-    await p.waitForTimeout(450);
-    const m = await p.evaluate(() => { const rings = [...document.querySelectorAll('.tour-ring')].filter((r) => getComputedStyle(r).opacity === '1').map((r) => { const b = r.getBoundingClientRect(); return b.width * b.height; });
-      const c = document.querySelector('.tour-card').getBoundingClientRect(); return { rings: rings.length, area: Math.round(rings.reduce((a, v) => a + v, 0)), card: c.left >= 0 && c.top >= 0 && c.right <= innerWidth + 1 && c.bottom <= innerHeight + 1, title: document.querySelector('.tour-title').innerText }; });
-    if (!m.card || !m.title || (i > 0 && (m.rings < 1 || m.area < 100))) bad.push({ i, ...m });
-    if (process.env.SHOTS && (i === 3 || i === 5)) await p.screenshot({ path: `${process.env.SHOTS}/tour-${label.replace(/\W+/g, '_')}-${i}.png` });
-    await p.click('#tour-next');
+// walks a whole tour, across screens: every step has a card on screen and (after the welcome) a spotlight ring of real size; the last step of a screen opens the next tab
+// -> { pages: [steps per screen], labels: [button text of each screen's last step], bad: [problems] }
+async function walkAll(p, label) {
+  const pages = [], labels = [], bad = [];
+  for (let guard = 0; guard < 8; guard++) {
+    await p.waitForSelector('.tour-card:not([hidden])');
+    const n = await p.locator('.tour-dot').count(), screen = await p.locator('.tour-screen').innerText(); pages.push(n);
+    for (let i = 0; i < n; i++) {
+      await p.waitForTimeout(450);
+      const m = await p.evaluate(() => { const rings = [...document.querySelectorAll('.tour-ring')].filter((r) => getComputedStyle(r).opacity === '1').map((r) => { const b = r.getBoundingClientRect(); return b.width * b.height; });
+        const c = document.querySelector('.tour-card').getBoundingClientRect(); return { rings: rings.length, area: Math.round(rings.reduce((a, v) => a + v, 0)), card: c.left >= 0 && c.top >= 0 && c.right <= innerWidth + 1 && c.bottom <= innerHeight + 1, title: document.querySelector('.tour-title').innerText }; });
+      if (!m.card || !m.title || (i > 0 && (m.rings < 1 || m.area < 100))) bad.push({ screen: pages.length, i, ...m });
+      if (process.env.SHOTS && i === 3) await p.screenshot({ path: `${process.env.SHOTS}/tour-${label.replace(/\W+/g, '_')}-${pages.length}-${i}.png` });
+      if (i === n - 1) labels.push(await p.locator('#tour-next').innerText());
+      await p.click('#tour-next');
+    }
+    const next = await Promise.race([
+      p.waitForSelector('.tour', { state: 'detached', timeout: 15000 }).then(() => false),
+      p.waitForFunction((prev) => { const c = document.querySelector('.tour-card'); return c && !c.hidden && document.querySelector('.tour-screen').textContent !== prev; }, screen, { timeout: 15000 }).then(() => true),
+    ]).catch(() => false);
+    if (!next) break;
   }
-  await p.waitForSelector('.tour', { state: 'detached' });
-  ok(`${label}: ${n} steps, each with its card on screen and a spotlight`, n > 3 && bad.length === 0, JSON.stringify(bad));
-  return n;
+  ok(`${label}: screens ${JSON.stringify(pages)}, every step has its card on screen and a spotlight`, bad.length === 0, JSON.stringify(bad));
+  return { pages, labels, bad };
 }
 const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click('#guide-open'); await p.waitForSelector('.tour'); };
 { const p = await open('gdnew');
@@ -112,55 +122,49 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   ok('...but the menu entry is there', (await p.locator('#guide-open').isVisible()));
   await p.context().close(); }
 { const p = await open('gdnew', { phone: false }); await p.waitForSelector('.day'); await p.waitForSelector('.tour');
-  ok('desktop: the tour starts by itself too (same 8 steps)', (await p.locator('.tour-dot').count()) === 8);
-  await walk(p, 'desktop, user calendar');
+  ok('desktop: the tour starts by itself too (same 8 steps, one screen)', (await p.locator('.tour-dot').count()) === 8 && (await p.locator('.tour-screen').innerText()) === '');
+  const r = await walkAll(p, 'desktop, user'); ok('a one-screen tour ends with Done', r.pages.join() === '8' && r.labels[0] === 'Done');
   await p.click('.acct > summary');
   ok('desktop: the menu has "How to use the app"', await p.locator('#guide-open').isVisible());
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
-// a department admin (phone): the Department screen has its own tour, then his own calendar, then Overtime and Users through the menu
+// a department admin (phone): one tour through ALL his tabs: Department -> Overtime -> Users -> My calendar
 { const p = await open('gdadm'); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
-  ok('phone, admin: the Department screen tour starts by itself (8 steps)', (await p.locator('.tour-dot').count()) === 8 && /Department grid/.test(await p.locator('.tour-title').innerText()));
-  await walk(p, 'phone, admin, Department screen');
-  await p.click('.nav a:has(.lbl:text-is("My calendar"))'); await p.waitForSelector('.tour');
-  ok('phone, admin: opening his own calendar (new account) starts the calendar tour (8 steps)', (await p.locator('.tour-dot').count()) === 8 && /Welcome/.test(await p.locator('.tour-title').innerText()));
-  await p.keyboard.press('Escape'); await p.waitForSelector('.tour', { state: 'detached' });
-  await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await p.waitForTimeout(800);
-  ok('phone, admin: no automatic tour on Overtime', (await p.locator('.tour').count()) === 0);
-  await menuGuide(p);
-  ok('phone, admin: the menu starts the Overtime tour (6 steps, with the Scan step)', (await p.locator('.tour-dot').count()) === 6 && /Overtime/.test(await p.locator('.tour-title').innerText()));
-  await walk(p, 'phone, admin, Overtime');
-  await p.click('.nav a:has(.lbl:text-is("Users"))'); await p.waitForSelector('.person');
-  await menuGuide(p);
-  ok('phone, admin: the menu starts the Users tour (5 steps)', (await p.locator('.tour-dot').count()) === 5);
-  await walk(p, 'phone, admin, Users');
-  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
-  await p.context().close(); }
-// a department manager (desktop)
-{ const p = await open('gdmgr', { phone: false }); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
-  ok('desktop, manager: the Department tour starts by itself (8 steps, no department switcher)', (await p.locator('.tour-dot').count()) === 8);
-  await walk(p, 'desktop, manager, Department screen');
-  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
-  await p.context().close(); }
-// a super manager (desktop): read-only wording, with the department switcher step
-{ const p = await open('gdsm', { phone: false }); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
-  ok('desktop, super manager: the Department tour has the department step (9 steps) and says view only', (await p.locator('.tour-dot').count()) === 9 && (await p.locator('.tour-text').innerText()).includes('You can look and export'));
-  await walk(p, 'desktop, super manager, Department screen');
+  ok('phone, admin: the tour starts on the Department screen (Screen 1 of 4, 7 steps)', (await p.locator('.tour-dot').count()) === 7 && (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 4' && /Department grid/.test(await p.locator('.tour-title').innerText()));
+  const r = await walkAll(p, 'phone, admin');
+  ok('phone, admin: Department 7, Overtime 5, Users 4, My calendar 8 steps (the menu step only on the last screen)', r.pages.join() === '7,5,4,8', r.pages.join());
+  ok('phone, admin: each screen ends with "Next: <next tab>" and the last with Done', r.labels.join('|') === 'Next: Overtime|Next: Users|Next: My calendar|Done', r.labels.join('|'));
+  ok('phone, admin: the tour carried him to his own calendar', /#\/calendar/.test(p.url()));
+  await p.reload(); await p.waitForSelector('.day'); await p.waitForTimeout(1500);
+  ok('phone, admin: finished = seen, no tour after a reload', (await p.locator('.tour').count()) === 0);
+  // the menu starts it again from the screen he is on and carries on to the end: Overtime -> Users -> My calendar
   await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await menuGuide(p);
-  ok('desktop, super manager: the Overtime tour has no Scan step (6 steps)', (await p.locator('.tour-dot').count()) === 6);
-  await walk(p, 'desktop, super manager, Overtime');
+  ok('phone, admin: from Overtime the menu runs Overtime, Users, My calendar (Screen 1 of 3)', (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 3' && /Overtime/.test(await p.locator('.tour-title').innerText()));
+  const r2 = await walkAll(p, 'phone, admin, from the menu'); ok('phone, admin: menu tour screens 5, 4, 8', r2.pages.join() === '5,4,8', r2.pages.join());
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
-// a super admin (desktop): Departments, Super users, and the Department screen acting for a department
+// a department manager (desktop): Department -> Overtime -> Users
+{ const p = await open('gdmgr', { phone: false }); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
+  const r = await walkAll(p, 'desktop, manager');
+  ok('desktop, manager: Department 7, Overtime 5, Users 5 (last, with the menu step)', r.pages.join() === '7,5,5', r.pages.join());
+  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
+  await p.context().close(); }
+// a super manager (desktop): Skip stops the whole tour and counts every screen as seen
+{ const p = await open('gdsm', { phone: false }); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
+  ok('desktop, super manager: the Department tour has the department step (8 steps, Screen 1 of 2) and says view only', (await p.locator('.tour-dot').count()) === 8 && (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 2' && (await p.locator('.tour-text').innerText()).includes('You can look and export'));
+  await p.click('#tour-next'); await p.click('#tour-skip'); await p.waitForSelector('.tour', { state: 'detached' });
+  await p.reload(); await p.waitForSelector('.tgrid'); await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await p.waitForTimeout(1500);
+  ok('desktop, super manager: Skip = seen: no tour after a reload, and none on the Overtime screen either', (await p.locator('.tour').count()) === 0);
+  await menuGuide(p);
+  const r = await walkAll(p, 'desktop, super manager, from the menu'); ok('desktop, super manager: Overtime (no Scan step) 6 steps, the last screen', r.pages.join() === '6', r.pages.join());
+  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
+  await p.context().close(); }
+// a super admin (desktop): Departments -> Department -> Overtime -> Users -> Super users
 { const p = await open('gdsa', { phone: false }); await p.waitForSelector('details.dept'); await p.waitForSelector('.tour');
-  ok('desktop, super admin: the Departments tour starts by itself (6 steps)', (await p.locator('.tour-dot').count()) === 6 && /Departments/.test(await p.locator('.tour-title').innerText()));
-  await walk(p, 'desktop, super admin, Departments');
-  await p.click('.nav a:has(.lbl:text-is("Super users"))'); await p.waitForSelector('#add-super'); await menuGuide(p);
-  ok('desktop, super admin: the Super users tour (4 steps)', (await p.locator('.tour-dot').count()) === 4);
-  await walk(p, 'desktop, super admin, Super users');
-  await p.click('.nav a:has(.lbl:text-is("Department"))'); await p.waitForSelector('.tgrid td.c'); await menuGuide(p);
-  ok('desktop, super admin: the Department tour has the department step (9 steps)', (await p.locator('.tour-dot').count()) === 9);
-  await walk(p, 'desktop, super admin, Department screen');
+  ok('desktop, super admin: the tour starts on Departments (Screen 1 of 5)', (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 5' && /Departments/.test(await p.locator('.tour-title').innerText()));
+  const r = await walkAll(p, 'desktop, super admin');
+  ok('desktop, super admin: Departments 5, Department 8, Overtime 6, Users 4, Super users 4', r.pages.join() === '5,8,6,4,4', r.pages.join());
+  ok('desktop, super admin: it ended on the Super users tab', /#\/super/.test(p.url()));
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 cleanup();

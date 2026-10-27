@@ -555,3 +555,4 @@ body.has-install .floating { inset-block-start: 68px; }
   -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; transition: background-position .8s ease; }
 .credit:hover .dev-name, .menu-credit:hover .dev-name { background-position: 100% 0; }
 @media (prefers-reduced-motion: reduce) { .dev-name { transition: none; } }
+.tour-screen { flex: 1; text-align: center; font-size: .72rem; color: var(--muted); white-space: nowrap; }
