@@ -169,17 +169,25 @@ export async function exportMonth({ dept, people, data, year, month, lang, templ
   download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `timesheet_${safe}_${stamp}.xlsx`);
 }
 
-// Print only - nothing is downloaded. 1) the official report as PDF (all A4 pages; with employeeId only that person's page) is built
-// in memory and sent to the printer through a hidden frame (the PDF carries A4 + "print at actual size" hints); 2) if that fails
-// for any reason, the Excel version is built in memory, turned into printable A4 HTML and sent to the printer; 3) if that fails
-// too, an error is thrown (the caller shows a message). Returns 'pdf' or 'excel'.
+// Print only - nothing is downloaded. 1) FAST PATH: the official report is drawn by the same page code as the PDF, but into SVG pages of plain HTML
+// (src/export/print-svg.js), which the browser prints at once from a hidden frame: no PDF to build, no PDF viewer to wait for; 2) if that fails, the
+// PDF (all A4 pages; with employeeId only that person's page) is built in memory and sent to the printer through the frame (A4 + "print at actual size" hints);
+// 3) if that fails too, the Excel version is built in memory, turned into printable A4 HTML and printed; 4) if all fail, an error is thrown (the caller shows a
+// message). Returns 'html' (the fast path), 'pdf' or 'excel'.
 function printFrame({ url, html }) {
   return new Promise((resolve, reject) => {
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;inset-inline-end:0;inset-block-end:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
     let done = false;
-    const finish = (err) => { if (done) return; done = true; if (err) { f.remove(); if (url) URL.revokeObjectURL(url); reject(err); } else { resolve(); setTimeout(() => { f.remove(); if (url) URL.revokeObjectURL(url); }, 120000); } };
-    f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); finish(); } catch (e) { finish(e); } };
+    const finish = (err) => { if (done) return; done = true; if (err) { f.remove(); if (url) URL.revokeObjectURL(url); reject(err); } else { resolve(); setTimeout(() => { f.remove(); if (url) URL.revokeObjectURL(url); }, 60000); } };
+    f.onload = async () => {
+      try {
+        const w = f.contentWindow, d = w.document;
+        // printing HTML: wait for what the pages need (fonts, the logos), never for anything else
+        if (html && d) { try { await d.fonts?.ready; await Promise.all([...(d.images ?? [])].map((i) => i.decode?.().catch(() => {}))); } catch { /* print anyway */ } }
+        w.focus(); w.print(); finish();
+      } catch (e) { finish(e); }
+    };
     f.onerror = () => finish(new Error('print frame failed'));
     setTimeout(() => finish(new Error('print frame did not load')), 15000);
     if (url) f.src = url; else f.srcdoc = html;
@@ -189,7 +197,17 @@ function printFrame({ url, html }) {
 
 export async function printMonth({ dept, people, data, year, month, lang, employeeId = null }) {
   const model = buildModel({ dept, people: employeeId ? people.filter((p) => p.id === employeeId) : people, data, year, month });
-  try {
+  try {                                                                    // 1) the fast path: SVG pages in HTML
+    // the report mixes portrait and landscape pages: that needs named @page rules (Chrome, Edge, Firefox); a browser without them (Safari) takes the PDF instead
+    if (typeof CSS === 'undefined' || !CSS.supports?.('page', 'portrait')) throw new Error('named pages are not supported here');
+    const [{ jsPDF }, pdf, { makeSvgDoc }] = await Promise.all([import('jspdf'), import('./pdf.js'), import('./print-svg.js')]);
+    const doc = pdf.buildOfficialPdf(model, officialTemplate, { jsPDF: makeSvgDoc(jsPDF), logos: await loadPdfLogos(officialTemplate), employeeId });
+    await printFrame({ html: doc.toHtml(`${dept?.name ?? 'Report'} ${year}-${String(month + 1).padStart(2, '0')}`) });
+    return 'html';
+  } catch (e0) {
+    console.warn('fast HTML print failed, building the PDF instead', e0);
+  }
+  try {                                                                    // 2) the PDF
     const [{ jsPDF }, pdf] = await Promise.all([import('jspdf'), import('./pdf.js')]);
     const doc = pdf.buildOfficialPdf(model, officialTemplate, { jsPDF, logos: await loadPdfLogos(officialTemplate), employeeId });
     try { doc.viewerPreferences({ PrintScaling: 'None', PickTrayByPDFSize: true, NumCopies: 1 }, true); } catch { /* hints only */ }

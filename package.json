@@ -28,6 +28,7 @@
     "test:ui-bottom-nav": "node tests/ui/bottom-nav.mjs",
     "test:export-official": "node tests/export-official.test.mjs",
     "test:export-pdf": "node tests/export-pdf.test.mjs",
+    "test:print-svg": "node tests/print-svg.test.mjs",
     "test:ui-export": "node tests/ui/export-official.mjs",
     "test:ui-notify": "node tests/ui/notify.mjs",
     "test:ocr-parse": "node tests/ocr-parse.test.mjs",

@@ -372,7 +372,7 @@ ok('...day sheets list all 40 employees', bigOut.wb.getWorksheet('3').getCell(9 
 ok('big: no page errors ' + JSON.stringify(big.errs), big.errs.length === 0);
 await big.context().close();
 
-// ---- H. Print: PDF into a hidden frame + print(); a failure falls back to the Excel download
+// ---- H. Print: SVG pages as HTML into a hidden frame + print() (fast path); then the PDF; then the Excel version; then an error message
 { const stub = async (ctx, mode) => ctx.addInitScript((m) => {
     Object.defineProperty(HTMLIFrameElement.prototype, 'src', { get() { return this.__s || ''; }, set(v) { this.__s = v; setTimeout(() => this.onload && this.onload(), 30); } });   // headless Chromium has no PDF viewer: pretend the frame loaded
     Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', { get() { if (m === 'fail') throw new Error('no print here'); return { focus() {}, print: () => { window.__printed = (window.__printed || 0) + 1; const fr = document.querySelector('iframe'); window.__printedSrc = fr?.__s || ''; window.__printedDoc = fr?.srcdoc || ''; } }; } });
@@ -380,8 +380,24 @@ await big.context().close();
   const mkCtx = async (mode, w = 1280) => { const ctx = await b.newContext({ viewport: { width: w, height: 900 }, acceptDownloads: true }); await stub(ctx, mode); const pg = await ctx.newPage(); pg.errs = []; pg.on('pageerror', (e) => pg.errs.push(e.message)); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); return pg; };
   const pr = await mkCtx('ok'); await pr.goto(BASE + '/#/team'); await pr.waitForSelector('.tgrid tbody tr');
   await pr.click('button:text-is("Print")');
-  ok('department Print: the PDF is sent to print() from a hidden frame (blob), no download', await eventually(async () => (await pr.evaluate(() => window.__printed || 0)) === 1) && (await pr.evaluate(() => window.__printedSrc || '')).startsWith('blob:'));
+  let dlp = 0; pr.on('download', () => { dlp++; });
+  const t0p = Date.now();
+  await pr.click('button:text-is("Print")');
+  ok('department Print (fast path): the report goes to print() as plain HTML with SVG pages from a hidden frame (srcdoc, no PDF, no download)', await eventually(async () => (await pr.evaluate(() => window.__printed || 0)) === 1) && !(await pr.evaluate(() => window.__printedSrc || '')) && (await pr.evaluate(() => window.__printedDoc)).includes('<svg') && (await pr.evaluate(() => window.__printedDoc)).includes('Daily Attendance Sheet') && (await pr.evaluate(() => window.__printedDoc)).includes('Monthly Attendance Sheet Review') && dlp === 0, `${await pr.evaluate(() => (window.__printedDoc || '').length)} chars`);
+  console.log(`      (click to print() took ${Date.now() - t0p} ms, with the data fetched from the real database)`);
   await pr.context().close();
+  // a browser without named @page rules (Safari) must not get the HTML pages: it takes the PDF path
+  { const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true }); await stub(ctx, 'ok'); await ctx.addInitScript(() => { CSS.supports = () => false; });
+    const pg = await ctx.newPage(); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); await pg.goto(BASE + '/#/team'); await pg.waitForSelector('.tgrid tbody tr');
+    await pg.click('button:text-is("Print")');
+    ok('no named @page support -> the PDF path is used instead of the HTML pages', await eventually(async () => (await pg.evaluate(() => window.__printed || 0)) === 1) && (await pg.evaluate(() => window.__printedSrc || '')).startsWith('blob:'));
+    await ctx.close(); }
+  // the fast path fails (its code is blocked) -> the PDF is built and sent from a blob frame as before
+  { const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true }); await stub(ctx, 'ok'); await ctx.route(/print-svg/, (r) => r.abort());
+    const pg = await ctx.newPage(); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); await pg.goto(BASE + '/#/team'); await pg.waitForSelector('.tgrid tbody tr');
+    await pg.click('button:text-is("Print")');
+    ok('fast path fails -> the PDF is sent to print() from a hidden frame (blob), no download', await eventually(async () => (await pg.evaluate(() => window.__printed || 0)) === 1) && (await pg.evaluate(() => window.__printedSrc || '')).startsWith('blob:'));
+    await ctx.close(); }
   // PDF cannot be made (the PDF library is blocked) -> the EXCEL version is printed from an in-memory HTML page, nothing downloaded
   const mkCtxNoPdf = async () => { const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true }); await stub(ctx, 'ok'); await ctx.route(/jspdf/, (r) => r.abort()); const pg = await ctx.newPage(); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); return pg; };
   const pe = await mkCtxNoPdf(); await pe.goto(BASE + '/#/team'); await pe.waitForSelector('.tgrid tbody tr');

@@ -9,6 +9,7 @@ Newest first. Grouped by day from the git history; the reasons are in [SPEC.md](
 - Users table: sort and Excel-style cascading filters on the column headers; fixed column widths.
 - Phone bottom bar: a five-tab bar (super admin) is a dark notched bar with the landing tab as a raised round button; bars with fewer tabs stay flat; Super users is the fifth tab for the super admin.
 - Departments tab: search by department or person, counts in the closed rows.
+- Faster printing: the report is printed as HTML with SVG pages (no PDF build, no PDF viewer), falling back to the PDF.
 - Guided tour for every role on phones and desktops: it walks through all the tabs of the role one after the other (role-aware steps, dashed-days step); WhatsApp link; D badge no longer shows over the names on phones.
 - "New version available" banner (the service worker waits for Refresh); first-run checklist for a new department; super users edit their own name / OPR.
 - Overtime scan: the PDF reader is no longer precached (downloads when first needed).
