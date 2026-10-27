@@ -125,7 +125,7 @@ export default {
   ob_fill_text: "Open the department grid: tap a day to set X, Y or E.",
   search_departments: "Search departments or people",
   developed_by: "Developed by",
-  wa_message: "Hello Shady, I am writing about the Timesheet app: ",
+  wa_message: "Hey Shady 👋 it's about the Timesheet app: ",
   guide_title: "How to use the app",
   guide_menu: "How to use the app",
   tour_back: "Back",

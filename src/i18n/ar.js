@@ -125,7 +125,7 @@ export default {
   ob_fill_text: "افتح جدول القسم: اضغط على اليوم لتحديد X أو Y أو E.",
   search_departments: "ابحث عن قسم أو شخص",
   developed_by: "تطوير",
-  wa_message: "مرحباً شادي، أكتب لك بخصوص تطبيق جدول الحضور (Timesheet): ",
+  wa_message: "أهلاً يا شادي 👋 بكلمك بخصوص تطبيق Timesheet: ",
   guide_title: "طريقة استخدام التطبيق",
   guide_menu: "طريقة استخدام التطبيق",
   tour_back: "السابق",
