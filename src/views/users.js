@@ -52,7 +52,7 @@ export function personFields(initial = {}, { withLogin = false, isNew = false, r
 export const resetPasswordDialog = (person) => {
   const pw = field(t('new_password'), { type: 'text', required: true, minlength: 8, autocomplete: 'off', value: randomPassword() });
   openDialog({
-    title: `${t('reset_password')}: ${person.full_name}`, content: h('div', { class: 'form' }, pw.row, h('p', { class: 'muted' }, t('share_password_hint'))),
+    title: `${t('reset_password')}: ${person.full_name}`, content: h('div', { class: 'form' }, pw.row, h('p', { class: 'muted' }, t('share_password_hint')), h('p', { class: 'muted' }, t('reset_signout_hint'))),
     buttons: [{ label: t('cancel') }, { label: t('reset_password'), kind: 'primary', onClick: async () => {
       await callFn('reset_password', { user_id: person.id, password: pw.input.value });
       toast(t('password_reset_done'), 'success');

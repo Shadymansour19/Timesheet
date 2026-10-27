@@ -522,6 +522,7 @@ select t.ok('super manager fixes their own name / OPR', $$select public.update_s
 select t.eq('...and it is saved', $$select full_name || '|' || opr from public.profiles where id = '00000000-0000-0000-0000-0000000000c1'$$, 'Super Manager Fixed|SM-OPR');
 select t.denied('super manager cannot edit another super user', $$select public.update_super_user('00000000-0000-0000-0000-0000000000a0', 'x', null)$$);
 select t.denied('super manager cannot edit a department person', $$select public.update_super_user('00000000-0000-0000-0000-0000000000a2', 'x', null)$$);
+select t.denied('a signed-in user cannot call revoke_user_sessions (service role only)', $$select public.revoke_user_sessions('00000000-0000-0000-0000-0000000000a2')$$);
 select t.denied('super manager direct UPDATE of a day status', $$update public.day_status set status = 'Y'$$);
 select t.login('00000000-0000-0000-0000-0000000000a0');
 select t.ok('super_admin may create a super manager (no department)', $$select public.assert_can_create(null, 'super_manager')$$);

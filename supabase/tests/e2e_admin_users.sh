@@ -92,8 +92,14 @@ call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u2\",\"password\":
 check "admin cannot create a super_admin" 403
 expect "no rogue users were created" "$(sql "select count(*) from auth.users where email in ('e2e_u2@timesheet.local')")" "0"
 
+# a session of the person that exists BEFORE the reset (another device): its refresh token must stop working after it
+R1=$(curl -s -X POST "$URL/auth/v1/token?grant_type=password" -H "apikey: $KEY" -H 'Content-Type: application/json' -d "{\"email\":\"e2e_u1@timesheet.local\",\"password\":\"$PW\"}" | jq -r '.refresh_token // empty')
+[ -n "$R1" ] && echo "PASS: the person has a session on another device" || { echo "FAIL: could not open a session for e2e_u1"; fail=1; }
 call "$ADM_T" "{\"action\":\"reset_password\",\"user_id\":\"$U1\",\"password\":\"New-Pass-12345\"}"
 check "admin resets own-dept user password" 200
+expect "the reset reports that the person was signed out everywhere" "$(echo "$BODY" | jq -r '.signed_out')" "true"
+OLDCODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/auth/v1/token?grant_type=refresh_token" -H "apikey: $KEY" -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$R1\"}")
+[ "$OLDCODE" != "200" ] && echo "PASS: the old session cannot renew after the reset (HTTP $OLDCODE)" || { echo "FAIL: the old session still renews after the reset"; fail=1; }
 [ -n "$(login e2e_u1 'New-Pass-12345')" ] && echo "PASS: new password works" || { echo "FAIL: new password rejected"; fail=1; }
 [ -z "$(login e2e_u1 "$PW")" ] && echo "PASS: old password no longer works" || { echo "FAIL: old password still works"; fail=1; }
 call "$ADM_T" "{\"action\":\"reset_password\",\"user_id\":\"$SA\",\"password\":\"New-Pass-12345\"}"

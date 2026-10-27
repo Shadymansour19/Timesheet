@@ -158,7 +158,10 @@ Deno.serve(async (req) => {
           console.error("updateUserById", error.message);
           throw new HttpError(500, "could not reset password");
         }
-        return json(200, { ok: true });
+        // the person is signed out of every device: the old sessions (and their refresh tokens) are deleted
+        const { error: revokeErr } = await admin.rpc("revoke_user_sessions", { p_user: target });
+        if (revokeErr) console.error("revoke_user_sessions", revokeErr.message);
+        return json(200, { ok: true, signed_out: !revokeErr });
       }
 
       case "delete_user": {

@@ -183,7 +183,10 @@ export async function changePassword(current, next) {
   });
   if (reauth) return 'wrong_current_password';
   const { error } = await supabase.auth.updateUser({ password: next });
-  return error ? 'load_error' : null;
+  if (error) return 'load_error';
+  // every OTHER device of this account is signed out (this one stays): a changed password must not leave an old session alive elsewhere
+  await supabase.auth.signOut({ scope: 'others' }).catch(() => {});
+  return null;
 }
 
 supabase.auth.onAuthStateChange((event, session) => {
