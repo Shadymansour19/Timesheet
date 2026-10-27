@@ -43,7 +43,7 @@ async function login(un) {
   const body = await p.locator('main, body').first().innerText();
   ok('Users lists the manager with the manager badge', /MG Manager/.test(body) && /Department manager/.test(body));
   await p.goto('http://localhost:4173/#/account'); await p.waitForSelector('.credit');
-  ok('Account page shows the Developed by line with GitHub / LinkedIn / email icon links', /Developed by Shady Mansour/.test(await p.locator('.credit').innerText()) && (await p.locator('.credit a[data-link=github]').getAttribute('href')) === 'https://github.com/shadymansour19' && (await p.locator('.credit a[data-link=github] svg').count()) === 1 && (await p.locator('.credit a[data-link=github]').innerText()).trim() === '' && (await p.locator('.credit a[data-link=linkedin]').getAttribute('href')) === 'https://www.linkedin.com/in/shadymansour19' && (await p.locator('.credit a[data-link=email]').getAttribute('href')) === 'mailto:shadymansour19@gmail.com' && /^https:\/\/wa\.me\/201069360912\?text=Hey%20Shady.*Timesheet/.test(await p.locator('.credit a[data-link=whatsapp]').getAttribute('href')));
+  ok('Account page shows the Developed by line with GitHub / LinkedIn / email icon links', /Developed by Shady Mansour/.test(await p.locator('.credit').innerText()) && (await p.locator('.credit a[data-link=github]').getAttribute('href')) === 'https://github.com/shadymansour19' && (await p.locator('.credit a[data-link=github] svg').count()) === 1 && (await p.locator('.credit a[data-link=github]').innerText()).trim() === '' && (await p.locator('.credit a[data-link=linkedin]').getAttribute('href')) === 'https://www.linkedin.com/in/shadymansour19' && (await p.locator('.credit a[data-link=email]').getAttribute('href')) === 'mailto:shadymansour19@gmail.com' && /^https:\/\/wa\.me\/201069360912\?text=Good%20(morning|afternoon|evening)%20Shady.*Timesheet/.test(await p.locator('.credit a[data-link=whatsapp]').getAttribute('href')));
   ok('no page errors (manager)', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 { const c = await b.newContext(); const q = await c.newPage(); await q.goto('http://localhost:4173/'); await q.waitForSelector('#username');
@@ -51,6 +51,13 @@ async function login(un) {
   await q.evaluate(() => document.fonts.ready);
   const f = await q.locator('.dev-name').evaluate((e) => ({ fam: getComputedStyle(e).fontFamily, w: getComputedStyle(e).fontWeight, clip: getComputedStyle(e).webkitBackgroundClip || getComputedStyle(e).backgroundClip, loaded: document.fonts.check('800 20px "Cairo Name"', e.textContent) }));
   ok('the developer name uses the modern Cairo ExtraBold font (loaded) with a gradient fill', /Cairo Name/.test(f.fam) && f.w === '800' && f.clip === 'text' && f.loaded, JSON.stringify(f));
+
+  // the greeting follows the local time (checked when the link is used)
+  for (const [iso, word] of [['2026-10-27T05:00:00', 'morning'], ['2026-10-27T09:30:00', 'morning'], ['2026-10-27T12:00:00', 'afternoon'], ['2026-10-27T16:59:00', 'afternoon'], ['2026-10-27T17:00:00', 'evening'], ['2026-10-27T23:00:00', 'evening'], ['2026-10-27T02:00:00', 'evening']]) {
+    await q.clock.setFixedTime(new Date(iso));
+    const href = await q.evaluate(() => { const a = document.querySelector('.credit a[data-link=whatsapp]'); a.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return a.href; });
+    ok(`WhatsApp greeting at ${iso.slice(11, 16)} is "${word}"`, decodeURIComponent(href).includes(`Good ${word} Shady`), decodeURIComponent(href));
+  }
   await c.close(); }
 // the plain user's help dialog in Arabic: short, simple sentences
 { const p = await login('mgu1'); await p.waitForSelector('.day'); await p.click('button:text-is("العربية")'); await p.waitForSelector('.day');
