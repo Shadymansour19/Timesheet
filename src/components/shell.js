@@ -76,7 +76,7 @@ function accountMenu() {
       h('ul', { class: 'acct-list' }, accounts.map(row)),
       h('button', { class: 'menu-item', type: 'button', onclick: () => { close(); addAccountDialog(); } }, icon(PLUS, 18), t('add_account')),
       h('a', { class: 'menu-item', href: '#/account', onclick: close }, icon(KEY, 18), t('change_password')),
-      guideAvailable() ? h('button', { class: 'menu-item', type: 'button', id: 'guide-open', onclick: () => { close(); if (location.hash !== '#/calendar') location.hash = '#/calendar'; startGuide(); } }, icon(INFO, 18), t('guide_menu')) : null,
+      guideAvailable() ? h('button', { class: 'menu-item', type: 'button', id: 'guide-open', onclick: () => { close(); startGuide({ landing: navFor()[0]?.path }); } }, icon(INFO, 18), t('guide_menu')) : null,
       themeRow(),
       notifyEligible() ? h('button', { class: 'menu-item', type: 'button', 'aria-pressed': String(notifyOn()), onclick: async () => {
         const r = await setNotify(!notifyOn());

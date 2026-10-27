@@ -9,6 +9,7 @@ import { resolve } from './router.js';
 import { shell } from './components/shell.js';
 import { initInstall, syncInstall } from './install.js';
 import { initUpdates } from './update.js';
+import { maybeAutoGuide } from './components/guide.js';
 import { acting, ensureActing } from './acting.js';
 import { startNotifications, stopNotifications } from './notify.js';
 import { fetchDepartments } from './api/admin.js';
@@ -48,6 +49,7 @@ function render() {
     return;
   }
   root.append(shell(route.view(), { onLang: render }));
+  maybeAutoGuide();                                       // a new account: the guided tour of its landing screen, once
 }
 
 applyDir();

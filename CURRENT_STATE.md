@@ -23,6 +23,7 @@ GitHub deploys the front end; migrations and the Edge Function are applied by ha
 - Overtime tab with day dialog; overtime from a scanned form (local OCR in the browser, editable preview, files / folders / drag and drop).
 - Users tab: cards or table, sort and Excel-style filters per column, bulk add from Excel; first-run checklist for a new department.
 - Exports: official monthly report (Excel, PDF, print), per-person export, EMC overtime overview last.
+- Guided tour ("How to use the app") for every role on phones and desktops: one tour per screen, starts by itself for a new account on its landing screen, replayable from the account menu.
 - Desktop notifications for admins (installed app, opt-in), "new version available" banner, offline banner, account switching.
 
 ## Data and rules in one paragraph

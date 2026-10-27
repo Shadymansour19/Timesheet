@@ -1,4 +1,5 @@
-// Browser E2E for the how-to guide: plain users on a PHONE only (card for a new account, menu entry always), not on desktop, not for admins.
+// Browser E2E for the how-to guide (guided tour): every role, phone and desktop. Starts by itself for a new account on its landing screen; the account menu starts the
+// tour of the screen you are on. Automation never gets the automatic start unless localStorage ts.forceGuide = 1 (set here).
 // Fixtures: temporary ids 3f000000-.... Needs `npx vite preview --port 4173`, TS_DB_URL, Chromium.
 import { chromium } from 'playwright';
 import { execSync } from 'node:child_process';
@@ -10,24 +11,41 @@ const cleanup = () => sql(`delete from auth.users where id::text ~ '^3f000000-' 
   delete from public.audit_log where (target_user is not null and target_user not in (select id from public.profiles)) or (department_id is not null and department_id not in (select id from public.departments));`);
 cleanup();
 sql(`insert into public.departments (id,name) values ('${DA}','GD Alpha')`);
-const people = [[0, 'gdnew', 'GD New User', 'user', '0 days'], [1, 'gdold', 'GD Old User', 'user', '90 days'], [2, 'gdadm', 'GD Admin', 'admin', '0 days']];
+const people = [[0, 'gdnew', 'GD New User', 'user', '0 days'], [1, 'gdold', 'GD Old User', 'user', '90 days'], [2, 'gdadm', 'GD Admin', 'admin', '0 days'], [3, 'gdmgr', 'GD Manager', 'manager', '0 days'], [4, 'gdsm', 'GD Super Manager', 'super_manager', '0 days'], [5, 'gdsa', 'GD Super Admin', 'super_admin', '0 days']];
 for (const [i, un, name, role, age] of people) sql(`
  insert into auth.users (instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at,confirmation_token,recovery_token,email_change_token_new,email_change)
  values ('00000000-0000-0000-0000-000000000000','${uid(i)}','authenticated','authenticated','${un}@timesheet.local',crypt('${PW}',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{}',now(),now(),'','','','');
  insert into auth.identities (id,user_id,provider_id,identity_data,provider,last_sign_in_at,created_at,updated_at) values (gen_random_uuid(),'${uid(i)}','${uid(i)}','{"sub":"${uid(i)}"}','email',now(),now(),now());
- insert into public.profiles (id,username,full_name,opr,payroll,level,department_id,role,created_at) values ('${uid(i)}','${un}','${name}','GDO-${i}','GDP-${i}','2','${DA}','${role}', now() - interval '${age}');`);
+ insert into public.profiles (id,username,full_name,opr,payroll,level,department_id,role,created_at) values ('${uid(i)}','${un}','${name}',${role.startsWith('super') ? 'null' : `'GDO-${i}'`},${role.startsWith('super') ? 'null' : `'GDP-${i}'`},'2',${role.startsWith('super') ? 'null' : `'${DA}'`},'${role}', now() - interval '${age}');`);
 
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
 async function open(un, { phone = true } = {}) {
   const ctx = await b.newContext(phone ? { viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true } : { viewport: { width: 1300, height: 900 } });
+  await ctx.addInitScript((dept) => { localStorage.setItem('ts.forceGuide', '1'); localStorage.setItem('ts.actingDept', dept); }, DA);       // automation: the automatic start is allowed here
   const p = await ctx.newPage(); p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message));
   await p.goto('http://localhost:4173/'); await p.fill('#username', un); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
   return p;
 }
 const TARGETS = ['.cal > .cal-head', '.grid .day.today', '.grid', '.grid .day.ctx', '.totals', '.cal-tools .icon-only', '.acct'];
 const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; });
+// walks a whole tour: every step has a card on screen and (after the welcome) a spotlight ring of real size; the last step finishes it
+async function walk(p, label) {
+  const n = await p.locator('.tour-dot').count(), bad = [];
+  for (let i = 0; i < n; i++) {
+    await p.waitForTimeout(450);
+    const m = await p.evaluate(() => { const rings = [...document.querySelectorAll('.tour-ring')].filter((r) => getComputedStyle(r).opacity === '1').map((r) => { const b = r.getBoundingClientRect(); return b.width * b.height; });
+      const c = document.querySelector('.tour-card').getBoundingClientRect(); return { rings: rings.length, area: Math.round(rings.reduce((a, v) => a + v, 0)), card: c.left >= 0 && c.top >= 0 && c.right <= innerWidth + 1 && c.bottom <= innerHeight + 1, title: document.querySelector('.tour-title').innerText }; });
+    if (!m.card || !m.title || (i > 0 && (m.rings < 1 || m.area < 100))) bad.push({ i, ...m });
+    if (process.env.SHOTS && (i === 3 || i === 5)) await p.screenshot({ path: `${process.env.SHOTS}/tour-${label.replace(/\W+/g, '_')}-${i}.png` });
+    await p.click('#tour-next');
+  }
+  await p.waitForSelector('.tour', { state: 'detached' });
+  ok(`${label}: ${n} steps, each with its card on screen and a spotlight`, n > 3 && bad.length === 0, JSON.stringify(bad));
+  return n;
+}
+const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click('#guide-open'); await p.waitForSelector('.tour'); };
 { const p = await open('gdnew');
   // the app re-renders (a profile refresh, a route change) while the first tour is still waiting for the calendar: no second tour may start behind it
   await p.evaluate(() => { window.dispatchEvent(new HashChangeEvent('hashchange')); setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), 120); });
@@ -68,7 +86,7 @@ const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getB
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 // the Arabic tour: the letter legend must not display flipped ("Y. E" next to each other)
-{ const ctx = await b.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true }); await ctx.addInitScript(() => localStorage.setItem('lang', 'ar'));
+{ const ctx = await b.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true }); await ctx.addInitScript(() => { localStorage.setItem('lang', 'ar'); localStorage.setItem('ts.forceGuide', '1'); });
   const p = await ctx.newPage(); await p.goto('http://localhost:4173/'); await p.fill('#username', 'gdnew'); await p.fill('#password', PW); await p.click('button[type=submit]');
   await p.waitForSelector('.tour'); await p.tap('#tour-next'); await p.tap('#tour-next'); await p.waitForTimeout(600);
   const txt = await p.locator('.tour-text').innerText();
@@ -92,21 +110,56 @@ const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getB
   await p.tap('.acct > summary');
   ok('...but the menu entry is there', (await p.locator('#guide-open').isVisible()));
   await p.context().close(); }
-{ const p = await open('gdnew', { phone: false }); await p.waitForSelector('.day');
-  await p.waitForTimeout(1500);
-  ok('desktop: no tour, no menu entry', (await p.locator('.tour').count()) === 0 && (await p.locator('#guide-open').count()) === 0);
+{ const p = await open('gdnew', { phone: false }); await p.waitForSelector('.day'); await p.waitForSelector('.tour');
+  ok('desktop: the tour starts by itself too (same 8 steps)', (await p.locator('.tour-dot').count()) === 8);
+  await walk(p, 'desktop, user calendar');
+  await p.click('.acct > summary');
+  ok('desktop: the menu has "How to use the app"', await p.locator('#guide-open').isVisible());
+  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
-{ const p = await open('gdadm'); await p.waitForSelector('.tgrid'); await p.waitForTimeout(1200);
-  ok('phone, an admin on the Department tab: no tour', (await p.locator('.tour').count()) === 0);
-  await p.tap('.nav a:has(.lbl:text-is("My calendar"))'); await p.waitForSelector('.tour');
-  ok('phone, an admin opening his own calendar (new account): the tour starts there, with the dashed-days step', (await p.locator('.tour-dot').count()) === 8);
+// a department admin (phone): the Department screen has its own tour, then his own calendar, then Overtime and Users through the menu
+{ const p = await open('gdadm'); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
+  ok('phone, admin: the Department screen tour starts by itself (8 steps)', (await p.locator('.tour-dot').count()) === 8 && /Department grid/.test(await p.locator('.tour-title').innerText()));
+  await walk(p, 'phone, admin, Department screen');
+  await p.click('.nav a:has(.lbl:text-is("My calendar"))'); await p.waitForSelector('.tour');
+  ok('phone, admin: opening his own calendar (new account) starts the calendar tour (8 steps)', (await p.locator('.tour-dot').count()) === 8 && /Welcome/.test(await p.locator('.tour-title').innerText()));
   await p.keyboard.press('Escape'); await p.waitForSelector('.tour', { state: 'detached' });
-  await p.tap('.nav a:has(.lbl:text-is("Department"))'); await p.waitForSelector('.tgrid');
-  await p.tap('.acct > summary');
-  ok('the menu offers "How to use the app" to an admin on a phone', await p.locator('#guide-open').isVisible());
-  await p.tap('#guide-open'); await p.waitForSelector('.tour');
-  ok('...and it takes him to his calendar and starts the tour', /#\/calendar/.test(p.url()) && (await p.locator('.tour-dot').count()) === 8);
-  await p.keyboard.press('Escape');
+  await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await p.waitForTimeout(800);
+  ok('phone, admin: no automatic tour on Overtime', (await p.locator('.tour').count()) === 0);
+  await menuGuide(p);
+  ok('phone, admin: the menu starts the Overtime tour (6 steps, with the Scan step)', (await p.locator('.tour-dot').count()) === 6 && /Overtime/.test(await p.locator('.tour-title').innerText()));
+  await walk(p, 'phone, admin, Overtime');
+  await p.click('.nav a:has(.lbl:text-is("Users"))'); await p.waitForSelector('.person');
+  await menuGuide(p);
+  ok('phone, admin: the menu starts the Users tour (5 steps)', (await p.locator('.tour-dot').count()) === 5);
+  await walk(p, 'phone, admin, Users');
+  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
+  await p.context().close(); }
+// a department manager (desktop)
+{ const p = await open('gdmgr', { phone: false }); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
+  ok('desktop, manager: the Department tour starts by itself (8 steps, no department switcher)', (await p.locator('.tour-dot').count()) === 8);
+  await walk(p, 'desktop, manager, Department screen');
+  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
+  await p.context().close(); }
+// a super manager (desktop): read-only wording, with the department switcher step
+{ const p = await open('gdsm', { phone: false }); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
+  ok('desktop, super manager: the Department tour has the department step (9 steps) and says view only', (await p.locator('.tour-dot').count()) === 9 && (await p.locator('.tour-text').innerText()).includes('You can look and export'));
+  await walk(p, 'desktop, super manager, Department screen');
+  await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await menuGuide(p);
+  ok('desktop, super manager: the Overtime tour has no Scan step (6 steps)', (await p.locator('.tour-dot').count()) === 6);
+  await walk(p, 'desktop, super manager, Overtime');
+  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
+  await p.context().close(); }
+// a super admin (desktop): Departments, Super users, and the Department screen acting for a department
+{ const p = await open('gdsa', { phone: false }); await p.waitForSelector('details.dept'); await p.waitForSelector('.tour');
+  ok('desktop, super admin: the Departments tour starts by itself (6 steps)', (await p.locator('.tour-dot').count()) === 6 && /Departments/.test(await p.locator('.tour-title').innerText()));
+  await walk(p, 'desktop, super admin, Departments');
+  await p.click('.nav a:has(.lbl:text-is("Super users"))'); await p.waitForSelector('#add-super'); await menuGuide(p);
+  ok('desktop, super admin: the Super users tour (4 steps)', (await p.locator('.tour-dot').count()) === 4);
+  await walk(p, 'desktop, super admin, Super users');
+  await p.click('.nav a:has(.lbl:text-is("Department"))'); await p.waitForSelector('.tgrid td.c'); await menuGuide(p);
+  ok('desktop, super admin: the Department tour has the department step (9 steps)', (await p.locator('.tour-dot').count()) === 9);
+  await walk(p, 'desktop, super admin, Department screen');
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 cleanup();
