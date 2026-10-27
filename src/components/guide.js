@@ -15,6 +15,7 @@ const isNew = () => Date.now() - new Date(state.profile.created_at).getTime() < 
 const autoAllowed = () => { try { return !navigator.webdriver || localStorage.getItem('ts.forceGuide') === '1'; } catch { return !navigator.webdriver; } };
 
 // the landing screen of each role: where the tour starts by itself for a new account
+const touch = () => matchMedia('(hover: none) and (pointer: coarse)').matches;                  // a phone / tablet: no keyboard shortcuts to show
 const AUTO = { user: '/calendar', admin: '/team', manager: '/team', super_manager: '/team', super_admin: '/departments' };
 // the screens of each role in tab order: a tour runs through them one after the other (the person can skip at any time)
 const ORDER = { user: ['/calendar'], admin: ['/team', '/overtime', '/users', '/calendar'], manager: ['/team', '/overtime', '/users'], super_manager: ['/team', '/overtime'], super_admin: ['/departments', '/team', '/overtime', '/users', '/super'] };
@@ -46,6 +47,7 @@ const PAGES = {
       TABS,
       st('tour_team_head_title', 'tour_team_head_text', '.team-top .cal-head', '.team-row > .seg'),
       st('tour_team_cell_title', ro ? 'tour_team_cell_text_ro' : 'tour_team_cell_text', '.tgrid td.c:not(.ctx)'),
+      ...(touch() ? [] : [st('tour_team_keys_title', ro ? 'tour_team_keys_text_ro' : 'tour_team_keys_text', '.tgrid')]),      // a computer: the keyboard works in the grid
       st('tour_team_name_title', 'tour_team_name_text', '.tgrid tbody th.nm'),
       st('tour_team_tools_title', ro ? 'tour_team_tools_text_ro' : 'tour_team_tools_text', '.team-row.tools'),
       st('tour_team_search_title', 'tour_team_search_text', '.search-wrap'),
