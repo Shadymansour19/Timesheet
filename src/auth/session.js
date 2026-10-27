@@ -49,9 +49,23 @@ async function loadProfile(userId) {
 }
 
 // Restore an existing session (page reload). Returns an error key or null.
+// Has this device's login been revoked on the server (another device changed the password, an admin reset it, the person was removed)? getSession() alone would keep
+// trusting the cached access token for up to an hour, so the server is asked. Only an explicit "no" (401 / 403) counts: being offline or a server hiccup does not sign anyone out.
+async function sessionRevoked() {
+  try { const { error } = await supabase.auth.getUser(); return !!error && [401, 403].includes(error.status); } catch { return false; }
+}
+let lastCheck = 0;
+// called when the app starts and whenever the person returns to it: a revoked login ends right away instead of an hour later
+export async function checkSession() {
+  if (!state.profile || Date.now() - lastCheck < 20000) return;
+  lastCheck = Date.now();
+  if (await sessionRevoked()) { try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* ignore */ } removeLocal(state.profile.id); state.profile = null; location.reload(); }
+}
+
 export async function restore() {
   const { data } = await supabase.auth.getSession();
   if (!data.session) { state.profile = null; return null; }
+  if (await sessionRevoked()) { await supabase.auth.signOut({ scope: 'local' }).catch(() => {}); removeLocal(data.session.user.id); state.profile = null; return null; }
   const r = await loadProfile(data.session.user.id);
   if (r.error) { await supabase.auth.signOut({ scope: 'local' }); removeLocal(data.session.user.id); state.profile = null; return r.error; }
   state.profile = r.profile;

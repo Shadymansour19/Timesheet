@@ -1,7 +1,7 @@
 import './styles/main.css';
 import { h } from './dom.js';
 import { applyDir, t, otherLang, setLang } from './i18n/index.js';
-import { state, restore, onChange, takeNotice, refreshProfile } from './auth/session.js';
+import { state, restore, onChange, takeNotice, refreshProfile, checkSession } from './auth/session.js';
 import * as live from './live.js';
 import { applyTheme } from './theme.js';
 import { loginView } from './views/login.js';
@@ -18,6 +18,9 @@ const root = document.getElementById('app');
 const banner = h('div', { class: 'offline-banner', role: 'status', hidden: true }, t('offline'));
 document.body.prepend(banner);
 initInstall();
+// a login revoked elsewhere (password changed on another device, reset by an admin) ends when the person comes back to the app
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkSession(); });
+addEventListener('focus', () => checkSession());
 initUpdates();
 const syncOnline = () => { banner.textContent = t('offline'); banner.hidden = navigator.onLine; syncInstall(); };
 window.addEventListener('online', syncOnline);
