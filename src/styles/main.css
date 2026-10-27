@@ -479,9 +479,19 @@ body.has-install .floating { inset-block-start: 68px; }
 .utable td, .utable tbody th { overflow: hidden; text-overflow: ellipsis; }
 /* phones / tablets (touch only): nothing can be dragged in from outside, so the drop areas are hidden */
 @media (hover: none) and (pointer: coarse) { .scan-drop { display: none; } }
-.update-banner { position: fixed; inset-inline: 12px; inset-block-end: calc(var(--bar-h) + 12px); z-index: 70; display: flex; align-items: center; gap: 8px; justify-content: space-between;
-  background: var(--card); color: var(--text); border: 1px solid var(--brand); border-radius: var(--radius); padding: 10px 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); max-width: 520px; margin-inline: auto; }
-.update-banner span { flex: 1; font-size: .9rem; }
+.update-banner { position: sticky; inset-block-start: 0; z-index: 80; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 16px; padding-block-start: max(12px, env(safe-area-inset-top));
+  background: var(--brand); color: #fff; box-shadow: 0 4px 16px rgba(0, 0, 0, .3); animation: update-in .4s ease both; }
+:root[data-theme="dark"] .update-banner { color: #06201c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .update-banner { color: #06201c; } }
+.update-ico { display: inline-flex; }
+.update-text { font-size: 1rem; }
+.update-go { all: unset; cursor: pointer; padding: 8px 18px; border-radius: 999px; background: #fff; color: #0b4f4a; font-weight: 700; font-size: .95rem; animation: update-pulse 1.8s ease-in-out infinite; }
+.update-go:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.update-x { all: unset; cursor: pointer; padding: 2px 8px; font-size: 1.4rem; line-height: 1; opacity: .85; border-radius: 6px; }
+.update-x:hover { opacity: 1; }
+@keyframes update-in { from { transform: translateY(-100%); } to { transform: none; } }
+@keyframes update-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .55); } 50% { box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); } }
+@media (prefers-reduced-motion: reduce) { .update-banner, .update-go { animation: none; } }
 .onboarding { max-width: none; margin: 10px 0; padding: 12px 14px; }
 .ob-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .ob-steps { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }

@@ -7,19 +7,41 @@ const original = readFileSync(SW, 'utf8');
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
+const stubAudio = () => { window.__tones = 0; const AC = function () { this.currentTime = 0; this.state = 'running'; this.destination = {}; };
+  AC.prototype = { resume() { return Promise.resolve(); }, close() { return Promise.resolve(); }, createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; },
+    createOscillator() { window.__tones++; return { frequency: {}, connect() {}, start() {}, stop() {} }; } };
+  window.AudioContext = AC; };       // counts the notes instead of making a sound
+async function bump(p) { writeFileSync(SW, original + `\n// test build ${Date.now()}\n`); await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); }); }
 try {
-  const ctx = await b.newContext({ viewport: { width: 1200, height: 800 }, serviceWorkers: 'allow' }); const p = await ctx.newPage(); p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message));
-  await p.goto('http://localhost:4173/'); await p.waitForSelector('#username');
-  await p.evaluate(() => navigator.serviceWorker.ready);
-  await p.waitForFunction(() => navigator.serviceWorker.controller || true);
-  ok('no banner while the app is current', (await p.locator('.update-banner').count()) === 0);
-  writeFileSync(SW, original + `\n// test build ${Date.now()}\n`);
-  await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); });
-  ok('a changed service worker shows the banner (not a silent swap)', await p.waitForSelector('.update-banner', { timeout: 20000 }).then(() => true, () => false));
-  ok('the banner offers Refresh', (await p.locator('#update-now').count()) === 1);
-  await p.click('.update-banner button[aria-label]');
-  ok('the banner can be dismissed', (await p.locator('.update-banner').count()) === 0);
-  ok('no page errors', p.errs.length === 0, p.errs.join('|'));
-  await ctx.close();
+  // the person has used the page (a click): banner at the very top across the whole width, a two-note chime, the tab title says it too
+  { const ctx = await b.newContext({ viewport: { width: 1200, height: 800 }, serviceWorkers: 'allow' }); await ctx.addInitScript(stubAudio);
+    const p = await ctx.newPage(); p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message));
+    await p.goto('http://localhost:4173/'); await p.waitForSelector('#username'); await p.mouse.click(600, 400);
+    await p.evaluate(() => navigator.serviceWorker.ready);
+    ok('no banner while the app is current', (await p.locator('.update-banner').count()) === 0);
+    const title0 = await p.title();
+    await bump(p);
+    ok('a changed service worker shows the banner (not a silent swap)', await p.waitForSelector('.update-banner', { timeout: 20000 }).then(() => true, () => false));
+    await p.waitForTimeout(300); await p.evaluate(() => document.querySelector('.update-banner').getAnimations().filter((a) => a.animationName === 'update-in').forEach((a) => a.finish()));       // a headless browser draws no frames: let the slide-in animation finish
+    const r = await p.locator('.update-banner').evaluate((e) => { const b = e.getBoundingClientRect(); return { top: Math.round(b.top), w: Math.round(b.width), vw: innerWidth, role: e.getAttribute('role'), bg: getComputedStyle(e).backgroundColor }; });
+    ok('desktop: the banner is a bar across the TOP of the page (full width, a strong colour)', r.top === 0 && r.w >= r.vw - 1 && r.bg !== 'rgba(0, 0, 0, 0)', JSON.stringify(r));
+    ok('the banner is announced to screen readers (role alert)', r.role === 'alert');
+    ok('the banner offers Refresh', (await p.locator('#update-now').count()) === 1);
+    ok('a two-note chime plays once when it appears', (await p.evaluate(() => window.__tones)) === 2);
+    ok('the tab title carries a marker while the banner is there', (await p.title()) !== title0 && (await p.title()).endsWith(title0));
+    await p.evaluate(() => window.scrollTo(0, 500));
+    ok('the banner stays visible when the page scrolls (sticky)', (await p.locator('.update-banner').evaluate((e) => Math.round(e.getBoundingClientRect().top))) === 0);
+    if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/update-banner.png' });
+    await p.click('.update-x');
+    ok('the banner can be dismissed and the title comes back', (await p.locator('.update-banner').count()) === 0 && (await p.title()) === title0);
+    ok('no page errors', p.errs.length === 0, p.errs.join('|'));
+    await ctx.close(); }
+  // nobody has touched the page yet: browsers forbid sound, so it stays silent (the banner still shows)
+  { const ctx = await b.newContext({ viewport: { width: 1200, height: 800 }, serviceWorkers: 'allow' }); await ctx.addInitScript(stubAudio);
+    await ctx.addInitScript(() => Object.defineProperty(navigator, 'userActivation', { value: { hasBeenActive: false } }));       // (the test driver itself counts as activity otherwise)
+    const p = await ctx.newPage(); await p.goto('http://localhost:4173/'); await p.waitForSelector('#username'); await p.evaluate(() => navigator.serviceWorker.ready);
+    await bump(p); await p.waitForSelector('.update-banner', { timeout: 20000 }); await p.waitForTimeout(500);
+    ok('no sound before the person has used the page (browser rule), but the banner shows', (await p.evaluate(() => window.__tones)) === 0);
+    await ctx.close(); }
 } finally { writeFileSync(SW, original); await b.close(); }
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL UPDATE-BANNER TESTS PASSED ===');
