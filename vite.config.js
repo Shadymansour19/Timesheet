@@ -1,11 +1,18 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// every build gets an id; the app knows its own id (__BUILD_ID__) and the build also publishes it as /version.json, so a running app can see "a newer build exists" within
+// seconds, long before the service worker has downloaded the new files (src/update.js)
+const BUILD_ID = (process.env.VERCEL_GIT_COMMIT_SHA ?? '').slice(0, 10) + Date.now().toString(36);
+const buildInfo = () => ({ name: 'build-info', generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ id: BUILD_ID }) }); } });
+
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   build: {
     rollupOptions: { output: { manualChunks(id) { if (id.includes('node_modules/pdfjs-dist')) return 'pdfjs-lib'; } } },   // the PDF reader used by the overtime scan: its own chunk, not precached
   },
   plugins: [
+    buildInfo(),
     VitePWA({
       registerType: 'prompt',          // a new build waits until the person taps Refresh (src/update.js)
       injectRegister: false,

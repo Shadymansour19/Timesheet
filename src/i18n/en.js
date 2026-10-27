@@ -209,6 +209,7 @@ export default {
   wa_morning: "Good morning Shady, it's about the Timesheet app: ",
   wa_afternoon: "Good afternoon Shady, it's about the Timesheet app: ",
   wa_evening: "Good evening Shady, it's about the Timesheet app: ",
+  update_working: "Updating…",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",

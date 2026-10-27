@@ -44,6 +44,18 @@ try {
     await bump(p); await p.waitForSelector('.update-banner', { timeout: 20000 }); await p.waitForTimeout(500);
     ok('phone: after a tap the chime plays too (three notes), even when the audio context starts suspended like on iOS', (await p.evaluate(() => window.__tones)) === 3);
     await ctx.close(); }
+  // a newer build is announced through /version.json within seconds, long before the service worker has the new files
+  { const cur = JSON.parse(readFileSync(new URL('../../dist/version.json', import.meta.url).pathname, 'utf8')).id;
+    const ctx = await b.newContext({ viewport: { width: 1200, height: 800 }, serviceWorkers: 'allow' }); await ctx.addInitScript(stubAudio); await ctx.addInitScript(() => localStorage.setItem('ts.versionPollMs', '1000'));
+    let served = cur; await ctx.route('**/version.json*', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: served }) }));
+    const p = await ctx.newPage(); await p.goto('http://localhost:4173/'); await p.waitForSelector('#username'); await p.mouse.click(600, 400); await p.waitForTimeout(3500);
+    ok('version.json says the same build: no banner, however often it is polled', (await p.locator('.update-banner').count()) === 0);
+    served = 'a-newer-build'; const t0 = Date.now();
+    ok('a different build id shows the banner within a few seconds (no waiting for the service worker)', await p.waitForSelector('.update-banner', { timeout: 6000 }).then(() => true, () => false), `${Date.now() - t0} ms`);
+    ok('...with the chime', (await p.evaluate(() => window.__tones)) === 3);
+    await p.click('#update-now');
+    ok('Refresh shows "Updating…" while the new worker is fetched', (await p.locator('#update-now').innerText()) === 'Updating…' && await p.locator('#update-now').isDisabled());
+    await ctx.close(); }
   // nobody has touched the page yet: browsers forbid sound, so it stays silent (the banner still shows)
   { const ctx = await b.newContext({ viewport: { width: 1200, height: 800 }, serviceWorkers: 'allow' }); await ctx.addInitScript(stubAudio);
     await ctx.addInitScript(() => Object.defineProperty(navigator, 'userActivation', { value: { hasBeenActive: false } }));       // (the test driver itself counts as activity otherwise)

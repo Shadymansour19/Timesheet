@@ -209,6 +209,7 @@ export default {
   wa_morning: "صباح الخير يا شادي، بكلمك بخصوص تطبيق Timesheet: ",
   wa_afternoon: "نهارك سعيد يا شادي، بكلمك بخصوص تطبيق Timesheet: ",
   wa_evening: "مساء الخير يا شادي، بكلمك بخصوص تطبيق Timesheet: ",
+  update_working: "جارٍ التحديث…",
   promote: "ترقية إلى مسؤول",
   demote: "تحويل إلى مستخدم",
   promote_confirm: "ترقية إلى مسؤول القسم:",
