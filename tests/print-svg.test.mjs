@@ -33,6 +33,11 @@ ok('same number of pages as the PDF', sd.getNumberOfPages() === pdf.getNumberOfP
 ok('portrait and landscape pages are marked (named @page rules)', /@page landscape/.test(html) && /class="pg l"/.test(html) && /class="pg p"/.test(html));
 ok('the logos are embedded once and reused (not once per page)', (html.match(/data:image\/png;base64/g) || []).length === 2);
 ok('no trailing blank page rule problems: the last page does not force a page break', /\.pg:last-child \{ break-after: auto/.test(html));
+ok('the full report mixes portrait and landscape pages, so it is NOT sent through the HTML path (the PDF carries the orientation of every page)', sd.isUniform() === false);
+const one = buildOfficialPdf(model, official, { jsPDF: makeSvgDoc(jsPDF), logos, employeeId: 'p1' });
+ok('one person\'s page is a single-orientation job (HTML path)', one.isUniform() === true && one.getNumberOfPages() === 1 && /size: A4 portrait/.test(one.toHtml('t')));
+const portrait = buildOfficialPdf(model, official, { jsPDF: makeSvgDoc(jsPDF), logos }); portrait.pages = portrait.pages.filter((q) => !q.land);
+ok('the 31 + 8 portrait pages of the report are a single-orientation job too', portrait.isUniform() && portrait.getNumberOfPages() === 39);
 const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {}); const p = await (await b.newContext()).newPage();
 await p.setContent(html, { waitUntil: 'load' }); await p.evaluate(() => document.fonts.ready);
 await p.pdf({ path: join(dir, 'b.pdf'), preferCSSPageSize: true, printBackground: true }); await b.close();
@@ -55,5 +60,10 @@ print(len(a), len(b), bad, round(worst_mean, 2), round(worst_pct, 2))
 const [na, nb, badSize, worstMean, worstPct] = out;
 ok('all pages have the same size as the PDF pages (orientation included)', na === nb && badSize === 0, out.join(' '));
 ok(`the pages look like the PDF pages: worst page mean difference ${worstMean} (limit 5), differing pixels ${worstPct}% (limit 3.5%)`, worstMean < 5 && worstPct < 3.5);
+{ const b2 = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {}); const p2 = await (await b2.newContext()).newPage(); await p2.setContent(portrait.toHtml('t'));
+  for (const [label, o] of [['A4, no margins', { format: 'A4', margin: { top: '0', right: '0', bottom: '0', left: '0' } }], ['A4, 10 mm margins', { format: 'A4', margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' } }], ['Letter, 1 cm margins', { format: 'Letter', margin: { top: '1cm', right: '1cm', bottom: '1cm', left: '1cm' } }]]) {
+    const f = join(dir, 'm.pdf'); await p2.pdf({ path: f, printBackground: true, ...o });
+    ok(`no blank pages: ${label} still gives one sheet per page (${portrait.getNumberOfPages()})`, pages(f) === portrait.getNumberOfPages(), String(pages(f))); }
+  await b2.close(); }
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL PRINT-SVG TESTS PASSED ===');
 process.exit(fails ? 1 : 0);

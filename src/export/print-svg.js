@@ -41,8 +41,12 @@ export function makeSvgDoc(JsPDF) {
       this.page.texts.push({ s: String(s), x, y: by, size: this.size, bold: this.bold, times: this.font === 'times', c: this.textC, anchor: align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start', angle });
       return this;
     }
+    // one orientation for the whole job? (browsers' print preview uses ONE sheet orientation for a document, so a job that mixes portrait and landscape pages
+    // must go through the PDF, which carries the orientation of every page)
+    isUniform() { return this.pages.every((p) => p.land === this.pages[0].land); }
     // layers: fills, logos, lines, text (the order the report is drawn in)
     toHtml(title = 'Report') {
+      const uniform = this.isUniform(), land = !!this.pages[0]?.land;
       const defs = [...this.images].map(([id, data]) => `<image id="${esc(id)}" width="1" height="1" preserveAspectRatio="none" href="${esc(data)}"/>`).join('');
       const pageSvg = (p) => {
         const w = p.land ? PH : PW, h = p.land ? PW : PH;
@@ -56,11 +60,17 @@ export function makeSvgDoc(JsPDF) {
         return s + '</svg></div>';
       };
       return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-@page portrait { size: A4 portrait; margin: 0 } @page landscape { size: A4 landscape; margin: 0 }
+${uniform
+  // ONE orientation: an ordinary @page, and every sheet fills exactly the printable area of the page (100vw x 100vh in print), so whatever margins the person's
+  // print dialog adds, a sheet never overflows onto an extra blank page; the drawing scales to fit
+  ? `@page { size: A4 ${land ? 'landscape' : 'portrait'}; margin: 0 }
+html, body { margin: 0; padding: 0; background: #fff }
+.pg { overflow: hidden; break-after: page; page-break-after: always; display: block; width: 100vw; height: 100vh }`
+  : `@page portrait { size: A4 portrait; margin: 0 } @page landscape { size: A4 landscape; margin: 0 }
 html, body { margin: 0; padding: 0; background: #fff }
 .pg { overflow: hidden; break-after: page; page-break-after: always; display: block }
+.pg.p { page: portrait; width: 210mm; height: 297mm } .pg.l { page: landscape; width: 297mm; height: 210mm }`}
 .pg:last-child { break-after: auto; page-break-after: auto }
-.pg.p { page: portrait; width: 210mm; height: 297mm } .pg.l { page: landscape; width: 297mm; height: 210mm }
 .pg svg { display: block; width: 100%; height: 100% }
 text { font-family: Helvetica, Arial, "Liberation Sans", sans-serif } text.tm { font-family: "Times New Roman", Times, "Liberation Serif", serif }
 </style></head><body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${defs}</defs></svg>${this.pages.map(pageSvg).join('')}</body></html>`;

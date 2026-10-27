@@ -202,6 +202,7 @@ export async function printMonth({ dept, people, data, year, month, lang, employ
     if (typeof CSS === 'undefined' || !CSS.supports?.('page', 'portrait')) throw new Error('named pages are not supported here');
     const [{ jsPDF }, pdf, { makeSvgDoc }] = await Promise.all([import('jspdf'), import('./pdf.js'), import('./print-svg.js')]);
     const doc = pdf.buildOfficialPdf(model, officialTemplate, { jsPDF: makeSvgDoc(jsPDF), logos: await loadPdfLogos(officialTemplate), employeeId });
+    if (!doc.isUniform()) throw new Error('the report mixes portrait and landscape pages: the PDF carries both');
     await printFrame({ html: doc.toHtml(`${dept?.name ?? 'Report'} ${year}-${String(month + 1).padStart(2, '0')}`) });
     return 'html';
   } catch (e0) {

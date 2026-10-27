@@ -381,23 +381,9 @@ await big.context().close();
   const pr = await mkCtx('ok'); await pr.goto(BASE + '/#/team'); await pr.waitForSelector('.tgrid tbody tr');
   await pr.click('button:text-is("Print")');
   let dlp = 0; pr.on('download', () => { dlp++; });
-  const t0p = Date.now();
   await pr.click('button:text-is("Print")');
-  ok('department Print (fast path): the report goes to print() as plain HTML with SVG pages from a hidden frame (srcdoc, no PDF, no download)', await eventually(async () => (await pr.evaluate(() => window.__printed || 0)) === 1) && !(await pr.evaluate(() => window.__printedSrc || '')) && (await pr.evaluate(() => window.__printedDoc)).includes('<svg') && (await pr.evaluate(() => window.__printedDoc)).includes('Daily Attendance Sheet') && (await pr.evaluate(() => window.__printedDoc)).includes('Monthly Attendance Sheet Review') && dlp === 0, `${await pr.evaluate(() => (window.__printedDoc || '').length)} chars`);
-  console.log(`      (click to print() took ${Date.now() - t0p} ms, with the data fetched from the real database)`);
+  ok('department Print: the report mixes portrait and landscape pages, so the PDF is sent to print() from a hidden frame (blob), no download', await eventually(async () => (await pr.evaluate(() => window.__printed || 0)) === 1) && (await pr.evaluate(() => window.__printedSrc || '')).startsWith('blob:') && dlp === 0);
   await pr.context().close();
-  // a browser without named @page rules (Safari) must not get the HTML pages: it takes the PDF path
-  { const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true }); await stub(ctx, 'ok'); await ctx.addInitScript(() => { CSS.supports = () => false; });
-    const pg = await ctx.newPage(); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); await pg.goto(BASE + '/#/team'); await pg.waitForSelector('.tgrid tbody tr');
-    await pg.click('button:text-is("Print")');
-    ok('no named @page support -> the PDF path is used instead of the HTML pages', await eventually(async () => (await pg.evaluate(() => window.__printed || 0)) === 1) && (await pg.evaluate(() => window.__printedSrc || '')).startsWith('blob:'));
-    await ctx.close(); }
-  // the fast path fails (its code is blocked) -> the PDF is built and sent from a blob frame as before
-  { const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true }); await stub(ctx, 'ok'); await ctx.route(/print-svg/, (r) => r.abort());
-    const pg = await ctx.newPage(); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); await pg.goto(BASE + '/#/team'); await pg.waitForSelector('.tgrid tbody tr');
-    await pg.click('button:text-is("Print")');
-    ok('fast path fails -> the PDF is sent to print() from a hidden frame (blob), no download', await eventually(async () => (await pg.evaluate(() => window.__printed || 0)) === 1) && (await pg.evaluate(() => window.__printedSrc || '')).startsWith('blob:'));
-    await ctx.close(); }
   // PDF cannot be made (the PDF library is blocked) -> the EXCEL version is printed from an in-memory HTML page, nothing downloaded
   const mkCtxNoPdf = async () => { const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true }); await stub(ctx, 'ok'); await ctx.route(/jspdf/, (r) => r.abort()); const pg = await ctx.newPage(); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); return pg; };
   const pe = await mkCtxNoPdf(); await pe.goto(BASE + '/#/team'); await pe.waitForSelector('.tgrid tbody tr');
@@ -415,6 +401,16 @@ await big.context().close();
   await up.goto(BASE + '/'); await up.fill('#username', 'xou1'); await up.fill('#password', PW); await up.click('button[type=submit]'); await up.waitForSelector('.cal .day');
   await up.click('.cal-tools button:has-text("Print")');
   ok('calendar Print: the person\'s own report page goes to print()', await eventually(async () => (await up.evaluate(() => window.__printed || 0)) === 1, 30000), `printed=${await up.evaluate(() => window.__printed || 0)} toast=${(await up.locator('.toast').allTextContents()).join('|')} url=${up.url()}`);
+
+  // the person's own page is ONE orientation: the fast path (SVG pages as HTML, no PDF) is used
+  ok('calendar Print (one portrait page): fast path, plain HTML with an SVG page from the frame (srcdoc), no PDF', (await up.evaluate(() => window.__printedDoc || '')).includes('<svg') && (await up.evaluate(() => window.__printedDoc)).includes('MONTHLY TIME REPORT') && !(await up.evaluate(() => window.__printedSrc || '')) && (await up.evaluate(() => window.__printedDoc)).includes('size: A4 portrait'));
+  const calPrint = async (setup) => { const ctx = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); await stub(ctx, 'ok'); await setup(ctx); const pg = await ctx.newPage();
+    await pg.goto(BASE + '/'); await pg.fill('#username', 'xou1'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.cal .day');
+    await pg.click('.cal-tools button:has-text("Print")'); const done = await eventually(async () => (await pg.evaluate(() => window.__printed || 0)) === 1, 30000); const src = await pg.evaluate(() => window.__printedSrc || ''); await ctx.close(); return { done, src }; };
+  { const r = await calPrint(async (ctx) => { await ctx.addInitScript(() => { CSS.supports = () => false; }); });
+    ok('a browser without named @page support -> the PDF path is used instead of the HTML pages', r.done && r.src.startsWith('blob:')); }
+  { const r = await calPrint(async (ctx) => { await ctx.route(/print-svg/, (r) => r.abort()); });
+    ok('the fast path fails (its code is blocked) -> the PDF is built and sent from a blob frame as before', r.done && r.src.startsWith('blob:')); }
   await pu.close(); }
 
 // ---- G. a plain user's compact calendar: help behind "i", own export (Excel + PDF)
