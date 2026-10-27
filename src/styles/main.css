@@ -556,3 +556,13 @@ body.has-install .floating { inset-block-start: 68px; }
 .credit:hover .dev-name, .menu-credit:hover .dev-name { background-position: 100% 0; }
 @media (prefers-reduced-motion: reduce) { .dev-name { transition: none; } }
 .tour-screen { flex: 1; text-align: center; font-size: .72rem; color: var(--muted); white-space: nowrap; }
+
+/* ARABIC name: Aref Ruqaa Ink Bold (a colour font: ink strokes that fade). Its colour layers are recoloured to the app's teal / blue through font-palette
+   (Chrome, Edge, Firefox); where colour fonts are not supported (Safari) the letters are solid teal. No text gradient here: it would flatten the colour layers. */
+@font-face { font-family: 'Aref Ink Name'; src: url('/fonts/aref-ruqaa-ink-bold-name.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+@font-palette-values --dev-ink { font-family: 'Aref Ink Name'; override-colors: 0 rgba(15, 118, 110, .5), 1 #0f766e, 2 #0284c7, 3 rgba(2, 132, 199, .5), 4 #0284c7; }
+@font-palette-values --dev-ink-dark { font-family: 'Aref Ink Name'; override-colors: 0 rgba(45, 212, 191, .5), 1 #2dd4bf, 2 #38bdf8, 3 rgba(56, 189, 248, .5), 4 #38bdf8; }
+:lang(ar) .dev-name { font-family: 'Aref Ink Name', 'Cairo Name', serif; font-weight: 700; font-size: 1.7em; line-height: 1; letter-spacing: 0; background: none;
+  -webkit-text-fill-color: currentColor; color: var(--brand); font-palette: --dev-ink; transition: none; }
+:root[data-theme="dark"]:lang(ar) .dev-name, :root[data-theme="dark"] :lang(ar) .dev-name { font-palette: --dev-ink-dark; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):lang(ar) .dev-name { font-palette: --dev-ink-dark; } }

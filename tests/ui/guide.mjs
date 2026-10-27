@@ -104,7 +104,10 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   ok('Arabic tour, step "tap a day": the sentences end in Arabic words (no "Y. E" run of Latin text)', txt.includes('ثم Y وهكذا. E يعني راحة') && !/[A-Za-z]\.\s+[A-Za-z]/.test(txt), txt);
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/tour-ar.png' });
   await p.keyboard.press('Escape'); await p.waitForSelector('.tour', { state: 'detached' });
-  ok('Arabic: the credit reads "تطوير شادي منصور" with the name in the modern font', (await p.locator('main .credit').innerText()).includes('تطوير شادي منصور') && (await p.locator('main .credit .dev-name').evaluate((e) => document.fonts.check('800 20px "Cairo Name"', e.textContent))));
+  await p.evaluate(() => document.fonts.ready);
+  const af = await p.locator('main .credit .dev-name').evaluate((e) => ({ fam: getComputedStyle(e).fontFamily, w: getComputedStyle(e).fontWeight, pal: getComputedStyle(e).fontPalette, loaded: document.fonts.check('700 20px "Aref Ink Name"', e.textContent) }));
+  ok('Arabic: the credit reads "تطوير شادي منصور" with the name in Aref Ruqaa Ink Bold (loaded), recoloured by a font palette', (await p.locator('main .credit').innerText()).includes('تطوير شادي منصور') && /Aref Ink Name/.test(af.fam) && af.w === '700' && af.loaded && /dev-ink/.test(af.pal), JSON.stringify(af));
+  if (process.env.SHOTS) await p.locator('main .credit').screenshot({ path: process.env.SHOTS + '/credit-ar-ink.png' });
   // the Latin text of the totals chips (X: 5 ...) must sit in the vertical middle of the pill in Arabic as well
   const off = await p.evaluate(() => [...document.querySelectorAll('.totals .chip.s-x, .totals .chip.s-y, .totals .chip.s-xh, .totals .chip.s-yh')].map((c) => {
     const probe = document.createElement('span'); probe.style.cssText = 'display:inline-block;width:0;height:0'; c.append(probe);
