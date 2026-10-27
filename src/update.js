@@ -9,6 +9,7 @@ import { icon, REFRESH } from './components/icons.js';
 let banner = null;
 
 export function initUpdates() {
+  prepareChime();
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() { show(updateSW); },
@@ -21,20 +22,40 @@ export function initUpdates() {
   });
 }
 
-// a short, soft two-note chime made with the Web Audio API (no sound file). Browsers only allow sound after the person has used the page
-// (a click or a key press), which is almost always true for an app that has been open for a while; otherwise it stays silent.
+// a short, soft two-note chime made with the Web Audio API (no sound file), on every device that allows sound.
+// Browsers only allow sound after the person has used the page, and iPhones / iPads only let an audio context start INSIDE a tap: so the first tap, click or key
+// press of every session prepares ("unlocks") one shared audio context, and the chime later reuses it (the update arrives from the background, not from a tap).
+// On an iPhone the silent-mode switch still mutes it; with no activity at all it stays silent and the banner is the only signal.
+let audio = null;
+const AudioCtx = () => window.AudioContext || window.webkitAudioContext;
+function unlockAudio() {
+  try {
+    const AC = AudioCtx(); if (!AC) return;
+    audio ??= new AC();
+    audio.resume?.().catch(() => {});
+    const src = audio.createBufferSource(); src.buffer = audio.createBuffer(1, 1, 22050); src.connect(audio.destination); src.start(0);       // a silent blip: what iOS wants inside the tap
+    if (audio.state === 'running') for (const ev of UNLOCK_EVENTS) removeEventListener(ev, unlockAudio, true);
+  } catch { /* no sound is fine */ }
+}
+const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'];
+export function prepareChime() { for (const ev of UNLOCK_EVENTS) addEventListener(ev, unlockAudio, { capture: true, passive: true }); }
+
+function playNotes(ctx) {
+  [[880, 0], [1319, 0.16]].forEach(([freq, at]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain(), t0 = ctx.currentTime + at;
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+    o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + 0.5);
+  });
+}
 function chime() {
   try {
-    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
-    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-    const ctx = new AC(); ctx.resume?.().catch(() => {});
-    [[880, 0], [1319, 0.16]].forEach(([freq, at]) => {
-      const o = ctx.createOscillator(), g = ctx.createGain(), t0 = ctx.currentTime + at;
-      o.type = 'sine'; o.frequency.value = freq;
-      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
-      o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + 0.5);
-    });
-    setTimeout(() => ctx.close?.().catch(() => {}), 1200);
+    const AC = AudioCtx(); if (!AC) return;
+    const ready = audio && audio.state === 'running';
+    if (!ready && navigator.userActivation && !navigator.userActivation.hasBeenActive) return;      // nobody has touched the page: the browser would refuse anyway
+    audio ??= new AC();
+    if (audio.state === 'running') playNotes(audio);
+    else audio.resume?.().then(() => { if (audio.state === 'running') playNotes(audio); }).catch(() => {});
   } catch { /* no sound is fine */ }
 }
 

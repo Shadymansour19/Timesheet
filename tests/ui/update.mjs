@@ -8,7 +8,7 @@ const b = await chromium.launch(process.env.CHROME ? { executablePath: process.e
 let fails = 0;
 const ok = (l, c, extra = '') => { if (!c) fails++; console.log((c ? 'PASS: ' : 'FAIL: ') + l + (c ? '' : ' ' + extra)); };
 const stubAudio = () => { window.__tones = 0; const AC = function () { this.currentTime = 0; this.state = 'running'; this.destination = {}; };
-  AC.prototype = { resume() { return Promise.resolve(); }, close() { return Promise.resolve(); }, createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; },
+  AC.prototype = { resume() { return Promise.resolve(); }, close() { return Promise.resolve(); }, createBuffer() { return {}; }, createBufferSource() { return { connect() {}, start() {} }; }, createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; },
     createOscillator() { window.__tones++; return { frequency: {}, connect() {}, start() {}, stop() {} }; } };
   window.AudioContext = AC; };       // counts the notes instead of making a sound
 async function bump(p) { writeFileSync(SW, original + `\n// test build ${Date.now()}\n`); await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); }); }
@@ -35,6 +35,14 @@ try {
     await p.click('.update-x');
     ok('the banner can be dismissed and the title comes back', (await p.locator('.update-banner').count()) === 0 && (await p.title()) === title0);
     ok('no page errors', p.errs.length === 0, p.errs.join('|'));
+    await ctx.close(); }
+  // a phone: the first TAP prepares the audio, then the chime plays (a suspended context that only starts inside a tap, like iOS, still works)
+  { const ctx = await b.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true, serviceWorkers: 'allow' });
+    await ctx.addInitScript(stubAudio);
+    await ctx.addInitScript(() => { const AC = window.AudioContext; window.AudioContext = function () { const c = new AC(); c.state = 'suspended'; c.resume = function () { c.state = 'running'; return Promise.resolve(); }; return c; }; window.AudioContext.prototype = AC.prototype; });
+    const p = await ctx.newPage(); await p.goto('http://localhost:4173/'); await p.waitForSelector('#username'); await p.tap('#username'); await p.evaluate(() => navigator.serviceWorker.ready);
+    await bump(p); await p.waitForSelector('.update-banner', { timeout: 20000 }); await p.waitForTimeout(500);
+    ok('phone: after a tap the chime plays too (two notes), even when the audio context starts suspended like on iOS', (await p.evaluate(() => window.__tones)) === 2);
     await ctx.close(); }
   // nobody has touched the page yet: browsers forbid sound, so it stays silent (the banner still shows)
   { const ctx = await b.newContext({ viewport: { width: 1200, height: 800 }, serviceWorkers: 'allow' }); await ctx.addInitScript(stubAudio);
