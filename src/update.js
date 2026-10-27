@@ -22,40 +22,39 @@ export function initUpdates() {
   });
 }
 
-// a short, soft two-note chime made with the Web Audio API (no sound file), on every device that allows sound.
-// Browsers only allow sound after the person has used the page, and iPhones / iPads only let an audio context start INSIDE a tap: so the first tap, click or key
-// press of every session prepares ("unlocks") one shared audio context, and the chime later reuses it (the update arrives from the background, not from a tap).
-// On an iPhone the silent-mode switch still mutes it; with no activity at all it stays silent and the banner is the only signal.
-let audio = null;
+// A short three-note chime made with the Web Audio API (no sound file), plus a short vibration where the phone allows it.
+// Browsers only allow sound after the person has used the page, and iPhones / iPads only start (or restart, after the app was in the background) an
+// audio context INSIDE a tap. So: every tap, click or key press prepares one shared audio context; the chime uses it when the update arrives, and when
+// that is not possible yet (a cold start with no tap, a context the system paused) the chime waits and plays on the person's next tap.
+// An iPhone's silent-mode switch and a muted media volume still silence it: then the banner and the tab title are the signal.
+let audio = null, pending = false;
 const AudioCtx = () => window.AudioContext || window.webkitAudioContext;
+const playPending = () => { if (pending && audio?.state === 'running') { pending = false; playNotes(audio); buzz(); } };
 function unlockAudio() {
   try {
     const AC = AudioCtx(); if (!AC) return;
     audio ??= new AC();
-    audio.resume?.().catch(() => {});
+    if (audio.state !== 'running') audio.resume?.().then(playPending, () => {}); else playPending();
     const src = audio.createBufferSource(); src.buffer = audio.createBuffer(1, 1, 22050); src.connect(audio.destination); src.start(0);       // a silent blip: what iOS wants inside the tap
-    if (audio.state === 'running') for (const ev of UNLOCK_EVENTS) removeEventListener(ev, unlockAudio, true);
   } catch { /* no sound is fine */ }
 }
-const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'];
-export function prepareChime() { for (const ev of UNLOCK_EVENTS) addEventListener(ev, unlockAudio, { capture: true, passive: true }); }
+export function prepareChime() { for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) addEventListener(ev, unlockAudio, { capture: true, passive: true }); }
 
 function playNotes(ctx) {
-  [[880, 0], [1319, 0.16]].forEach(([freq, at]) => {
+  [[784, 0], [988, 0.14], [1319, 0.28]].forEach(([freq, at]) => {       // G5, B5, E6: bright enough for a phone speaker
     const o = ctx.createOscillator(), g = ctx.createGain(), t0 = ctx.currentTime + at;
-    o.type = 'sine'; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
-    o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + 0.5);
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+    o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + 0.6);
   });
 }
+const buzz = () => { try { navigator.vibrate?.([160, 80, 160]); } catch { /* not allowed */ } };
 function chime() {
   try {
     const AC = AudioCtx(); if (!AC) return;
-    const ready = audio && audio.state === 'running';
-    if (!ready && navigator.userActivation && !navigator.userActivation.hasBeenActive) return;      // nobody has touched the page: the browser would refuse anyway
-    audio ??= new AC();
-    if (audio.state === 'running') playNotes(audio);
-    else audio.resume?.().then(() => { if (audio.state === 'running') playNotes(audio); }).catch(() => {});
+    if (audio?.state === 'running') { playNotes(audio); buzz(); return; }
+    pending = true;                                                                  // not possible right now: the next tap plays it
+    if (navigator.userActivation?.hasBeenActive !== false) { audio ??= new AC(); audio.resume?.().then(playPending, () => {}); }
   } catch { /* no sound is fine */ }
 }
 
@@ -67,7 +66,7 @@ function show(updateSW) {
     h('span', { class: 'update-ico', 'aria-hidden': 'true' }, icon(REFRESH, 22)),
     h('strong', { class: 'update-text' }, t('update_available')),
     h('button', { type: 'button', class: 'update-go', id: 'update-now', onclick: () => updateSW(true) }, t('update_refresh')),
-    h('button', { type: 'button', class: 'update-x', 'aria-label': t('close'), onclick: () => { banner.remove(); banner = null; document.title = baseTitle; } }, '\u00d7'));
+    h('button', { type: 'button', class: 'update-x', 'aria-label': t('close'), onclick: () => { banner.remove(); banner = null; pending = false; document.title = baseTitle; } }, '\u00d7'));
   document.body.prepend(banner);
   baseTitle = document.title; document.title = '\u2B06 ' + baseTitle;
   chime();

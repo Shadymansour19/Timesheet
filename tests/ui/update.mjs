@@ -27,7 +27,7 @@ try {
     ok('desktop: the banner is a bar across the TOP of the page (full width, a strong colour)', r.top === 0 && r.w >= r.vw - 1 && r.bg !== 'rgba(0, 0, 0, 0)', JSON.stringify(r));
     ok('the banner is announced to screen readers (role alert)', r.role === 'alert');
     ok('the banner offers Refresh', (await p.locator('#update-now').count()) === 1);
-    ok('a two-note chime plays once when it appears', (await p.evaluate(() => window.__tones)) === 2);
+    ok('a three-note chime plays once when it appears', (await p.evaluate(() => window.__tones)) === 3);
     ok('the tab title carries a marker while the banner is there', (await p.title()) !== title0 && (await p.title()).endsWith(title0));
     await p.evaluate(() => window.scrollTo(0, 500));
     ok('the banner stays visible when the page scrolls (sticky)', (await p.locator('.update-banner').evaluate((e) => Math.round(e.getBoundingClientRect().top))) === 0);
@@ -42,7 +42,7 @@ try {
     await ctx.addInitScript(() => { const AC = window.AudioContext; window.AudioContext = function () { const c = new AC(); c.state = 'suspended'; c.resume = function () { c.state = 'running'; return Promise.resolve(); }; return c; }; window.AudioContext.prototype = AC.prototype; });
     const p = await ctx.newPage(); await p.goto('http://localhost:4173/'); await p.waitForSelector('#username'); await p.tap('#username'); await p.evaluate(() => navigator.serviceWorker.ready);
     await bump(p); await p.waitForSelector('.update-banner', { timeout: 20000 }); await p.waitForTimeout(500);
-    ok('phone: after a tap the chime plays too (two notes), even when the audio context starts suspended like on iOS', (await p.evaluate(() => window.__tones)) === 2);
+    ok('phone: after a tap the chime plays too (three notes), even when the audio context starts suspended like on iOS', (await p.evaluate(() => window.__tones)) === 3);
     await ctx.close(); }
   // nobody has touched the page yet: browsers forbid sound, so it stays silent (the banner still shows)
   { const ctx = await b.newContext({ viewport: { width: 1200, height: 800 }, serviceWorkers: 'allow' }); await ctx.addInitScript(stubAudio);
@@ -50,6 +50,10 @@ try {
     const p = await ctx.newPage(); await p.goto('http://localhost:4173/'); await p.waitForSelector('#username'); await p.evaluate(() => navigator.serviceWorker.ready);
     await bump(p); await p.waitForSelector('.update-banner', { timeout: 20000 }); await p.waitForTimeout(500);
     ok('no sound before the person has used the page (browser rule), but the banner shows', (await p.evaluate(() => window.__tones)) === 0);
+    await p.mouse.click(20, 20); await p.waitForTimeout(400);
+    ok('...and the waiting chime plays on the person\'s next tap (a cold start on a phone: the app was opened, no tap yet)', (await p.evaluate(() => window.__tones)) === 3);
+    await p.mouse.click(30, 30); await p.waitForTimeout(300);
+    ok('...only once', (await p.evaluate(() => window.__tones)) === 3);
     await ctx.close(); }
 } finally { writeFileSync(SW, original); await b.close(); }
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL UPDATE-BANNER TESTS PASSED ===');
