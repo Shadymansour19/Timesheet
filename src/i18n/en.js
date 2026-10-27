@@ -201,6 +201,7 @@ export default {
   tour_su_add_text: "Add one with Add Super User, or many with Bulk Add. Choose Super admin or Super manager.",
   tour_su_person_title: "A person",
   tour_su_person_text: "Edit their name, reset their password or delete them. You cannot delete yourself.",
+  developer_name: "Shady Mansour",
   promote: "Make admin",
   demote: "Make user",
   promote_confirm: "Promote to department admin:",

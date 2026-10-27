@@ -15,7 +15,7 @@ const links = () => [
 
 // compact: one small row for the bottom of the account menu
 export const credit = ({ compact = false } = {}) => h('div', { class: compact ? 'menu-credit muted' : 'credit muted' },
-  h('span', {}, `${t('developed_by')} Shady Mansour`),
+  h('span', {}, `${t('developed_by')} `, h('span', { class: 'dev-name' }, t('developer_name'))),
   h('span', { class: 'credit-links' }, links().map(([name, href, ic, zoom = 1, stroke = 2]) => h('a', {
     href, title: name, 'aria-label': `Shady Mansour \u2013 ${name}`, class: 'credit-link', 'data-link': name.toLowerCase(),
     ...(href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {}),

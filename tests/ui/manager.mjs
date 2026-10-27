@@ -47,7 +47,11 @@ async function login(un) {
   ok('no page errors (manager)', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 { const c = await b.newContext(); const q = await c.newPage(); await q.goto('http://localhost:4173/'); await q.waitForSelector('#username');
-  ok('the sign-in page shows the Developed by line', /Developed by Shady Mansour/.test(await q.locator('.credit').innerText())); await c.close(); }
+  ok('the sign-in page shows the Developed by line', /Developed by Shady Mansour/.test(await q.locator('.credit').innerText()));
+  await q.evaluate(() => document.fonts.ready);
+  const f = await q.locator('.dev-name').evaluate((e) => ({ fam: getComputedStyle(e).fontFamily, w: getComputedStyle(e).fontWeight, clip: getComputedStyle(e).webkitBackgroundClip || getComputedStyle(e).backgroundClip, loaded: document.fonts.check('800 20px "Cairo Name"', e.textContent) }));
+  ok('the developer name uses the modern Cairo ExtraBold font (loaded) with a gradient fill', /Cairo Name/.test(f.fam) && f.w === '800' && f.clip === 'text' && f.loaded, JSON.stringify(f));
+  await c.close(); }
 // the plain user's help dialog in Arabic: short, simple sentences
 { const p = await login('mgu1'); await p.waitForSelector('.day'); await p.click('button:text-is("العربية")'); await p.waitForSelector('.day');
   await p.click('button[aria-label="مساعدة"]'); await p.waitForSelector('dialog[open]');

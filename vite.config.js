@@ -27,6 +27,7 @@ export default defineConfig({
       workbox: {
         // App shell is cached; Supabase API calls always go to the network.
         navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,html,woff2}'],      // the developer-name font is part of the app shell
         navigateFallbackDenylist: [/^\/functions\//, /^\/auth\//, /^\/rest\//],
         // the OCR engine (several MB) is NOT part of the app shell: cached on first use instead (works offline afterwards)
         globIgnores: ['**/tesseract-core*', '**/pdf.worker*', '**/worker.min*', '**/pdfjs-lib*'],
