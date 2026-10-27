@@ -139,13 +139,14 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   ok('phone, admin: no Keyboard step on a touch screen', !r.titles.includes('Keyboard'));
   ok('phone, admin: Department 7, Overtime 5, Users 4, My calendar 8 steps (the menu step only on the last screen)', r.pages.join() === '7,5,4,8', r.pages.join());
   ok('phone, admin: each screen ends with "Next: <next tab>" and the last with Done', r.labels.join('|') === 'Next: Overtime|Next: Users|Next: My calendar|Done', r.labels.join('|'));
-  ok('phone, admin: the tour carried him to his own calendar', /#\/calendar/.test(p.url()));
-  await p.reload(); await p.waitForSelector('.day'); await p.waitForTimeout(1500);
+  ok('phone, admin: at the end the view returns to the tab where the tour started (Department), not the last one it visited', /#\/team/.test(p.url()) && (await p.locator('.tgrid').count()) === 1);
+  await p.reload(); await p.waitForSelector('.tgrid'); await p.waitForTimeout(1500);
   ok('phone, admin: finished = seen, no tour after a reload', (await p.locator('.tour').count()) === 0);
   // the menu starts it again from the screen he is on and carries on to the end: Overtime -> Users -> My calendar
   await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await menuGuide(p);
   ok('phone, admin: from Overtime the menu runs Overtime, Users, My calendar (Screen 1 of 3)', (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 3' && /Overtime/.test(await p.locator('.tour-title').innerText()));
   const r2 = await walkAll(p, 'phone, admin, from the menu'); ok('phone, admin: menu tour screens 5, 4, 8', r2.pages.join() === '5,4,8', r2.pages.join());
+  ok('phone, admin: started on Overtime, so it ends back on Overtime', /#\/overtime/.test(p.url()));
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 // a department manager (desktop): Department -> Overtime -> Users
@@ -159,6 +160,7 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
 { const p = await open('gdsm', { phone: false }); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
   ok('desktop, super manager: the Department tour has the department and Keyboard steps (9 steps, Screen 1 of 2) and says view only', (await p.locator('.tour-dot').count()) === 9 && (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 2' && (await p.locator('.tour-text').innerText()).includes('You can look and export'));
   await p.click('#tour-next'); await p.click('#tour-skip'); await p.waitForSelector('.tour', { state: 'detached' });
+  ok('desktop, super manager: Skip leaves him on the tab where the tour started', /#\/team/.test(p.url()));
   await p.reload(); await p.waitForSelector('.tgrid'); await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await p.waitForTimeout(1500);
   ok('desktop, super manager: Skip = seen: no tour after a reload, and none on the Overtime screen either', (await p.locator('.tour').count()) === 0);
   await menuGuide(p);
@@ -170,7 +172,7 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   ok('desktop, super admin: the tour starts on Departments (Screen 1 of 5)', (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 5' && /Departments/.test(await p.locator('.tour-title').innerText()));
   const r = await walkAll(p, 'desktop, super admin');
   ok('desktop, super admin: Departments 5, Department 9 (with Keyboard), Overtime 6, Users 4, Super users 4', r.pages.join() === '5,9,6,4,4', r.pages.join());
-  ok('desktop, super admin: it ended on the Super users tab', /#\/super/.test(p.url()));
+  ok('desktop, super admin: it ended back on Departments, where it started', /#\/departments/.test(p.url()));
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 cleanup();

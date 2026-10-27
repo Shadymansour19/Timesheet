@@ -574,3 +574,5 @@ body.has-install .floating { inset-block-start: 68px; }
   .credit-link svg { width: 27px; height: 27px; }
   .credit-link[data-link="whatsapp"] svg { width: 31px; height: 31px; }
 }
+
+.dev-name { white-space: nowrap; }      /* "Shady Mansour" never splits over two lines (in a narrow menu the line breaks before the name instead) */

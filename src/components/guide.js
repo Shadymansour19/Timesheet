@@ -110,6 +110,7 @@ async function openPage(route) {
 // Only ONE tour at a time: views are built again on every re-render, and each build may ask for it while the first is still waiting / running.
 export function startGuide({ landing, skipSeen = false } = {}) {
   if (running || waiting) return;
+  const origin = routeNow();                                  // where the tour was started: it comes back here when it ends
   const seq = ORDER[state.profile?.role] ?? [];
   let from = seq.indexOf(routeNow());
   if (from < 0) from = seq.indexOf(landing);
@@ -131,7 +132,11 @@ export function startGuide({ landing, skipSeen = false } = {}) {
         while (++pos < todo.length) { if (await openPage(todo[pos])) return { steps: stepsOf(pos), nextLabel: labelOf(pos), screen: screenOf(pos) }; }
         return null;
       },
-      onEnd: (completed) => { if (completed) markSeen(todo[Math.min(pos, todo.length - 1)]); else todo.forEach(markSeen); running = null; },     // skipping = "I know the app": all of its screens count as seen
+      onEnd: (completed) => {
+        if (completed) markSeen(todo[Math.min(pos, todo.length - 1)]); else todo.forEach(markSeen);
+        running = null;
+        if (routeNow() !== origin) location.hash = '#' + origin;           // finished or skipped: back to the tab where it started
+      },     // skipping = "I know the app": all of its screens count as seen
     });
   })();
 }

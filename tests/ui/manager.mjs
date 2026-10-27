@@ -29,6 +29,11 @@ async function login(un) {
   await p.waitForSelector('.tgrid');
   ok('working screens: the Developed by line closes the page (and the account menu has its own)', (await p.locator('main .credit').count()) === 1 && !(await p.locator('.menu-credit').isVisible()));
   await p.click('.acct > summary');
+  const nm = await p.locator('.menu-credit .dev-name').evaluate((e) => { const r = e.getClientRects(); return { lines: r.length, ws: getComputedStyle(e).whiteSpace }; });
+  ok('the account menu keeps "Shady Mansour" on ONE line (no split in a narrow menu)', nm.lines === 1 && nm.ws === 'nowrap', JSON.stringify(nm));
+  const narrow = await p.locator('.menu-credit').evaluate((e) => { e.firstElementChild.style.maxWidth = '120px'; const d = e.querySelector('.dev-name'); return { lines: d.getClientRects().length, wraps: e.firstElementChild.getBoundingClientRect().height > 30 }; });
+  ok('even in a very narrow menu "Shady Mansour" stays on one line (the line breaks before the name instead)', narrow.lines === 1 && narrow.wraps, JSON.stringify(narrow));
+
   ok('the account menu ends with the Developed by line and its three icon links', (await p.locator('.menu-credit').isVisible()) && /Developed by Shady Mansour/.test(await p.locator('.menu-credit').innerText()) && (await p.locator('.menu-credit a.credit-link').count()) === 4 && (await p.locator('.menu-credit a[data-link=github]').getAttribute('href')) === 'https://github.com/shadymansour19');
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/menu.png' });
   await p.click('.acct > summary');
