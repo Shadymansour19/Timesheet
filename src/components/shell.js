@@ -132,7 +132,7 @@ export function shell(content, { onLang }) {
       accountMenu(),
       h('div', { class: 'actions' },
         acting.active && ['super_admin', 'super_manager'].includes(state.profile.role) ? departmentSwitcher(onLang) : null,
-        h('button', { class: 'btn small', onclick: () => { setLang(otherLang()); onLang(); } }, t('language')))),
+        h('button', { class: 'btn small lang-btn', onclick: () => { setLang(otherLang()); onLang(); } }, t('language')))),
     nav,
     h('main', { class: 'content' }, back, content, credit()));       // the Developed by line closes every working screen (never part of an export)
 }

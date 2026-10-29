@@ -24,6 +24,7 @@ const NAV = { '/team': 'nav_team', '/overtime': 'nav_overtime', '/users': 'nav_u
 
 // a step: { target | targets, title, text } (see tour.js); every text is an i18n key
 const st = (title, text, ...targets) => (targets.length > 1 ? { title, text, targets } : { title, text, target: targets[0] ?? null });
+const LANG = st('tour_lang_title', 'tour_lang_text', '.topbar .lang-btn');                  // the language button, next to the menu
 const MENU = st('tour_6_title', 'tour_6_text', '.acct');
 const TABS = st('tour_tabs_title', 'tour_tabs_text', '.shell > .nav');
 const MONTH = st('tour_1_title', 'tour_1_text', '.cal-head');
@@ -38,7 +39,7 @@ const PAGES = {
     st('tour_dash_title', 'tour_dash_text', () => document.querySelector('.grid .day.ctx'), () => [...document.querySelectorAll('.grid .day.ctx')].pop()),
     st('tour_4_title', yOk() ? 'tour_4_text' : 'tour_4_text_noy', '.totals'),
     st('tour_5_title', 'tour_5_text', '.cal-tools .icon-only'),
-    ...(last ? [MENU] : []),
+    ...(last ? [LANG, MENU] : []),
   ] },
   '/team': { ready: '.tgrid td.c', steps: (last) => {
     const ro = state.profile.role === 'super_manager', sup = ['super_admin', 'super_manager'].includes(state.profile.role);
@@ -52,7 +53,7 @@ const PAGES = {
       st('tour_team_name_title', 'tour_team_name_text', '.tgrid tbody th.nm'),
       st('tour_team_tools_title', ro ? 'tour_team_tools_text_ro' : 'tour_team_tools_text', '.team-row.tools'),
       st('tour_team_search_title', 'tour_team_search_text', '.search-wrap'),
-      ...(last ? [MENU] : []),
+      ...(last ? [LANG, MENU] : []),
     ];
   } },
   '/overtime': { ready: '.ot-view .ot-day', steps: (last) => {
@@ -62,9 +63,10 @@ const PAGES = {
       ...(sup ? [st('tour_dept_title', 'tour_dept_text', '.dept-switch')] : []),
       MONTH,
       st('tour_ot_day_title', ro ? 'tour_ot_day_text_ro' : 'tour_ot_day_text', '.ot-view .ot-day'),
+      st('tour_ot_form_title', 'tour_ot_form_text', '.cal-tools .ot-form-tools'),
       ...(ro ? [] : [st('tour_ot_scan_title', 'tour_ot_scan_text', '#scan-open')]),
       st('tour_ot_totals_title', 'tour_ot_totals_text', '.ot-view .totals'),
-      ...(last ? [MENU] : []),
+      ...(last ? [LANG, MENU] : []),
     ];
   } },
   '/users': { ready: '.person, .utable', steps: (last) => [
@@ -72,7 +74,7 @@ const PAGES = {
     st('tour_users_add_title', 'tour_users_add_text', '.cal-head .actions'),
     st('tour_users_find_title', 'tour_users_find_text', '.team-row'),
     st('tour_users_person_title', 'tour_users_person_text', ['.person', '.utable tbody tr.urow']),
-    ...(last ? [MENU] : []),
+    ...(last ? [LANG, MENU] : []),
   ] },
   '/departments': { ready: 'details.dept', alt: '#dept-search', steps: (last) => [
     st('tour_dep_0_title', 'tour_dep_0_text'),
@@ -80,13 +82,13 @@ const PAGES = {
     st('tour_dep_add_title', 'tour_dep_add_text', '.depts .cal-head .actions'),
     st('tour_dep_card_title', 'tour_dep_card_text', 'details.dept'),
     st('tour_dep_tabs_title', 'tour_dep_tabs_text', '.shell > .nav'),
-    ...(last ? [MENU] : []),
+    ...(last ? [LANG, MENU] : []),
   ] },
   '/super': { ready: '#add-super', steps: (last) => [
     st('tour_su_0_title', 'tour_su_0_text'),
     st('tour_su_add_title', 'tour_su_add_text', '.depts .cal-head .actions'),
     st('tour_su_person_title', 'tour_su_person_text', '.person'),
-    ...(last ? [MENU] : []),
+    ...(last ? [LANG, MENU] : []),
   ] },
 };
 

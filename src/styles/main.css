@@ -287,7 +287,10 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .person-view { max-width: 560px; margin: 0 auto; }
 .person-head { display: flex; align-items: center; gap: 12px; margin: 8px 0; padding: 12px 14px; max-width: none; }
 .cal-mode { margin-block-end: 10px; }
-.cal-tools { display: flex; justify-content: flex-end; gap: 6px; margin-block-end: 8px; }
+.cal-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-block-end: 8px; }
+.ot-view .cal-tools { align-items: center; gap: 6px 14px; }
+.ot-form-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dlg .ot-form-tools { margin-block-start: 10px; }
 .empty { text-align: center; max-width: none; margin-block: 12px; display: grid; gap: 8px; justify-items: center; }
 .empty[hidden] { display: none; }
 

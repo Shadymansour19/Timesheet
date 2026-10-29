@@ -32,11 +32,14 @@
     "test:ui-export": "node tests/ui/export-official.mjs",
     "test:ui-notify": "node tests/ui/notify.mjs",
     "test:ocr-parse": "node tests/ocr-parse.test.mjs",
-    "test:ui-ocr": "node tests/ui/overtime-scan.mjs"
+    "test:ui-ocr": "node tests/ui/overtime-scan.mjs",
+    "test:overtime-form": "node tests/overtime-form.test.mjs",
+    "test:ui-overtime-form": "node tests/ui/overtime-form.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "exceljs": "^4.4.0",
+    "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "pdfjs-dist": "^6.4.299",
     "tesseract.js": "^7.0.0"

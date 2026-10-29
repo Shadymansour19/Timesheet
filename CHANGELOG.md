@@ -2,6 +2,11 @@
 
 Newest first. Grouped by day from the git history; the reasons are in [SPEC.md](SPEC.md).
 
+## 2026-10-29
+- Overtime form from the app: Print / Excel / PDF of one day (in the day window) or of the whole month (Overtime tab); one upright A4 page per day in Arabic with the logos, people with the same note share one "work required" cell, hours per person; the scan is unchanged.
+- Report settings: Arabic department name and the two sign-off titles of the overtime form (needs migration 27).
+- Guide: language is the button next to the menu (new Language step, the Menu step corrected), Overtime steps for the form.
+
 ## 2026-10-26
 - New roles: department manager (admin without a timesheet), super manager (read-only, all departments); the super admin can add super admins / super managers (Super users tab, single and bulk).
 - OPR optional; payroll required except for managers and super users.

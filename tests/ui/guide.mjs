@@ -28,7 +28,7 @@ async function open(un, { phone = true } = {}) {
   await p.goto('http://localhost:4173/'); await p.fill('#username', un); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
   return p;
 }
-const TARGETS = ['.cal > .cal-head', '.grid .day.today', '.grid', '.grid .day.ctx', '.totals', '.cal-tools .icon-only', '.acct'];
+const TARGETS = ['.cal > .cal-head', '.grid .day.today', '.grid', '.grid .day.ctx', '.totals', '.cal-tools .icon-only', '.topbar .lang-btn', '.acct'];
 const inView = (p) => p.locator('.tour-card').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; });
 // walks a whole tour, across screens: every step has a card on screen and (after the welcome) a spotlight ring of real size; the last step of a screen opens the next tab
 // -> { pages: [steps per screen], labels: [button text of each screen's last step], bad: [problems] }
@@ -62,7 +62,7 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   await p.evaluate(() => { window.dispatchEvent(new HashChangeEvent('hashchange')); setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), 120); });
   await p.waitForSelector('.day'); await p.waitForSelector('.tour'); await p.waitForTimeout(1500);
   ok('re-rendering while the tour is starting does not stack a second tour (one overlay, one card)', (await p.locator('.tour').count()) === 1 && (await p.locator('.tour-card').count()) === 1, `${await p.locator('.tour').count()} / ${await p.locator('.tour-card').count()}`);
-  ok('phone, new user: the tour starts by itself with a welcome card', /Welcome/.test(await p.locator('.tour-title').innerText()) && (await p.locator('.tour-dot').count()) === 8);
+  ok('phone, new user: the tour starts by itself with a welcome card', /Welcome/.test(await p.locator('.tour-title').innerText()) && (await p.locator('.tour-dot').count()) === 9);
   const bf = await p.locator('.tour-dim').first().evaluate((e) => getComputedStyle(e).backdropFilter + '|' + getComputedStyle(e).backgroundColor);
   ok('the page behind is blurred and dimmed (backdrop blur on the panels)', bf.includes('blur'), bf);
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/tour-0.png' });
@@ -73,6 +73,8 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
     const m = await p.evaluate((sel) => { const t = document.querySelector(sel).getBoundingClientRect(), r = document.querySelector('.tour-ring').getBoundingClientRect(); return { covers: r.left <= t.left + 1 && r.top <= t.top + 1 && r.right >= t.right - 1 && r.bottom >= t.bottom - 1, small: r.width < innerWidth * 1.2 }; }, TARGETS[i]);
     ok(`step ${i + 1}: the spotlight ring surrounds ${TARGETS[i]}`, m.covers && m.small, JSON.stringify(m));
     ok(`step ${i + 1}: the explanation card is fully on screen and shows a title`, (await inView(p)) && (await p.locator('.tour-title').innerText()).length > 2);
+    if (TARGETS[i] === '.topbar .lang-btn') ok('Language step: the language is changed with the button next to the menu', (await p.locator('.tour-title').innerText()) === 'Language' && /button/.test(await p.locator('.tour-text').innerText()));
+    if (TARGETS[i] === '.acct') ok('Menu step: no longer says the language is changed from the menu', !/language/i.test(await p.locator('.tour-text').innerText()));
     if (process.env.SHOTS && i === 1) await p.screenshot({ path: process.env.SHOTS + '/tour-2.png' });
     if (process.env.SHOTS && i === 3) await p.screenshot({ path: process.env.SHOTS + '/tour-dash.png' });
     if (TARGETS[i] === '.grid .day.ctx') {                          // BOTH dashed days are highlighted: two rings, the second around the last dashed day
@@ -91,7 +93,7 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   await p.tap('.acct > summary');
   ok('the menu has "How to use the app" on a phone', (await p.locator('#guide-open').isVisible()));
   await p.tap('#guide-open'); await p.waitForSelector('.tour');
-  ok('the menu entry starts the tour again', (await p.locator('.tour-dot').count()) === 8);
+  ok('the menu entry starts the tour again', (await p.locator('.tour-dot').count()) === 9);
   await p.keyboard.press('Escape'); await p.waitForSelector('.tour', { state: 'detached' });
   ok('Esc skips the tour', (await p.locator('.tour').count()) === 0);
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
@@ -126,8 +128,8 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   ok('...but the menu entry is there', (await p.locator('#guide-open').isVisible()));
   await p.context().close(); }
 { const p = await open('gdnew', { phone: false }); await p.waitForSelector('.day'); await p.waitForSelector('.tour');
-  ok('desktop: the tour starts by itself too (same 8 steps, one screen)', (await p.locator('.tour-dot').count()) === 8 && (await p.locator('.tour-screen').innerText()) === '');
-  const r = await walkAll(p, 'desktop, user'); ok('a one-screen tour ends with Done', r.pages.join() === '8' && r.labels[0] === 'Done');
+  ok('desktop: the tour starts by itself too (same 9 steps, one screen)', (await p.locator('.tour-dot').count()) === 9 && (await p.locator('.tour-screen').innerText()) === '');
+  const r = await walkAll(p, 'desktop, user'); ok('a one-screen tour ends with Done', r.pages.join() === '9' && r.labels[0] === 'Done');
   await p.click('.acct > summary');
   ok('desktop: the menu has "How to use the app"', await p.locator('#guide-open').isVisible());
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
@@ -150,7 +152,7 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   ok('phone, admin: the tour starts on the Department screen (Screen 1 of 4, 7 steps)', (await p.locator('.tour-dot').count()) === 7 && (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 4' && /Department grid/.test(await p.locator('.tour-title').innerText()));
   const r = await walkAll(p, 'phone, admin');
   ok('phone, admin: no Keyboard step on a touch screen', !r.titles.includes('Keyboard'));
-  ok('phone, admin: Department 7, Overtime 5, Users 4, My calendar 8 steps (the menu step only on the last screen)', r.pages.join() === '7,5,4,8', r.pages.join());
+  ok('phone, admin: Department 7, Overtime 6, Users 4, My calendar 9 steps (the language and menu steps only on the last screen)', r.pages.join() === '7,6,4,9', r.pages.join());
   ok('phone, admin: each screen ends with "Next: <next tab>" and the last with Done', r.labels.join('|') === 'Next: Overtime|Next: Users|Next: My calendar|Done', r.labels.join('|'));
   await p.waitForFunction(() => /#\/team/.test(location.hash) && document.querySelector('.tgrid'), null, { timeout: 15000 }).catch(() => {});       // the return happens right after the last click (the remote data may take a moment)
   ok('phone, admin: at the end the view returns to the tab where the tour started (Department), not the last one it visited', /#\/team/.test(p.url()) && (await p.locator('.tgrid').count()) === 1);
@@ -159,7 +161,7 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   // the menu starts it again from the screen he is on and carries on to the end: Overtime -> Users -> My calendar
   await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await menuGuide(p);
   ok('phone, admin: from Overtime the menu runs Overtime, Users, My calendar (Screen 1 of 3)', (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 3' && /Overtime/.test(await p.locator('.tour-title').innerText()));
-  const r2 = await walkAll(p, 'phone, admin, from the menu'); ok('phone, admin: menu tour screens 5, 4, 8', r2.pages.join() === '5,4,8', r2.pages.join());
+  const r2 = await walkAll(p, 'phone, admin, from the menu'); ok('phone, admin: menu tour screens 6, 4, 9', r2.pages.join() === '6,4,9', r2.pages.join());
   ok('phone, admin: started on Overtime, so it ends back on Overtime', /#\/overtime/.test(p.url()));
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
@@ -167,7 +169,7 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
 { const p = await open('gdmgr', { phone: false }); await p.waitForSelector('.tgrid'); await p.waitForSelector('.tour');
   const r = await walkAll(p, 'desktop, manager');
   ok('desktop, manager: the Keyboard step is there and mentions the keys', r.titles.includes('Keyboard'));
-  ok('desktop, manager: Department 8 (with the Keyboard step), Overtime 5, Users 5 (last, with the menu step)', r.pages.join() === '8,5,5', r.pages.join());
+  ok('desktop, manager: Department 8 (with the Keyboard step), Overtime 6, Users 6 (last, with the language and menu steps)', r.pages.join() === '8,6,6', r.pages.join());
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 // a super manager (desktop): Skip stops the whole tour and counts every screen as seen
@@ -178,14 +180,14 @@ const menuGuide = async (p) => { await p.click('.acct > summary'); await p.click
   await p.reload(); await p.waitForSelector('.tgrid'); await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day'); await p.waitForTimeout(1500);
   ok('desktop, super manager: Skip = seen: no tour after a reload, and none on the Overtime screen either', (await p.locator('.tour').count()) === 0);
   await menuGuide(p);
-  const r = await walkAll(p, 'desktop, super manager, from the menu'); ok('desktop, super manager: Overtime (no Scan step) 6 steps, the last screen', r.pages.join() === '6', r.pages.join());
+  const r = await walkAll(p, 'desktop, super manager, from the menu'); ok('desktop, super manager: Overtime (form step, no Scan step) 8 steps, the last screen', r.pages.join() === '8', r.pages.join());
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }
 // a super admin (desktop): Departments -> Department -> Overtime -> Users -> Super users
 { const p = await open('gdsa', { phone: false }); await p.waitForSelector('details.dept'); await p.waitForSelector('.tour');
   ok('desktop, super admin: the tour starts on Departments (Screen 1 of 5)', (await p.locator('.tour-screen').innerText()) === 'Screen 1 of 5' && /Departments/.test(await p.locator('.tour-title').innerText()));
   const r = await walkAll(p, 'desktop, super admin');
-  ok('desktop, super admin: Departments 5, Department 9 (with Keyboard), Overtime 6, Users 4, Super users 4', r.pages.join() === '5,9,6,4,4', r.pages.join());
+  ok('desktop, super admin: Departments 5, Department 9 (with Keyboard), Overtime 7, Users 4, Super users 5', r.pages.join() === '5,9,7,4,5', r.pages.join());
   ok('desktop, super admin: it ended back on Departments, where it started', /#\/departments/.test(p.url()));
   ok('no page errors', p.errs.length === 0, p.errs.join('|'));
   await p.context().close(); }

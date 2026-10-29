@@ -223,3 +223,45 @@ export async function printMonth({ dept, people, data, year, month, lang, employ
   await printFrame({ html: workbookToPrintHtml(wb) });
   return 'excel';
 }
+
+// ---------- the overtime form (one A4 portrait page per day; see overtime-form.js) ----------
+// days: ['YYYY-MM-DD', ...] that are looked at; overtime: Map `uid|day` -> { hours, note }; name: file name without the extension
+async function overtimeForms({ dept, people, overtime, days }) {
+  const form = await import('./overtime-form.js');
+  const forms = form.buildForms({ dept, people, overtime, days });
+  if (!forms.length) throw Object.assign(new Error('no overtime'), { code: 'NO_OVERTIME' });
+  return { form, forms };
+}
+
+export async function printOvertimeForm({ dept, people, overtime, days, title = 'Overtime' }) {
+  const { form, forms } = await overtimeForms({ dept, people, overtime, days });
+  await printFrame({ html: form.formsHtml(forms, { logos: await loadPdfLogos(officialTemplate), title }) });
+}
+
+// format: 'xlsx' | 'pdf'. The PDF is made from the same HTML pages (drawn off screen, then put on A4 pages as images): jsPDF cannot write Arabic text itself.
+export async function exportOvertimeForm({ dept, people, overtime, days, name, format = 'xlsx' }) {
+  const { form, forms } = await overtimeForms({ dept, people, overtime, days });
+  if (format === 'pdf') {
+    const [{ jsPDF }, html2canvas] = await Promise.all([import('jspdf'), import('html2canvas').then((m) => m.default)]);
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-10000px;top:0;width:840px;pointer-events:none';
+    host.innerHTML = `<style>.otf{--u:4px}${form.formCss('.otf')}</style><div class="otf">${form.formsBody(forms, { logos: await loadPdfLogos(officialTemplate) })}</div>`;
+    document.body.append(host);
+    try {
+      await document.fonts?.ready;
+      await Promise.all([...host.querySelectorAll('img')].map((i) => i.decode?.().catch(() => {})));
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+      const pages = [...host.querySelectorAll('.pg')];
+      for (let i = 0; i < pages.length; i++) {
+        const canvas = await html2canvas(pages[i], { scale: 2.5, backgroundColor: '#ffffff', logging: false });
+        if (i) doc.addPage('a4', 'portrait');
+        doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+      }
+      download(doc.output('blob'), `${name}.pdf`);
+    } finally { host.remove(); }
+    return;
+  }
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = await form.buildOvertimeWorkbook(forms, ExcelJS, { loadAsset: (u) => loadAsset(u) });
+  download(new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${name}.xlsx`);
+}

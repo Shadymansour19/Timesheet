@@ -1,4 +1,4 @@
-# Current state (2026-10-26)
+# Current state (2026-10-29)
 
 One page for a new maintainer: what exists today. WHY things are as they are: [SPEC.md](SPEC.md) (dated decisions).
 WHAT changed when: [CHANGELOG.md](CHANGELOG.md). HOW to work on it: [MAINTAINING.md](MAINTAINING.md). WHERE files are: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
@@ -21,6 +21,7 @@ GitHub deploys the front end; migrations and the Edge Function are applied by ha
 ## Main features
 - Day grid (month / week), tap / drag / keyboard filling, undo, bulk fill, holidays, departure (D) badge, live updates.
 - Overtime tab with day dialog; overtime from a scanned form (local OCR in the browser, editable preview, files / folders / drag and drop).
+- Overtime form (print / Excel / PDF of a day or of the month, upright A4, Arabic, same-note people share one work cell): `src/export/overtime-form.js`; its department texts are in Report settings.
 - Users tab: cards or table, sort and Excel-style filters per column, bulk add from Excel; first-run checklist for a new department.
 - Exports: official monthly report (Excel, PDF, print), per-person export, EMC overtime overview last.
 - Guided tour ("How to use the app") for every role on phones and desktops: it runs through all the tabs of the role in one go (Next: <tab>), starts by itself for a new account on its landing screen, replayable from the account menu.
@@ -29,12 +30,13 @@ GitHub deploys the front end; migrations and the Edge Function are applied by ha
 ## Data and rules in one paragraph
 Writes go only through `security definer` RPCs that check the caller's role (`app_role()`, `app_dept()`, `real_role()`); a manager
 counts as `admin` in `app_role()` but is refused by a trigger as the subject of timesheet rows; a super_manager has read policies only.
-Payroll number is required for users and admins (not for managers / super users); OPR is optional. 25 migrations in
-`supabase/migrations`; latest `20261026000025_update_super_user.sql`.
+Payroll number is required for users and admins (not for managers / super users); OPR is optional. 27 migrations in
+`supabase/migrations`; latest `20261029000027_overtime_form_settings.sql` (whitelists the overtime form keys of the department report; apply it before
+saving those settings).
 
 ## Tests (all in README; the browser ones need `npx vite preview --port 4173`)
-`npm run test:rls`, `test:e2e-users`, `test:i18n`, `test:export`, `test:export-official`, `test:export-pdf`, `test:ocr-parse`, and the
-browser suites `test:ui*` (admin-flows, team, live, theme, keyboard, bottom-nav, export, notify, ocr, super-manager, update, onboarding, ...).
+`npm run test:rls`, `test:e2e-users`, `test:i18n`, `test:export`, `test:export-official`, `test:export-pdf`, `test:ocr-parse`, `test:overtime-form`, and the
+browser suites `test:ui*` (admin-flows, team, live, theme, keyboard, bottom-nav, export, notify, ocr, overtime-form, super-manager, update, onboarding, ...).
 They run against the REAL project with their own prefixed fixtures: see "The database is the real one" in MAINTAINING.
 
 ## Known gaps / backlog
