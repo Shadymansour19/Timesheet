@@ -230,3 +230,4 @@ All answered 2026-10-19; see Decision log.
 - 2026-10-29 Overtime form title: the underline is a border under the title text (not a text decoration), so it sits below the Arabic letters in print and in the PDF; the title keeps a little more space under it.
 - 2026-10-29 Overtime form title underline moved up (user: too low): padding under the title text 1.2 -> 0.7 mm-units, line height 1.4.
 - 2026-10-29 Overtime form logos bigger (user): PDF / print 20 -> 26 mm-units tall (logo row 27), Excel 76 -> 100 px (row 80 pt); the page body is 5 units lower (about 9 ordinary rows per page).
+- 2026-10-29 Overtime form title underline moved up once more (user): line height 1.3, padding under the text 0.1.
