@@ -201,8 +201,7 @@ export function overtimeView() {
       h('div', { class: 'totals' },
         h('span', { class: 'chip ot' }, `${t('ot_total')}: ${sum}${t('hour_abbr')}`),
         h('span', { class: 'chip' }, `${totals.size} ${t('days_with_overtime')}`),
-        h('span', { class: 'chip' }, `${people_n} ${t('people')}`)),
-      h('p', { class: 'muted legend' }, t('ot_hint')));
+        h('span', { class: 'chip' }, `${people_n} ${t('people')}`)));
   }
 
   load();

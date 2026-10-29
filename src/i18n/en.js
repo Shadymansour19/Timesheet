@@ -242,7 +242,6 @@ export default {
   hide_password: "Hide password",
   legend_ot: "Overtime hours appear in amber.",
   nav_overtime: "Overtime",
-  ot_hint: "Tap a day to enter overtime for all employees.",
   search_people: "Search name or OPR",
   only_with_overtime: "Only with overtime",
   ot_total: "Total",

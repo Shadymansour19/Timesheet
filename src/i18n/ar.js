@@ -242,7 +242,6 @@ export default {
   hide_password: "إخفاء كلمة المرور",
   legend_ot: "الساعات الإضافية تظهر باللون الأصفر.",
   nav_overtime: "الإضافي",
-  ot_hint: "اضغط على يوم لإدخال الساعات الإضافية لكل الموظفين.",
   search_people: "بحث بالاسم أو الرمز",
   only_with_overtime: "من لديهم إضافي فقط",
   ot_total: "الإجمالي",

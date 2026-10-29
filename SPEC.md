@@ -236,3 +236,4 @@ All answered 2026-10-19; see Decision log.
 - 2026-10-29 Overtime form buttons carry a tooltip: the exported PDF is a picture (no selectable text, jsPDF cannot write Arabic); Print > Save as PDF gives selectable text.
 - 2026-10-29 The selectable-text hint under the overtime form buttons is visible text (a native tooltip did not show for the user); the tooltips stay.
 - 2026-10-29 Toolbars (user): Overtime tab = print ICON, one download ICON whose small menu holds Excel and PDF (with the note that the PDF is a picture), and Scan (scan icon + the word Scan); all on ONE line, also on a phone. Department tab = print ICON and download (export) ICON, the export dialog is unchanged. The labelled Print / Excel / PDF buttons stay in the overtime DAY window. Test hooks: #team-print, #team-export, #ot-print, #ot-export (menu: #ot-xlsx, #ot-pdf).
+- 2026-10-29 Overtime tab: the line "Tap a day to enter overtime for all employees." is removed (the guide still explains it).
