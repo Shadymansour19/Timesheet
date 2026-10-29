@@ -45,16 +45,21 @@ async function login(un, { stubPrint = false, w = 1280 } = {}) {
   return p;
 }
 const download = async (p, click) => { const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 60000 }), click()]); const f = `${S}/${dl.suggestedFilename()}`; await dl.saveAs(f); return { f, name: dl.suggestedFilename() }; };
+const viaMenu = (pg, fmt) => async () => { await pg.click('#ot-export'); await pg.click('#ot-' + fmt); };      // the tab: the download icon opens a menu with Excel and PDF
 const pdfInfo = (f) => execFileSync('pdfinfo', [f]).toString();
 const dark = (png) => +execFileSync('python3', ['-I', '-c', `from PIL import Image; import numpy as np; a = np.asarray(Image.open('${png}').convert('L')); print(int((a < 100).sum()))`]).toString().trim();
 
 const p = await login('otfadm', { stubPrint: true });
 await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day');
-ok('Overtime tab: the form group has Print, Excel and PDF', (await p.locator('.cal-tools .ot-form-tools button').allTextContents()).join('|') === 'Print|Excel|PDF');
+ok('Overtime tab: ONE line of three buttons: a print icon, a download icon and Scan (icon + word)', (await p.locator('.cal-tools > .ot-form-tools > button, .cal-tools > .ot-form-tools > .ot-export > button, .cal-tools > #scan-open').evaluateAll((els) => els.map((e) => (e.getAttribute('aria-label') || '') + '/' + e.textContent.trim()))).join('|') === 'Print/|Export/|Scan overtime forms/Scan');
+{ const bx = await p.locator('.cal-tools').evaluate((el) => [...el.querySelectorAll('#ot-print, #ot-export, #scan-open')].map((e) => Math.round(e.getBoundingClientRect().top)));
+  ok('...all on the same line', bx.length === 3 && Math.max(...bx) - Math.min(...bx) < 4, bx.join()); }
+ok('the Excel / PDF menu is closed at first; the download icon opens it with Excel, PDF and the note that the PDF is a picture', await p.locator('#ot-xlsx').isHidden() && (await (async () => { await p.click('#ot-export'); return (await p.locator('.ot-export-menu button').allTextContents()).join('|') === 'Excel|PDF' && (await p.locator('.ot-export-menu .ot-form-hint').isVisible()) && (await p.locator('#ot-export').getAttribute('aria-expanded')) === 'true'; })()));
+await p.keyboard.press('Escape'); ok('Escape closes the menu', await p.locator('#ot-xlsx').isHidden());
 ok('the buttons are named by the group "Overtime form"', (await p.locator('.cal-tools .ot-form-tools').getAttribute('aria-label')) === 'Overtime form');
 
 // ---- the whole month as Excel
-const x = await download(p, () => p.click('#ot-xlsx'));
+const x = await download(p, viaMenu(p, 'xlsx'));
 ok('month Excel: file name has the department and the month', x.name === `overtime_OTF_Dept_${month}.xlsx`, x.name);
 const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(x.f);
 ok('month Excel: one sheet per day with overtime (4th and 5th)', wb.worksheets.length === 2 && wb.worksheets[0].name.startsWith('04-') && wb.worksheets[1].name.startsWith('05-'), wb.worksheets.map((w) => w.name).join());
@@ -69,7 +74,7 @@ ok('month Excel: sign-off titles are built from the sector (left: GM) and the de
 ok('month Excel: the DB date is the sheet date', String(ws.getCell('A5').value).includes(`${dstr(4).slice(8)}/${month.slice(5)}/${month.slice(0, 4)}`), String(ws.getCell('A5').value));
 
 // ---- the whole month as PDF
-const pd = await download(p, () => p.click('#ot-pdf'));
+const pd = await download(p, viaMenu(p, 'pdf'));
 const info = pdfInfo(pd.f);
 ok('month PDF: file name', pd.name === `overtime_OTF_Dept_${month}.pdf`, pd.name);
 ok('month PDF: 2 pages (one per day), A4 landscape', /Pages:\s+2/.test(info) && /Page size:\s+841\.\d+ x 595\.\d+ pts/.test(info), info.match(/Pages.*|Page size.*/g)?.join(' / '));
@@ -116,7 +121,7 @@ await p.locator('.cal-head button').first().click(); await p.waitForSelector('.o
 await p.waitForFunction(() => !document.querySelector('.cal-head')?.textContent.includes('Loading'));
 await p.locator('.toast').first().waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
 let got2 = 0; p.on('download', () => { got2++; });
-await p.click('#ot-xlsx');
+await viaMenu(p, 'xlsx')();
 ok('a month without overtime: "No overtime to put on the form", no file', await eventually(async () => (await p.locator('.toast').allTextContents()).join('').includes('No overtime to put on the form')) && got2 === 0);
 await p.screenshot({ path: `${S}/otf-tab.png` });
 await p.context().close();
@@ -126,7 +131,7 @@ await p.context().close();
   const box = await ph.locator('.cal-tools').boundingBox();
   ok('phone: the toolbar stays inside the screen (wraps)', box && box.x >= 0 && box.x + box.width <= 391, JSON.stringify(box));
   await ph.click('.topbar .lang-btn'); await ph.waitForSelector('html[lang=ar]');
-  ok('Arabic UI: the group is named "نموذج الإضافي" and the buttons are Print / Excel / PDF in Arabic', (await ph.locator('.cal-tools .ot-form-tools').getAttribute('aria-label')) === 'نموذج الإضافي' && (await ph.locator('#ot-print').textContent()) === 'طباعة');
+  ok('Arabic UI: the group is named "نموذج الإضافي" and the buttons are Print / Excel / PDF in Arabic', (await ph.locator('.cal-tools .ot-form-tools').getAttribute('aria-label')) === 'نموذج الإضافي' && (await ph.locator('#ot-print').getAttribute('aria-label')) === 'طباعة' && (await ph.locator('#scan-open').textContent()).includes('مسح'));
   await ph.screenshot({ path: `${S}/otf-phone-ar.png` }); await ph.context().close(); }
 
 // ---- the read-only super manager can print and export too
@@ -136,7 +141,7 @@ await p.context().close();
   await sm.waitForFunction(() => document.querySelector('.dept-switch')?.textContent.includes('OTF Dept'), null, { timeout: 20000 });
   await sm.waitForSelector('.ot-day', { timeout: 20000 });
   ok('super manager (view only): the form buttons are there, the scan button is not', (await sm.locator('#ot-xlsx').count()) === 1 && (await sm.locator('#scan-open').count()) === 0);
-  const sx = await download(sm, () => sm.click('#ot-xlsx')); const sw1 = new ExcelJS.Workbook(); await sw1.xlsx.readFile(sx.f);
+  const sx = await download(sm, viaMenu(sm, 'xlsx')); const sw1 = new ExcelJS.Workbook(); await sw1.xlsx.readFile(sx.f);
   ok('super manager: the month Excel has the department\'s forms', sw1.worksheets.length === 2);
   await sm.context().close(); }
 
@@ -158,7 +163,7 @@ await p.context().close();
   await dlgOf().getByLabel('Signature title on the left').fill('توقيع مخصص'); await dlgOf().locator('button.primary').click(); await ed.waitForSelector('dialog[open]', { state: 'detached' });
   ok('...saved in the database (name_ar, sector_ar); the English sector is unchanged', await eventually(() => db(`select name_ar||'|'||sector_ar||'|'||sector from public.departments where id='${DA}'`) === 'التوربينات|الصيانة|Maintenance' && db(`select report->>'ot_sign_left' from public.departments where id='${DA}'`) === 'توقيع مخصص'));
   await ed.click('.nav a:has(.lbl:text-is("Overtime"))'); await ed.waitForSelector('.ot-day');
-  const x3 = await download(ed, () => ed.click('#ot-xlsx')); const w3 = new ExcelJS.Workbook(); await w3.xlsx.readFile(x3.f); const s3 = w3.worksheets[0];
+  const x3 = await download(ed, viaMenu(ed, 'xlsx')); const w3 = new ExcelJS.Workbook(); await w3.xlsx.readFile(x3.f); const s3 = w3.worksheets[0];
   const sr = s3.rowCount;
   ok('the next form uses them: "الصيانة / التوربينات", the given left title, the DEFAULT right title "مدير عام مساعد التوربينات", the new Arabic name', String(s3.getCell('A4').value).endsWith('الصيانة / التوربينات') && s3.getCell(`B${sr}`).value === 'توقيع مخصص' && s3.getCell(`E${sr}`).value === 'مدير عام مساعد التوربينات' && s3.getCell('E10').value === 'مستخدم ثلاثة', String(s3.getCell('A4').value));
   await ed.context().close(); }

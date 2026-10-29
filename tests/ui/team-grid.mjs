@@ -283,7 +283,7 @@ await p.locator('.team-row > .seg button:text-is("Week")').click(); await p.wait
 ok('switching back to Week works', (await p.locator('th.dh').count()) === 7);
 
 // ---- export asks for a month, independent of the view
-const [dl] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]'); await p.locator('dialog[open] button.primary').click(); })()]);
+const [dl] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('#team-export'); await p.waitForSelector('dialog[open]'); await p.locator('dialog[open] button.primary').click(); })()]);
 const cur = T.slice(0, 7);
 ok('export (opened from Week view) defaults to the current month', dl.suggestedFilename() === `timesheet_TG_Operations_${cur}.xlsx`, dl.suggestedFilename());
 await dl.saveAs(S + '/tg-export.xlsx');
@@ -292,7 +292,7 @@ let r1 = -1; for (let r = 6; r < 40; r++) if (ws.getCell(r, 2).value === 'TG Use
 ok('exported file has all 26 TG employees and none from the other department', (() => { let n = 0, other = 0; for (let r = 6; r < 40; r++) { const v = ws.getCell(r, 2).value; if (typeof v === 'string' && v.startsWith('TG User') || v === 'TG Admin') n++; if (v === 'TG Other Dept Person') other++; } return n === 26 && other === 0; })());
 const wsToday = wb2.getWorksheet(String(Number(T.slice(8)))); let rT = -1; for (let r = 9; r < 40; r++) if (wsToday.getCell(r, 2).value === 'TG User 01') rT = r;
 ok('exported day sheet for today: user 01 has status X', rT > 0 && wsToday.getCell(rT, 6).value === 'X');
-const [dl2] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]'); await p.locator('dialog[open] input[type=month]').fill('2030-02'); await p.locator('dialog[open] button.primary').click(); })()]);
+const [dl2] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('#team-export'); await p.waitForSelector('dialog[open]'); await p.locator('dialog[open] input[type=month]').fill('2030-02'); await p.locator('dialog[open] button.primary').click(); })()]);
 ok('export for a chosen month (2030-02) names the file accordingly', dl2.suggestedFilename() === 'timesheet_TG_Operations_2030-02.xlsx', dl2.suggestedFilename());
 
 // ---- Arabic

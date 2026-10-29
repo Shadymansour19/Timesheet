@@ -6,6 +6,7 @@ import { WEEK_START } from '../lib/core.js';
 import { fetchTimesheetPeople, setOvertimeBulk, fetchDepartment } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
+import { icon, PRINT, DOWNLOAD, SCAN } from '../components/icons.js';
 import { toast } from '../components/toast.js';
 import * as live from '../live.js';
 import { sameData } from '../lib/core.js';
@@ -70,11 +71,31 @@ export function overtimeView() {
     }
   }
   // Print / Excel / PDF buttons; `get()` -> { overtime, days, stem } or null (nothing to do, it has told the user why)
-  const formTools = (prefix, get) => h('div', { class: 'ot-form-tools', role: 'group', 'aria-label': t('ot_form') },
-    h('span', { class: 'muted' }, t('ot_form')),
-    [['print', t('print'), t('ot_print_hint')], ['xlsx', t('export_fmt_xlsx_one')], ['pdf', t('export_fmt_pdf_one'), t('ot_pdf_hint')]].map(([kind, label, hint]) => h('button', { type: 'button', class: 'btn small', id: `${prefix}-${kind}`, ...(hint ? { title: hint } : {}),
-      onclick: async (e) => { const b = e.currentTarget, a = get(); if (!a) return; b.disabled = true; try { await makeForm(kind, a); } finally { b.disabled = false; } } }, label)),
-    h('small', { class: 'muted ot-form-hint' }, t('ot_pdf_hint')));          // visible, not only a tooltip: tooltips are slow, and missing on touch screens
+  // compact (the tab): a print icon and ONE download icon whose menu holds Excel and PDF (with the note that the PDF is a picture); otherwise (the day window): labelled buttons
+  const formTools = (prefix, get, { compact = false } = {}) => {
+    const run = async (b, kind) => { const a = get(); if (!a) return; b.disabled = true; try { await makeForm(kind, a); } finally { b.disabled = false; } };
+    if (!compact) {
+      return h('div', { class: 'ot-form-tools', role: 'group', 'aria-label': t('ot_form') },
+        h('span', { class: 'muted' }, t('ot_form')),
+        [['print', t('print'), t('ot_print_hint')], ['xlsx', t('export_fmt_xlsx_one')], ['pdf', t('export_fmt_pdf_one'), t('ot_pdf_hint')]].map(([kind, label, hint]) => h('button', { type: 'button', class: 'btn small', id: `${prefix}-${kind}`, ...(hint ? { title: hint } : {}),
+          onclick: (e) => run(e.currentTarget, kind) }, label)),
+        h('small', { class: 'muted ot-form-hint' }, t('ot_pdf_hint')));          // visible, not only a tooltip: tooltips are slow, and missing on touch screens
+    }
+    const toggle = h('button', { type: 'button', class: 'btn small icon-only', id: `${prefix}-export`, 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': t('export'), title: t('export') }, icon(DOWNLOAD, 18));
+    const menu = h('div', { class: 'ot-export-menu', role: 'menu', hidden: true },
+      [['xlsx', t('export_fmt_xlsx_one')], ['pdf', t('export_fmt_pdf_one')]].map(([kind, label]) => h('button', { type: 'button', class: 'menu-item', role: 'menuitem', id: `${prefix}-${kind}`, onclick: (e) => { close(); run(e.currentTarget, kind); } }, label)),
+      h('small', { class: 'muted ot-form-hint' }, t('ot_pdf_hint')));
+    const outside = (e) => { if (!wrap.contains(e.target)) close(); }, esc = (e) => { if (e.key === 'Escape') { close(); toggle.focus(); } };
+    function close() { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', esc); }
+    toggle.addEventListener('click', () => {
+      if (!menu.hidden) return close();
+      menu.hidden = false; toggle.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', outside, true); document.addEventListener('keydown', esc);
+    });
+    const wrap = h('div', { class: 'ot-export' }, toggle, menu);
+    return h('div', { class: 'ot-form-tools', role: 'group', 'aria-label': t('ot_form') },
+      h('button', { type: 'button', class: 'btn small icon-only', id: `${prefix}-print`, 'aria-label': t('print'), title: `${t('print')}: ${t('ot_print_hint')}`, onclick: (e) => run(e.currentTarget, 'print') }, icon(PRINT, 18)),
+      wrap);
+  };
 
   function openDay(day) {
     const parse = (r) => { const raw = r.hours.value.trim(); if (raw === '') return 0; const n = Number(raw); return Number.isInteger(n) && n >= 0 && n <= 24 ? n : null; };
@@ -174,8 +195,8 @@ export function overtimeView() {
     root.replaceChildren(
       monthHead(fmt({ month: 'long', year: 'numeric' }, first), { onPrev: () => go(-1), onNext: () => go(1), onToday: () => { goToday(); load(); } }),
       h('div', { class: 'cal-tools' },
-        formTools('ot', () => ({ overtime: data.overtime, days: Array.from({ length: daysIn(cursor.y, cursor.m) }, (_, i) => ymd(cursor.y, cursor.m, i + 1)), stem: ymd(cursor.y, cursor.m, 1).slice(0, 7) })),
-        RO ? null : h('button', { type: 'button', class: 'btn small', id: 'scan-open', onclick: () => import('../components/overtime-scan.js').then((m) => m.openOvertimeScan({ people, onSaved: () => load() })) }, t('scan_open'))),
+        formTools('ot', () => ({ overtime: data.overtime, days: Array.from({ length: daysIn(cursor.y, cursor.m) }, (_, i) => ymd(cursor.y, cursor.m, i + 1)), stem: ymd(cursor.y, cursor.m, 1).slice(0, 7) }), { compact: true }),
+        RO ? null : h('button', { type: 'button', class: 'btn small', id: 'scan-open', 'aria-label': t('scan_open'), title: t('scan_open'), onclick: () => import('../components/overtime-scan.js').then((m) => m.openOvertimeScan({ people, onSaved: () => load() })) }, icon(SCAN, 16), t('scan_short'))),
       h('div', { class: 'grid' }, weekdays, cells),
       h('div', { class: 'totals' },
         h('span', { class: 'chip ot' }, `${t('ot_total')}: ${sum}${t('hour_abbr')}`),

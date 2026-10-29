@@ -106,7 +106,7 @@ ok('other department data untouched', db(`select status||'|'||(select hours from
 
 // export (real download, parsed back)
 await p.locator(`th.dh[data-d="${dstr(5)}"]`).click(); await settle(p);
-const [dl] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]'); await dlg(p).locator('input[type=radio][value="simple"]').check(); await dlg(p).locator('button.primary').click(); })()]);
+const [dl] = await Promise.all([p.waitForEvent('download'), (async () => { await p.click('#team-export'); await p.waitForSelector('dialog[open]'); await dlg(p).locator('input[type=radio][value="simple"]').check(); await dlg(p).locator('button.primary').click(); })()]);
 const file = S + '/export.xlsx'; await dl.saveAs(file);
 ok('download filename', dl.suggestedFilename() === `timesheet_UI_Dept_A_${month}.xlsx`, dl.suggestedFilename());
 const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(file); const ws = wb.worksheets[0];

@@ -389,6 +389,7 @@ export default {
   notify_body: "{n} change(s) - click to open",
   notify_denied: "Notifications are blocked for this app in the browser / system settings.",
   scan_open: "Scan overtime forms",
+  scan_short: "Scan",
   ot_form: "Overtime form",
   ot_print_hint: "Print, then choose \"Save as PDF\": the text in that PDF can be selected.",
   ot_pdf_hint: "This PDF is a picture, so its text can't be selected. For selectable text, use Print and save as PDF.",

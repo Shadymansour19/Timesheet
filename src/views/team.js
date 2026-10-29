@@ -504,8 +504,8 @@ export function teamView() {
         h('div', { class: 'team-row tools' },
           ...(RO ? [] : [h('button', { type: 'button', class: 'btn small', onclick: openBulk }, t('bulk_fill')), el.undo]),
           h('button', { type: 'button', class: 'btn small icon-only', onclick: () => load({ quiet: false, withPeople: true }), 'aria-label': t('refresh'), title: t('refresh') }, icon(REFRESH, 18)),
-          h('button', { type: 'button', class: 'btn small', onclick: printGrid }, icon(PRINT, 16), t('print')),
-          h('button', { type: 'button', class: 'btn small primary', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),
+          h('button', { type: 'button', class: 'btn small icon-only', id: 'team-print', onclick: printGrid, 'aria-label': t('print'), title: t('print') }, icon(PRINT, 18)),
+          h('button', { type: 'button', class: 'btn small primary icon-only', id: 'team-export', onclick: openExport, 'aria-label': t('export'), title: t('export') }, icon(DOWNLOAD, 18)),
           RO ? null : h('button', { type: 'button', class: 'btn small', onclick: () => openReportSettings({ dept, onSaved: () => renderTop() }) }, t('report_settings')),
           h('button', { type: 'button', class: 'btn small icon-only', onclick: openInfo, 'aria-label': t('info_title'), title: t('info_title') }, icon(INFO, 18)))),
       el.wrap, el.empty, legend, el.announce);

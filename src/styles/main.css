@@ -292,6 +292,11 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .ot-form-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .dlg .ot-form-tools { margin-block-start: 10px; }
 .ot-form-hint { flex-basis: 100%; font-size: .78rem; line-height: 1.35; }
+.ot-export { position: relative; }
+.ot-export-menu { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-start: 0; z-index: 30; min-width: 200px; padding: 4px; display: grid; gap: 2px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.ot-export-menu[hidden] { display: none; }
+.ot-export-menu .ot-form-hint { padding: 4px 8px 6px; }
+.ot-view .cal-tools { flex-wrap: nowrap; }       /* print, download and scan stay on one line, also on a phone */
 .empty { text-align: center; max-width: none; margin-block: 12px; display: grid; gap: 8px; justify-items: center; }
 .empty[hidden] { display: none; }
 

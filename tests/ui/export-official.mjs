@@ -52,7 +52,7 @@ async function login(un, w = 1280) {
   return p;
 }
 async function doExport(p, { format, monthValue } = {}) {
-  await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
+  await p.click('#team-export'); await p.waitForSelector('dialog[open]');
   if (format) await dlg(p).locator(`input[type=radio][value="${format}"]`).check();
   if (monthValue) await dlg(p).locator('input[type=month]').fill(monthValue);
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
@@ -92,7 +92,7 @@ ok('residence edit is saved', await eventually(() => sql(`select residence from 
 
 // ---- B. report settings
 await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr');
-await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
+await p.click('#team-export'); await p.waitForSelector('dialog[open]');
 ok('export dialog: modern radio cards (no native dropdown), official Excel default, PDF and simple grid alternatives, no Report settings button', (await dlg(p).locator('select').count()) === 0 && (await dlg(p).locator('input[type=radio]:checked').getAttribute('value')) === 'official' && (await dlg(p).locator('input[type=radio]').count()) === 3 && (await dlg(p).locator('button:text-is("Report settings")').count()) === 0);
 ok('department data missing -> a notice lists what is missing (defaults are used)', (await dlg(p).locator('.notice').textContent()).includes('Department code'));
 await p.keyboard.press('Escape');
@@ -105,7 +105,7 @@ ok('a DEPARTMENT ADMIN edits the department data himself (same dialog as the sup
 sql(`update public.profiles set work_location='IDKU Site' where opr='XOT-901'`);
 sql(`update public.profiles set position='Engineer' where opr in ('XOT-901','XOT-902'); update public.profiles set position='Tech' where opr='XOT-903'`);
 await p.reload(); await p.waitForSelector('.tgrid tbody tr');
-await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
+await p.click('#team-export'); await p.waitForSelector('dialog[open]');
 ok('with the department data filled in, the notice is gone', (await dlg(p).locator('.notice').count()) === 0);
 await p.keyboard.press('Escape');
 ok('the other department is unaffected', sql(`select report::text from public.departments where name='XO Beta'`) === '{}');
@@ -147,7 +147,7 @@ ok('review sheet: engineer days (SUMIF by position) = 3 + 1 = 4', res(rv.getCell
   ok('an isolated work day: Arrival on it and Departure on the FIRST REST DAY after it (1 trip each, TRANS/IN as residence is unspecified)', row && Number(d5.getCell(row, 8).value) === 1 && /Arrival/.test(d5.getCell(row, 11).value) && !/Departure/.test(d5.getCell(row, 11).value) && Number(d6.getCell(row, 8).value) === 1 && /Departure/.test(d6.getCell(row, 11).value), row && `${d5.getCell(row, 8).value} ${d5.getCell(row, 11).value} / ${d6.getCell(row, 8).value} ${d6.getCell(row, 11).value}`); }
 
 // ---- C3. PDF
-{ await p.click('button:text-is("Export")'); await p.waitForSelector('dialog[open]');
+{ await p.click('#team-export'); await p.waitForSelector('dialog[open]');
   await dlg(p).locator('input[type=radio][value="pdf"]').check();
   const [dlp] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
   await dlp.saveAs(S + '/xo.pdf');
@@ -167,7 +167,7 @@ ok('another month (Feb 2030, 28 days): 28 day sheets, the employees, Review; fil
 
 // ---- F. Arabic UI, English workbook
 await p.click('text=العربية'); await p.waitForSelector('.tgrid tbody tr');
-await p.click('button:text-is("تصدير")'); await p.waitForSelector('dialog[open]');
+await p.click('#team-export'); await p.waitForSelector('dialog[open]');
 ok('Arabic UI: the export dialog is in Arabic', (await dlg(p).textContent()).includes('التقرير الشهري الرسمي') && (await dlg(p).locator('input[type=radio]').count()) === 3);
 await p.screenshot({ path: S + '/xo-dialog-ar.png' });
 const [dla] = await Promise.all([p.waitForEvent('download', { timeout: 120000 }), dlg(p).locator('button.primary').click()]);
@@ -379,22 +379,22 @@ await big.context().close();
   }, mode);
   const mkCtx = async (mode, w = 1280) => { const ctx = await b.newContext({ viewport: { width: w, height: 900 }, acceptDownloads: true }); await stub(ctx, mode); const pg = await ctx.newPage(); pg.errs = []; pg.on('pageerror', (e) => pg.errs.push(e.message)); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); return pg; };
   const pr = await mkCtx('ok'); await pr.goto(BASE + '/#/team'); await pr.waitForSelector('.tgrid tbody tr');
-  await pr.click('button:text-is("Print")');
+  await pr.click('#team-print');
   let dlp = 0; pr.on('download', () => { dlp++; });
-  await pr.click('button:text-is("Print")');
+  await pr.click('#team-print');
   ok('department Print: the report mixes portrait and landscape pages, so the PDF is sent to print() from a hidden frame (blob), no download', await eventually(async () => (await pr.evaluate(() => window.__printed || 0)) === 1) && (await pr.evaluate(() => window.__printedSrc || '')).startsWith('blob:') && dlp === 0);
   await pr.context().close();
   // PDF cannot be made (the PDF library is blocked) -> the EXCEL version is printed from an in-memory HTML page, nothing downloaded
   const mkCtxNoPdf = async () => { const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true }); await stub(ctx, 'ok'); await ctx.route(/jspdf/, (r) => r.abort()); const pg = await ctx.newPage(); await pg.goto(BASE + '/'); await pg.fill('#username', 'xoadm'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.topbar'); return pg; };
   const pe = await mkCtxNoPdf(); await pe.goto(BASE + '/#/team'); await pe.waitForSelector('.tgrid tbody tr');
   let dls = 0; pe.on('download', () => { dls++; });
-  await pe.click('button:text-is("Print")');
+  await pe.click('#team-print');
   ok('PDF fails -> the Excel version is sent to print (A4 HTML with the day sheets, review and overtime), no download', await eventually(async () => (await pe.evaluate(() => window.__printed || 0)) === 1) && (await pe.evaluate(() => window.__printedDoc)).includes('Daily Attendance Sheet') && (await pe.evaluate(() => window.__printedDoc)).includes('Monthly Attendance Sheet Review') && (await pe.evaluate(() => window.__printedDoc)).includes('@page') && dls === 0);
   await pe.context().close();
   // everything fails (printing itself throws) -> only an error message, nothing downloaded
   const pf = await mkCtx('fail'); await pf.goto(BASE + '/#/team'); await pf.waitForSelector('.tgrid tbody tr');
   let dlf = 0; pf.on('download', () => { dlf++; });
-  await pf.click('button:text-is("Print")');
+  await pf.click('#team-print');
   ok('PDF and Excel printing both fail -> an error message, nothing exported', await eventually(async () => (await pf.locator('.toast').allTextContents()).join('').includes('Printing failed')) && dlf === 0);
   await pf.context().close();
   const pu = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); await stub(pu, 'ok'); const up = await pu.newPage();
