@@ -93,7 +93,7 @@ ${root} .pg:last-child { page-break-after: auto; break-after: auto; }
 ${root} .logos { display: flex; justify-content: space-between; align-items: center; height: ${m(22)}; }
 ${root} .logos img { height: ${m(20)}; width: auto; max-width: ${m(60)}; object-fit: contain; }
 ${root} .ttl { text-align: center; font-weight: 700; font-size: ${m(5.3)}; margin: ${m(3)} 0 ${m(5)}; }
-${root} .ttl span { display: inline-block; line-height: 1.5; padding-bottom: ${m(1.2)}; border-bottom: ${m(0.5)} solid #000; }   /* a border, not text-decoration: it sits below the descenders in print and in the PDF (html2canvas) alike */
+${root} .ttl span { display: inline-block; line-height: 1.4; padding-bottom: ${m(0.7)}; border-bottom: ${m(0.5)} solid #000; }   /* a border, not text-decoration: it sits below the descenders in print and in the PDF (html2canvas) alike */
 ${root} .meta { font-size: ${m(4.2)}; font-weight: 700; margin: ${m(1.5)} 0; display: flex; gap: ${m(14)}; }
 ${root} table { width: 100%; border-collapse: collapse; margin-top: ${m(4)}; font-size: ${m(4)}; table-layout: fixed; }
 ${root} th, ${root} td { border: ${m(0.3)} solid #000; padding: ${m(1.6)} ${m(1.5)}; text-align: center; vertical-align: middle; word-wrap: break-word; overflow-wrap: anywhere; height: ${m(8.2)}; }
