@@ -1,5 +1,5 @@
 // The overtime form (src/export/overtime-form.js): the grouping of same notes into one "work required" cell, hours per employee, pages, the printable HTML (Chromium prints it
-// upright on A4, one sheet per page, whatever the margins) and the Excel workbook (read back with ExcelJS). Needs Chromium (playwright) and pdfinfo / pdftotext (poppler).
+// as an A4 landscape sheet like the company's sample, one sheet per page, whatever the margins) and the Excel workbook (read back with ExcelJS). Needs Chromium (playwright) and pdfinfo / pdftotext (poppler).
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -57,9 +57,9 @@ ok('no Arabic department falls back to its name, no Arabic sector to "الصيا
 const many = Array.from({ length: 45 }, (_, i) => ({ id: 'q' + i, full_name: 'Person ' + i, payroll: 'E' + i }));
 const otMany = new Map(many.map((p, i) => [`${p.id}|${D1}`, { hours: 1, note: i < 30 ? 'same' : 'n' + i }]));
 const pages = buildForms({ dept, people: many, overtime: otMany, days: [D1] });
-ok('many rows: several pages, numbering goes on, every page says "page n of m"', pages.length === 3 && pages[1].rows[0].no === pages[0].rows.length + 1 && pages.every((p, i) => p.part === i + 1 && p.parts === 3));
+ok('many rows: several pages, numbering goes on, every page says "page n of m"', pages.length >= 4 && pages[1].rows[0].no === pages[0].rows.length + 1 && pages.every((p, i) => p.part === i + 1 && p.parts === pages.length));
 ok('a group longer than a page is split, the note is repeated at the top of each part', pages[0].rows[0].note === 'same' && pages[1].rows[0].note === 'same' && pages[0].rows[0].span === pages[0].rows.length);
-ok('no page is longer than 20 rows and all 45 people are on some page', pages.every((p) => p.rows.length <= 20) && pages.reduce((a, p) => a + p.rows.length, 0) === 45);
+ok('no page is longer than 12 rows (the landscape page is low) and all 45 people are on some page', pages.every((p) => p.rows.length <= 12) && pages.reduce((a, p) => a + p.rows.length, 0) === 45);
 const small = buildForms({ dept, people: many, overtime: new Map(many.slice(0, 5).map((p) => [`${p.id}|${D1}`, { hours: 1, note: 'together' }])), days: [D1] });
 ok('a group that fits is kept together on one page', small.length === 1 && small[0].rows[0].span === 5);
 const long = buildForms({ dept, people: many.slice(0, 40), overtime: new Map(many.slice(0, 40).map((p, i) => [`${p.id}|${D1}`, { hours: 1, note: i >= 14 && i < 24 ? 'a' : 'b' + i }])), days: [D1] });
@@ -67,7 +67,7 @@ ok('a group that does not fit the rest of a page moves to the next page whole', 
 
 // ---------- the printable HTML: Chromium prints it as upright A4 pages ----------
 const html = formsHtml(forms, { logos, title: 'Turbo 2026-10' });
-ok('A4 portrait is asked for (the form is never rotated)', /@page \{ size: A4 portrait; margin: 0 \}/.test(html) && !/landscape/.test(html));
+ok('A4 landscape is asked for (as in the sample)', /@page \{ size: A4 landscape; margin: 0 \}/.test(html) && !/portrait/.test(html));
 ok('right-to-left Arabic page, two logos embedded', /dir="rtl"/.test(html) && (html.match(/data:image\/png;base64/g) || []).length === forms.length * 2);
 ok('the work cell of a group is one cell with a rowspan', (html.match(/rowspan="3"/g) || []).length === 1 && (html.match(/rowspan="2"/g) || []).length === 1 && (html.match(/Invistigation/g) || []).length === 1);
 ok('no blank trailing page rule: the last page does not force a break', /\.pg:last-child \{[^}]*break-after: auto/.test(html));
@@ -80,7 +80,7 @@ for (const [label, o] of [['A4, no margins', { format: 'A4', margin: { top: '0',
 }
 const f = join(dir, 'a4.pdf'); await p.pdf({ path: f, preferCSSPageSize: true, printBackground: true });
 const info = execFileSync('pdfinfo', [f]).toString();
-ok('the printed file is A4 portrait (594.96 x 841.92 pt)', /Page size:\s+594\.9\d x 841\.9\d pts/.test(info), info.match(/Page size.*/)?.[0]);
+ok('the printed file is A4 landscape (841.92 x 594.96 pt)', /Page size:\s+841\.9\d x 594\.9\d pts/.test(info), info.match(/Page size.*/)?.[0]);
 const text = (n) => execFileSync('pdftotext', ['-f', String(n), '-l', String(n), '-layout', f, '-']).toString().normalize('NFKC');
 const squash = (x) => x.replace(/[\s\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '');
 const has = (txt, word) => squash(txt).includes(word) || squash(txt).includes([...word].reverse().join(''));         // poppler hands Arabic back with gaps between letters, maybe in visual order
@@ -99,7 +99,7 @@ const wb = await buildOvertimeWorkbook(forms, ExcelJS, { loadAsset: async (u) =>
 const back = new ExcelJS.Workbook(); await back.xlsx.load(await wb.xlsx.writeBuffer());
 ok('one sheet per form, named by the day', back.worksheets.map((w) => w.name).join() === '22-Oct,23-Oct');
 const ws = back.worksheets[0];
-ok('right-to-left sheet, A4 portrait, one page wide', ws.views[0].rightToLeft === true && ws.pageSetup.orientation === 'portrait' && ws.pageSetup.paperSize === 9 && ws.pageSetup.fitToWidth === 1);
+ok('right-to-left sheet, A4 landscape, one page wide', ws.views[0].rightToLeft === true && ws.pageSetup.orientation === 'landscape' && ws.pageSetup.paperSize === 9 && ws.pageSetup.fitToWidth === 1);
 ok('both logos are placed', ws.getImages().length === 2);
 ok('the table head is the five columns of the form', [1, 2, 3, 4, 5].map((c) => ws.getCell(7, c).value).join() === TEXT.cols.join());
 ok('the title and the day are written', ws.getCell(2, 1).value === TEXT.title && ws.getCell(5, 1).value.includes('22/10/2026'));

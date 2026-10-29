@@ -21,7 +21,7 @@ GitHub deploys the front end; migrations and the Edge Function are applied by ha
 ## Main features
 - Day grid (month / week), tap / drag / keyboard filling, undo, bulk fill, holidays, departure (D) badge, live updates.
 - Overtime tab with day dialog; overtime from a scanned form (local OCR in the browser, editable preview, files / folders / drag and drop).
-- Overtime form (print / Excel / PDF of a day or of the month, upright A4, Arabic, same-note people share one work cell): `src/export/overtime-form.js`; the Arabic names of people / department / sector come from the database (Edit data, Report settings).
+- Overtime form (print / Excel / PDF of a day or of the month, A4 landscape, Arabic, same-note people share one work cell): `src/export/overtime-form.js`; the Arabic names of people / department / sector come from the database (Edit data, Report settings).
 - Users tab: cards or table, sort and Excel-style filters per column, bulk add from Excel; first-run checklist for a new department.
 - Exports: official monthly report (Excel, PDF, print), per-person export, EMC overtime overview last.
 - Guided tour ("How to use the app") for every role on phones and desktops: it runs through all the tabs of the role in one go (Next: <tab>), starts by itself for a new account on its landing screen, replayable from the account menu.

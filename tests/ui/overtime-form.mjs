@@ -1,5 +1,5 @@
 // Browser E2E for the OVERTIME FORM buttons (Print / Excel / PDF): in the day window and on the Overtime tab, against the REAL Supabase project.
-// Same-note employees share one "work required" cell, hours stay per person, the file is upright A4, the day window prints what it shows (saved or not).
+// Same-note employees share one "work required" cell, hours stay per person, the file is A4 landscape like the sample, the day window prints what it shows (saved or not).
 // Temporary otf* users / "OTF Dept" department (ids 62000000-...), removed afterwards. Needs `npx vite preview --port 4173` (or BASE_URL), TS_DB_URL, Chromium,
 // pdfinfo / pdftoppm (poppler). Usage: node tests/ui/overtime-form.mjs [screenshot-dir]
 import { chromium } from 'playwright';
@@ -59,7 +59,7 @@ ok('month Excel: file name has the department and the month', x.name === `overti
 const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(x.f);
 ok('month Excel: one sheet per day with overtime (4th and 5th)', wb.worksheets.length === 2 && wb.worksheets[0].name.startsWith('04-') && wb.worksheets[1].name.startsWith('05-'), wb.worksheets.map((w) => w.name).join());
 const ws = wb.worksheets[0];
-ok('month Excel: upright (portrait A4), right-to-left', ws.pageSetup.orientation === 'portrait' && ws.pageSetup.paperSize === 9 && ws.views[0].rightToLeft === true);
+ok('month Excel: A4 landscape, right-to-left', ws.pageSetup.orientation === 'landscape' && ws.pageSetup.paperSize === 9 && ws.views[0].rightToLeft === true);
 ok('month Excel: the general-management line is "<Arabic sector> / <Arabic department>"', String(ws.getCell('A4').value).endsWith('قطاع الاختبار / قسم الاختبار'), String(ws.getCell('A4').value));
 const names = [8, 9, 10, 11].map((r) => ws.getCell(r, 2).value);
 ok('month Excel: the four people of the day, hours per person, payroll numbers', names.join() === 'مستخدم واحد,مستخدم اثنان,OTF User Three,OTF User Four' && [8, 9, 10, 11].map((r) => ws.getCell(r, 5).value).join() === '2,3,4,1' && ws.getCell('C8').value === 'OTF-901' && (ws.getCell('C11').value ?? '') === '', names.join());
@@ -72,7 +72,7 @@ ok('month Excel: the DB date is the sheet date', String(ws.getCell('A5').value).
 const pd = await download(p, () => p.click('#ot-pdf'));
 const info = pdfInfo(pd.f);
 ok('month PDF: file name', pd.name === `overtime_OTF_Dept_${month}.pdf`, pd.name);
-ok('month PDF: 2 pages (one per day), A4 portrait', /Pages:\s+2/.test(info) && /Page size:\s+595\.\d+ x 841\.\d+ pts/.test(info), info.match(/Pages.*|Page size.*/g)?.join(' / '));
+ok('month PDF: 2 pages (one per day), A4 landscape', /Pages:\s+2/.test(info) && /Page size:\s+841\.\d+ x 595\.\d+ pts/.test(info), info.match(/Pages.*|Page size.*/g)?.join(' / '));
 execFileSync('pdftoppm', ['-r', '60', '-png', pd.f, `${S}/otf-month`]);
 ok('month PDF: the pages are not blank (text, lines and logos are drawn)', dark(`${S}/otf-month-1.png`) > 1500 && dark(`${S}/otf-month-2.png`) > 1500, `${dark(`${S}/otf-month-1.png`)} ${dark(`${S}/otf-month-2.png`)}`);
 ok('month PDF: the off-screen pages are removed again', (await p.locator('div[style*="-10000px"]').count()) === 0);
@@ -81,7 +81,7 @@ ok('month PDF: the off-screen pages are removed again', (await p.locator('div[st
 await p.click('#ot-print');
 ok('month Print: sent to print() once, as HTML (no download)', await eventually(async () => (await p.evaluate(() => window.__printed || 0)) === 1));
 const doc = await p.evaluate(() => window.__printedDoc);
-ok('month Print: A4 portrait, right-to-left, 2 forms, the merged cell once', /size: A4 portrait/.test(doc) && /dir="rtl"/.test(doc) && (doc.match(/class="pg"/g) || []).length === 2 && (doc.match(/Pump seal change/g) || []).length === 1 && /rowspan="2"/.test(doc) && doc.includes('قطاع الاختبار / قسم الاختبار') && doc.includes('مستخدم واحد') && !doc.includes('OTF User One'));
+ok('month Print: A4 landscape, right-to-left, 2 forms, the merged cell once', /size: A4 landscape/.test(doc) && /dir="rtl"/.test(doc) && (doc.match(/class="pg"/g) || []).length === 2 && (doc.match(/Pump seal change/g) || []).length === 1 && /rowspan="2"/.test(doc) && doc.includes('قطاع الاختبار / قسم الاختبار') && doc.includes('مستخدم واحد') && !doc.includes('OTF User One'));
 ok('month Print: no page errors', p.errs.length === 0, p.errs.join('|'));
 
 // ---- one day: the window has the same three buttons; it prints what it shows
@@ -102,7 +102,7 @@ ok('...and nothing was saved by exporting', db(`select note from public.overtime
 await p.click('#otd-print');
 ok('day Print: the printed HTML has ONE form (that day) with the 3-row merged cell', await eventually(async () => (await p.evaluate(() => window.__printed || 0)) === 2) && ((await p.evaluate(() => window.__printedDoc)).match(/class="pg"/g) || []).length === 1 && /rowspan="3"/.test(await p.evaluate(() => window.__printedDoc)));
 const dp = await download(p, () => p.click('#otd-pdf'));
-ok('day PDF: one A4 portrait page', /Pages:\s+1/.test(pdfInfo(dp.f)) && /Page size:\s+595\.\d+ x 841\.\d+ pts/.test(pdfInfo(dp.f)));
+ok('day PDF: one A4 landscape page', /Pages:\s+1/.test(pdfInfo(dp.f)) && /Page size:\s+841\.\d+ x 595\.\d+ pts/.test(pdfInfo(dp.f)));
 execFileSync('pdftoppm', ['-r', '80', '-png', dp.f, `${S}/otf-day`]);
 // an invalid row stops the export with the usual message, nothing is downloaded
 await row('OTF User Four').locator('.ot-hours').fill('99');

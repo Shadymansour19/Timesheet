@@ -574,9 +574,9 @@ body.has-install .floating { inset-block-start: 68px; }
 @media (hover: hover) and (pointer: fine) {
   .credit { font-size: 1.08rem; gap: 10px; margin-block: 26px 10px; }
   .credit-links { gap: 18px; }
-  .credit-link { width: 48px; height: 48px; }
-  .credit-link svg { width: 27px; height: 27px; }
-  .credit-link[data-link="whatsapp"] svg { width: 31px; height: 31px; }
+  .credit .credit-link { width: 48px; height: 48px; }
+  .credit .credit-link svg { width: 27px; height: 27px; }
+  .credit .credit-link[data-link="whatsapp"] svg { width: 31px; height: 31px; }   /* only the big line: the small one in the account menu keeps its own sizes (28px circles) */
 }
 
 .dev-name { white-space: nowrap; }      /* "Shady Mansour" never splits over two lines (in a narrow menu the line breaks before the name instead) */
