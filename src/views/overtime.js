@@ -72,7 +72,7 @@ export function overtimeView() {
   // Print / Excel / PDF buttons; `get()` -> { overtime, days, stem } or null (nothing to do, it has told the user why)
   const formTools = (prefix, get) => h('div', { class: 'ot-form-tools', role: 'group', 'aria-label': t('ot_form') },
     h('span', { class: 'muted' }, t('ot_form')),
-    [['print', t('print')], ['xlsx', t('export_fmt_xlsx_one')], ['pdf', t('export_fmt_pdf_one')]].map(([kind, label]) => h('button', { type: 'button', class: 'btn small', id: `${prefix}-${kind}`,
+    [['print', t('print'), t('ot_print_hint')], ['xlsx', t('export_fmt_xlsx_one')], ['pdf', t('export_fmt_pdf_one'), t('ot_pdf_hint')]].map(([kind, label, hint]) => h('button', { type: 'button', class: 'btn small', id: `${prefix}-${kind}`, ...(hint ? { title: hint } : {}),
       onclick: async (e) => { const b = e.currentTarget, a = get(); if (!a) return; b.disabled = true; try { await makeForm(kind, a); } finally { b.disabled = false; } } }, label)));
 
   function openDay(day) {

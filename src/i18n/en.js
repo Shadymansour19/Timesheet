@@ -390,6 +390,8 @@ export default {
   notify_denied: "Notifications are blocked for this app in the browser / system settings.",
   scan_open: "Scan overtime forms",
   ot_form: "Overtime form",
+  ot_print_hint: "Print, then choose \"Save as PDF\": the text in that PDF can be selected.",
+  ot_pdf_hint: "This PDF is a picture, so its text can't be selected. For selectable text, use Print and save as PDF.",
   ot_form_none: "No overtime to put on the form.",
   rs_ot_form: "Overtime form signatures",
   rs_ot_sign_hint: "Leave empty to use the default shown in grey: \"مدير عام مساعد\" + the department in Arabic on the right, \"مدير عام\" + the sector in Arabic on the left.",
