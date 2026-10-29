@@ -31,7 +31,7 @@ GitHub deploys the front end; migrations and the Edge Function are applied by ha
 Writes go only through `security definer` RPCs that check the caller's role (`app_role()`, `app_dept()`, `real_role()`); a manager
 counts as `admin` in `app_role()` but is refused by a trigger as the subject of timesheet rows; a super_manager has read policies only.
 Payroll number is required for users and admins (not for managers / super users); OPR is optional. 28 migrations in
-`supabase/migrations`; latest `20261029000028_arabic_names_sector.sql` (profiles.full_name_ar, departments.name_ar / sector_ar, sector without the word "Sector",
+`supabase/migrations`; latest `20261029000028_arabic_names_sector.sql` (profiles.full_name_ar, departments.name_ar / sector_ar, sector without the word "Sector", dept_ar moves to name_ar,
 update_profile / set_department_report take the Arabic fields; the frontend needs it applied, and the Edge function redeployed to store the Arabic name when a user is
 created). The sector column holds the value only: exports append "Sector".
 

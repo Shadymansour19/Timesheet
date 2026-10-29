@@ -3,7 +3,8 @@
 //  - employees with the SAME note share ONE "work required" cell (merged), but the hours stay per employee;
 //  - the page is always upright (portrait), right-to-left Arabic;
 //  - the names are the Arabic ones (profiles.full_name_ar), the English name when a person has none; the "general management" line and the two sign-off titles are
-//    built from the Arabic sector and department (departments.sector_ar / name_ar): "الصيانة / التوربينات", "مدير عام الصيانة", "مدير عام مساعد التوربينات".
+//    built from the Arabic sector and department (departments.sector_ar / name_ar): "الصيانة / التوربينات", "مدير عام الصيانة", "مدير عام مساعد التوربينات";
+//    the report settings may give the two titles themselves (departments.report: ot_sign_left, ot_sign_right).
 export const TEXT = {
   title: 'بيان بالمكلفين بالعمل الاضافي بعد انتهاء مواعيد العمل الرسمية',
   general: 'الإدارة العامة', maint: 'الصيانة', day: 'اليوم', date: 'الموافق',
@@ -16,10 +17,15 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const norm = (n) => String(n ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-// department texts of the form: sector (default "الصيانة") and department (default: its name as entered) in Arabic
+// department texts of the form: sector (default "الصيانة") and department (default: its name as entered) in Arabic; the signature titles as given in the
+// report settings, else "مدير عام <sector>" (left) and "مدير عام مساعد <department>" (right)
 export function formSettings(dept) {
+  const r = dept?.report ?? {};
   const sectorAr = (dept?.sector_ar ?? '').trim() || TEXT.maint, deptAr = (dept?.name_ar ?? '').trim() || dept?.name || '';
-  return { sectorAr, deptAr, general: `${sectorAr} / ${deptAr}`.replace(/ \/ $/, ''), signLeft: `${TEXT.gm} ${sectorAr}`, signRight: `${TEXT.agm} ${deptAr}`.trim() };
+  return {
+    sectorAr, deptAr, general: `${sectorAr} / ${deptAr}`.replace(/ \/ $/, ''),
+    signLeft: String(r.ot_sign_left ?? '').trim() || `${TEXT.gm} ${sectorAr}`, signRight: String(r.ot_sign_right ?? '').trim() || `${TEXT.agm} ${deptAr}`.trim(),
+  };
 }
 
 // the employees with overtime on one day, same notes next to each other (first appearance decides the order of the groups)

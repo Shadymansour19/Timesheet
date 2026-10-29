@@ -48,6 +48,9 @@ ok('names: the Arabic name is used, a person without one (empty, blank, missing)
 ok('department line and sign-off titles are built from the Arabic sector and department: "الصيانة / التوربينات", "مدير عام الصيانة" (left), "مدير عام مساعد التوربينات" (right)', f1.general === 'الصيانة / التوربينات' && f1.signLeft === 'مدير عام الصيانة' && f1.signRight === 'مدير عام مساعد التوربينات' && f1.sectorAr === 'الصيانة' && f1.deptAr === 'التوربينات');
 const S = formSettings({ name: 'Turbo', name_ar: 'X', sector_ar: 'Y' });
 ok('another sector / department changes all three texts', S.general === 'Y / X' && S.signLeft === 'مدير عام Y' && S.signRight === 'مدير عام مساعد X');
+const S2 = formSettings({ name: 'Turbo', name_ar: 'X', sector_ar: 'Y', report: { ot_sign_left: 'L', ot_sign_right: 'R' } });
+const S3 = formSettings({ name: 'Turbo', name_ar: 'X', sector_ar: 'Y', report: { ot_sign_left: '  ', ot_sign_right: '' } });
+ok('own signature titles win; an empty or blank one falls back to the default built from the Arabic sector / department', S2.signLeft === 'L' && S2.signRight === 'R' && S3.signLeft === 'مدير عام Y' && S3.signRight === 'مدير عام مساعد X');
 const S0 = formSettings({ name: 'Turbo', sector: 'Maintenance' });
 ok('no Arabic department falls back to its name, no Arabic sector to "الصيانة"; the English sector word is not used on the form', S0.deptAr === 'Turbo' && S0.sectorAr === 'الصيانة' && S0.general === 'الصيانة / Turbo' && S0.signLeft === 'مدير عام الصيانة' && S0.signRight === 'مدير عام مساعد Turbo');
 

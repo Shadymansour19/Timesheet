@@ -387,7 +387,8 @@ a.btn.primary { color: #fff; }
 /* person dialogs: two columns on wide screens, one on phones */
 .dlg.xl { width: min(94vw, 800px); }
 .form.two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; align-items: start; }
-.form.two-col > p, .form.two-col > .choice { grid-column: 1 / -1; }
+.form.two-col > p, .form.two-col > h4, .form.two-col > .choice { grid-column: 1 / -1; }
+.form.two-col > h4 { margin: 8px 0 -6px; }
 .form.two-col .choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 640px) { .form.two-col { grid-template-columns: 1fr; } .form.two-col .choice-list { grid-template-columns: 1fr; } }
 

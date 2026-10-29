@@ -1,7 +1,7 @@
 -- Arabic names for the overtime form: the person (profiles.full_name_ar), the department (departments.name_ar) and the sector (departments.sector_ar).
 -- The sector (English) now holds the sector value only ("Maintenance"): the exports append the word "Sector" themselves.
--- The overtime form settings kept in departments.report by migration 27 (dept_ar, ot_sign_left, ot_sign_right) are replaced by these columns:
--- the form builds "Maintenance / Turbines" and the two sign-off titles from the sector and the department.
+-- The Arabic department name that migration 27 kept in departments.report (dept_ar) moves to name_ar; the two optional signature titles (ot_sign_left,
+-- ot_sign_right) stay in the report object. Without them the form builds "مدير عام <sector_ar>" and "مدير عام مساعد <name_ar>".
 alter table public.profiles add column full_name_ar text check (full_name_ar is null or length(full_name_ar) <= 200);
 alter table public.departments
   add column name_ar text check (name_ar is null or length(name_ar) <= 100),
@@ -11,8 +11,9 @@ grant select (name_ar, sector_ar) on public.departments to authenticated;
 
 -- one-off data fix: "Maintenance Sector" -> "Maintenance"
 update public.departments set sector = nullif(btrim(regexp_replace(sector, '\s*sector\s*$', '', 'i')), '') where sector ~* 'sector\s*$';
--- and the keys migration 27 allowed in the report object are gone again
-update public.departments set report = report - 'dept_ar' - 'ot_sign_left' - 'ot_sign_right' where report ?| array['dept_ar', 'ot_sign_left', 'ot_sign_right'];
+-- the Arabic department name moves from the report object to its column
+update public.departments set name_ar = nullif(btrim(report ->> 'dept_ar'), '') where name_ar is null and report ? 'dept_ar';
+update public.departments set report = report - 'dept_ar' where report ? 'dept_ar';
 
 -- admin edits a person: + the Arabic name (null = keep, '' = clear)
 drop function public.update_profile(uuid, text, text, text, text, text, text, text, text, text, boolean);
@@ -52,7 +53,7 @@ end $function$;
 revoke all on function public.update_profile(uuid, text, text, text, text, text, text, text, text, text, boolean, text) from public, anon;
 grant execute on function public.update_profile(uuid, text, text, text, text, text, text, text, text, text, boolean, text) to authenticated;
 
--- department print settings: + the Arabic department name and sector (null = keep, '' = clear); the report object is back to dept_print_name / location only
+-- department print settings: + the Arabic department name and sector (null = keep, '' = clear); the report object takes dept_print_name, location and the two signature titles
 drop function public.set_department_report(uuid, jsonb, text, text, text, text, text);
 create function public.set_department_report(p_dept uuid, p_report jsonb, p_code text default null::text, p_sector text default null::text, p_field text default null::text, p_approved_engineer text default null::text, p_approved_tech text default null::text, p_name_ar text default null::text, p_sector_ar text default null::text)
  returns void
@@ -73,7 +74,7 @@ begin
     raise exception 'report settings must be an object' using errcode = '22023';
   end if;
   for k, v in select * from jsonb_each(p_report) loop
-    if k not in ('dept_print_name', 'location') then
+    if k not in ('dept_print_name', 'location', 'ot_sign_left', 'ot_sign_right') then
       raise exception 'unknown report setting: %', k using errcode = '22023';
     end if;
     if jsonb_typeof(v) is distinct from 'string' or length(v #>> '{}') > 200 then
