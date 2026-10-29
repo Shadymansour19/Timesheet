@@ -234,3 +234,4 @@ All answered 2026-10-19; see Decision log.
 - 2026-10-29 Overtime form table rows a little lower (user: less top/bottom space per row): PDF / print row 8.2 -> 7.4 units, cell padding 1.6 -> 1.1, line height 1.25; Excel rows 24 -> 21 pt (header 22); the page estimate follows (about 10 ordinary rows per page).
 - 2026-10-29 Guide: the Overtime form step text is one short sentence (print in the formal format, or save as Excel / PDF).
 - 2026-10-29 Overtime form buttons carry a tooltip: the exported PDF is a picture (no selectable text, jsPDF cannot write Arabic); Print > Save as PDF gives selectable text.
+- 2026-10-29 The selectable-text hint under the overtime form buttons is visible text (a native tooltip did not show for the user); the tooltips stay.

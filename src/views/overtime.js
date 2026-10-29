@@ -73,7 +73,8 @@ export function overtimeView() {
   const formTools = (prefix, get) => h('div', { class: 'ot-form-tools', role: 'group', 'aria-label': t('ot_form') },
     h('span', { class: 'muted' }, t('ot_form')),
     [['print', t('print'), t('ot_print_hint')], ['xlsx', t('export_fmt_xlsx_one')], ['pdf', t('export_fmt_pdf_one'), t('ot_pdf_hint')]].map(([kind, label, hint]) => h('button', { type: 'button', class: 'btn small', id: `${prefix}-${kind}`, ...(hint ? { title: hint } : {}),
-      onclick: async (e) => { const b = e.currentTarget, a = get(); if (!a) return; b.disabled = true; try { await makeForm(kind, a); } finally { b.disabled = false; } } }, label)));
+      onclick: async (e) => { const b = e.currentTarget, a = get(); if (!a) return; b.disabled = true; try { await makeForm(kind, a); } finally { b.disabled = false; } } }, label)),
+    h('small', { class: 'muted ot-form-hint' }, t('ot_pdf_hint')));          // visible, not only a tooltip: tooltips are slow, and missing on touch screens
 
   function openDay(day) {
     const parse = (r) => { const raw = r.hours.value.trim(); if (raw === '') return 0; const n = Number(raw); return Number.isInteger(n) && n >= 0 && n <= 24 ? n : null; };

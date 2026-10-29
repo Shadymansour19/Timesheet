@@ -291,6 +291,7 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .ot-view .cal-tools { align-items: center; gap: 6px 14px; }
 .ot-form-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .dlg .ot-form-tools { margin-block-start: 10px; }
+.ot-form-hint { flex-basis: 100%; font-size: .78rem; line-height: 1.35; }
 .empty { text-align: center; max-width: none; margin-block: 12px; display: grid; gap: 8px; justify-items: center; }
 .empty[hidden] { display: none; }
 
