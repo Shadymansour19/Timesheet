@@ -313,7 +313,7 @@ export default {
   export_fmt_pdf_hint: "The same pages, ready to print or send",
   export_fmt_simple: "Excel – simple grid",
   export_fmt_simple_hint: "One sheet, one row per employee",
-  export_fmt_xlsx_one: "Excel (.xlsx)",
+  export_fmt_xlsx_one: "Excel",
   export_fmt_xlsx_one_hint: "Your Monthly Time Report as a spreadsheet",
   export_fmt_pdf_one: "PDF",
   export_fmt_pdf_one_hint: "Your Monthly Time Report, ready to print",

@@ -313,7 +313,7 @@ export default {
   export_fmt_pdf_hint: "الصفحات نفسها جاهزة للطباعة أو الإرسال",
   export_fmt_simple: "Excel – شبكة بسيطة",
   export_fmt_simple_hint: "ورقة واحدة وصف لكل موظف",
-  export_fmt_xlsx_one: "Excel (.xlsx)",
+  export_fmt_xlsx_one: "Excel",
   export_fmt_xlsx_one_hint: "تقريرك الشهري كجدول بيانات",
   export_fmt_pdf_one: "PDF",
   export_fmt_pdf_one_hint: "تقريرك الشهري جاهزاً للطباعة",

@@ -50,7 +50,7 @@ const dark = (png) => +execFileSync('python3', ['-I', '-c', `from PIL import Ima
 
 const p = await login('otfadm', { stubPrint: true });
 await p.click('.nav a:has(.lbl:text-is("Overtime"))'); await p.waitForSelector('.ot-day');
-ok('Overtime tab: the form group has Print, Excel and PDF', (await p.locator('.cal-tools .ot-form-tools button').allTextContents()).join('|') === 'Print|Excel (.xlsx)|PDF');
+ok('Overtime tab: the form group has Print, Excel and PDF', (await p.locator('.cal-tools .ot-form-tools button').allTextContents()).join('|') === 'Print|Excel|PDF');
 ok('the buttons are named by the group "Overtime form"', (await p.locator('.cal-tools .ot-form-tools').getAttribute('aria-label')) === 'Overtime form');
 
 // ---- the whole month as Excel
@@ -87,7 +87,7 @@ ok('month Print: no page errors', p.errs.length === 0, p.errs.join('|'));
 // ---- one day: the window has the same three buttons; it prints what it shows
 await cell(p, 4).click({ modifiers: ['Shift'] }); await p.waitForSelector('dialog[open]');
 await p.screenshot({ path: `${S}/otf-day-dialog.png` });
-ok('day window: Print, Excel and PDF are there', (await p.locator('dialog[open] .ot-form-tools button').allTextContents()).join('|') === 'Print|Excel (.xlsx)|PDF');
+ok('day window: Print, Excel and PDF are there', (await p.locator('dialog[open] .ot-form-tools button').allTextContents()).join('|') === 'Print|Excel|PDF');
 const d1 = await download(p, () => p.click('#otd-xlsx'));
 ok('day Excel: file name has the day; one sheet with the 4 people', d1.name === `overtime_OTF_Dept_${dstr(4)}.xlsx`);
 const w1 = new ExcelJS.Workbook(); await w1.xlsx.readFile(d1.f);
