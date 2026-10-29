@@ -174,7 +174,7 @@ export default {
   tour_ot_day_text: "Tap or click a day to list everyone, then type each person's overtime hours and a note. Days with overtime show in yellow. The same window prints that day's overtime form or saves it as Excel or PDF.",
   tour_ot_day_text_ro: "Tap or click a day to see who worked overtime and their notes. The same window prints that day's overtime form or saves it as Excel or PDF.",
   tour_ot_form_title: "Overtime form",
-  tour_ot_form_text: "Print the overtime form of the whole month, or save it as Excel or PDF. It has one page per day, ready to sign, and people with the same note share one Required work cell. Hours stay per person. Names come from the Arabic name of each person, and the department and sector from Report settings.",
+  tour_ot_form_text: "Print the month's overtime form in the formal format, or save it as Excel or PDF.",
   tour_lang_title: "Language",
   tour_lang_text: "Switch between English and Arabic with this button, next to the menu.",
   tour_ot_scan_title: "Scan a form",
