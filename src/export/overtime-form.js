@@ -43,7 +43,7 @@ function rowsOfDay(people, overtime, day) {
 
 // groups -> pages. The body of a page is BODY mm tall (what is left between the table head and the sign-offs); a row is ROW_H mm, taller when its name or its
 // merged note needs more lines (CHARS_NAME / CHARS_NOTE characters per line of that column, estimated on the safe side). A group is kept together unless it is taller than a page.
-const ROW_H = 8.2, LINE_H = 5.6, PAD_H = 3.4, BODY = 74, CHARS_NAME = 28, CHARS_NOTE = 40;
+const ROW_H = 7.4, LINE_H = 5.4, PAD_H = 2.6, BODY = 74, CHARS_NAME = 28, CHARS_NOTE = 40;
 const lines = (s, chars) => Math.max(1, Math.ceil(String(s ?? '').length / chars));
 const rowH = (r) => (lines(r.name, CHARS_NAME) > 1 ? Math.max(ROW_H, lines(r.name, CHARS_NAME) * LINE_H + PAD_H) : ROW_H);
 const groupH = (rows) => Math.max(rows.reduce((a, r) => a + rowH(r), 0), rows[0]?.note ? lines(rows[0].note, CHARS_NOTE) * LINE_H + PAD_H : 0);
@@ -96,7 +96,7 @@ ${root} .ttl { text-align: center; font-weight: 700; font-size: ${m(5.3)}; margi
 ${root} .ttl span { display: inline-block; line-height: 1.3; padding-bottom: ${m(0.1)}; border-bottom: ${m(0.5)} solid #000; }   /* a border, not text-decoration: it sits below the descenders in print and in the PDF (html2canvas) alike */
 ${root} .meta { font-size: ${m(4.2)}; font-weight: 700; margin: ${m(1.5)} 0; display: flex; gap: ${m(14)}; }
 ${root} table { width: 100%; border-collapse: collapse; margin-top: ${m(4)}; font-size: ${m(4)}; table-layout: fixed; }
-${root} th, ${root} td { border: ${m(0.3)} solid #000; padding: ${m(1.6)} ${m(1.5)}; text-align: center; vertical-align: middle; word-wrap: break-word; overflow-wrap: anywhere; height: ${m(8.2)}; }
+${root} th, ${root} td { border: ${m(0.3)} solid #000; padding: ${m(1.1)} ${m(1.5)}; line-height: 1.25; text-align: center; vertical-align: middle; word-wrap: break-word; overflow-wrap: anywhere; height: ${m(7.4)}; }
 ${root} th { font-weight: 700; }
 ${root} td.work { white-space: pre-wrap; }
 ${root} .sign { position: absolute; left: ${m(33.6)}; right: ${m(33.6)}; bottom: ${m(24)}; display: flex; justify-content: space-between; font-weight: 700; font-size: ${m(4.2)}; }
@@ -165,11 +165,11 @@ export async function buildOvertimeWorkbook(forms, ExcelJS, { loadAsset } = {}) 
     const COL = { hours: 1, work: 2, payroll: 4, name: 5, no: 6 };      // TEXT.cols = no. | name | payroll | work | hours
     [[COL.no, 0], [COL.name, 1], [COL.payroll, 2], [COL.work, 3], [COL.hours, 4]].forEach(([c, i]) => cellAt(7, c, TEXT.cols[i], { font: { bold: true } }));
     cellAt(7, 3); ws.mergeCells(7, 2, 7, 3);
-    ws.getRow(7).height = 24;
+    ws.getRow(7).height = 22;
     let r = 8;
     for (const row of f.rows) {
       const noteLines = row.span ? Math.max(1, Math.ceil(String(row.note).length * 1.15 / 62)) : 1, nameLines = Math.max(1, Math.ceil(String(row.name).length / 32));   // a merged note / a long name needs enough height
-      ws.getRow(r).height = Math.max(24, nameLines > 1 ? nameLines * 17 + 6 : 24, row.span ? Math.ceil((noteLines * 17 + 6) / row.span) : 24);
+      ws.getRow(r).height = Math.max(21, nameLines > 1 ? nameLines * 17 + 4 : 21, row.span ? Math.ceil((noteLines * 17 + 4) / row.span) : 21);
       cellAt(r, COL.no, row.no); cellAt(r, COL.name, row.name); cellAt(r, COL.payroll, row.payroll, { ltr: true }); cellAt(r, COL.hours, row.hours);
       cellAt(r, COL.work, row.skip ? undefined : row.note); cellAt(r, 3);
       if (!row.skip) ws.mergeCells(r, 2, r + Math.max(row.span, 1) - 1, 3);       // one cell over the rows of a group, else over the two columns of the row

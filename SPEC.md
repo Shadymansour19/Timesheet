@@ -231,3 +231,4 @@ All answered 2026-10-19; see Decision log.
 - 2026-10-29 Overtime form title underline moved up (user: too low): padding under the title text 1.2 -> 0.7 mm-units, line height 1.4.
 - 2026-10-29 Overtime form logos bigger (user): PDF / print 20 -> 26 mm-units tall (logo row 27), Excel 76 -> 100 px (row 80 pt); the page body is 5 units lower (about 9 ordinary rows per page).
 - 2026-10-29 Overtime form title underline moved up once more (user): line height 1.3, padding under the text 0.1.
+- 2026-10-29 Overtime form table rows a little lower (user: less top/bottom space per row): PDF / print row 8.2 -> 7.4 units, cell padding 1.6 -> 1.1, line height 1.25; Excel rows 24 -> 21 pt (header 22); the page estimate follows (about 10 ordinary rows per page).
