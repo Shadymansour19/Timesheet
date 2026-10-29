@@ -62,7 +62,7 @@ ok('a group longer than a page is split, the note is repeated at the top of each
 ok('no page is longer than 10 rows (the landscape page is low) and all 45 people are on some page', pages.every((p) => p.rows.length <= 10) && pages.reduce((a, p) => a + p.rows.length, 0) === 45);
 const small = buildForms({ dept, people: many, overtime: new Map(many.slice(0, 5).map((p) => [`${p.id}|${D1}`, { hours: 1, note: 'together' }])), days: [D1] });
 ok('a group that fits is kept together on one page', small.length === 1 && small[0].rows[0].span === 5);
-const long = buildForms({ dept, people: many.slice(0, 40), overtime: new Map(many.slice(0, 40).map((p, i) => [`${p.id}|${D1}`, { hours: 1, note: i >= 14 && i < 24 ? 'a' : 'b' + i }])), days: [D1] });
+const long = buildForms({ dept, people: many.slice(0, 40), overtime: new Map(many.slice(0, 40).map((p, i) => [`${p.id}|${D1}`, { hours: 1, note: i >= 14 && i < 23 ? 'a' : 'b' + i }])), days: [D1] });
 ok('a group that does not fit the rest of a page moves to the next page whole', long.filter((p) => p.rows.some((r) => r.note === 'a')).length === 1 && long.reduce((a, p) => a + p.rows.length, 0) === 40);
 
 // ---------- the printable HTML: Chromium prints it as upright A4 pages ----------
@@ -99,15 +99,20 @@ const wb = await buildOvertimeWorkbook(forms, ExcelJS, { loadAsset: async (u) =>
 const back = new ExcelJS.Workbook(); await back.xlsx.load(await wb.xlsx.writeBuffer());
 ok('one sheet per form, named by the day', back.worksheets.map((w) => w.name).join() === '22-Oct,23-Oct');
 const ws = back.worksheets[0];
-ok('right-to-left sheet, A4 landscape, one page wide', ws.views[0].rightToLeft === true && ws.pageSetup.orientation === 'landscape' && ws.pageSetup.paperSize === 9 && ws.pageSetup.fitToWidth === 1);
+ok('A4 landscape, one page per sheet; columns in the visual order of the form (no right-to-left view needed)', !ws.views[0].rightToLeft && ws.pageSetup.orientation === 'landscape' && ws.pageSetup.paperSize === 9 && ws.pageSetup.fitToWidth === 1 && ws.pageSetup.fitToHeight === 1);
 ok('both logos are placed', ws.getImages().length === 2);
-ok('the table head is the five columns of the form', [1, 2, 3, 4, 5].map((c) => ws.getCell(7, c).value).join() === TEXT.cols.join());
+ok('the table head reads from the right like the form: no. | name | payroll | work | hours (F, E, D, B, A)', ['F', 'E', 'D', 'B', 'A'].map((c) => ws.getCell(`${c}7`).value).join() === TEXT.cols.join());
 ok('the title and the day are written', ws.getCell(2, 1).value === TEXT.title && ws.getCell(5, 1).value.includes('22/10/2026'));
 const merges = ws.model.merges;
-ok('the three rows with the same note have one merged work cell, the two others another', merges.includes('D9:D11') && merges.includes('D12:D13'), merges.join());
-ok('the merged cell holds the note once; hours and numbers are per row', ws.getCell('D9').value === NOTE && ws.getCell('D10').isMerged && ws.getCell('D10').master.address === 'D9' && ws.getCell('D13').master.address === 'D12' && !ws.getCell('D8').isMerged && [8, 9, 10, 11, 12, 13].map((r) => ws.getCell(r, 5).value).join() === '1,2,3,2,4,4' && [8, 9, 10, 11, 12, 13].map((r) => ws.getCell(r, 1).value).join() === '1,2,3,4,5,6');
-ok('names and payroll numbers are in their columns', ws.getCell('B9').value === 'حسن عبد السلام' && ws.getCell('B11').value === 'Mohamed Gomaa' && ws.getCell('C9').value === 'EMC-401');
-ok('the two sign-off titles close the sheet (right title in column A, which is on the right)', ws.getCell('A16').value === f1.signRight && ws.getCell('D16').value === f1.signLeft && merges.includes('A16:B16') && merges.includes('D16:E16'), merges.join());
+ok('the three rows with the same note have one merged work cell (B:C over the rows), the two others another; a row without a note spans B:C', merges.includes('B9:C11') && merges.includes('B12:C13') && merges.includes('B8:C8'), merges.join());
+ok('the merged cell holds the note once; hours and numbers are per row', ws.getCell('B9').value === NOTE && ws.getCell('B10').isMerged && ws.getCell('B10').master.address === 'B9' && ws.getCell('B13').master.address === 'B12' && [8, 9, 10, 11, 12, 13].map((r) => ws.getCell(r, 1).value).join() === '1,2,3,2,4,4' && [8, 9, 10, 11, 12, 13].map((r) => ws.getCell(r, 6).value).join() === '1,2,3,4,5,6');
+ok('names and payroll numbers are in their columns (name E, payroll D)', ws.getCell('E9').value === 'حسن عبد السلام' && ws.getCell('E11').value === 'Mohamed Gomaa' && ws.getCell('D9').value === 'EMC-401');
+ok('the two sign-off titles close the sheet: the left one under the work column, the right one under the name column, one short cell each', ws.getCell('B16').value === f1.signLeft && ws.getCell('E16').value === f1.signRight && !merges.some((m) => /^[A-F]16:/.test(m)), merges.join());
+const wide = Math.round(ws.getImages()[0].range.ext.height);
+ok('the logos are big (76 px tall)', ws.getImages().every((im) => Math.round(im.range.ext.height) === 76), String(wide));
+const W = [14, 33, 33, 18, 36, 6].map((w) => w * 7 + 5), TOT = W.reduce((a, b) => a + b, 0);
+const xs = ws.getImages().map((im) => ({ left: W.slice(0, im.range.tl.nativeCol).reduce((a, b) => a + b, 0) + im.range.tl.nativeColOff / 9525, w: im.range.ext.width })).sort((a, b) => a.left - b.left);
+ok('the logos sit at the two corners: the first starts at the left edge of the table, the last ends at its right edge', xs[0].left < 10 && Math.abs(xs[1].left + xs[1].w - TOT) < 10, JSON.stringify(xs) + ' ' + TOT);
 
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL OVERTIME FORM TESTS PASSED ===');
 process.exit(fails ? 1 : 0);

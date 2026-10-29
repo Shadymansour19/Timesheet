@@ -59,13 +59,13 @@ ok('month Excel: file name has the department and the month', x.name === `overti
 const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(x.f);
 ok('month Excel: one sheet per day with overtime (4th and 5th)', wb.worksheets.length === 2 && wb.worksheets[0].name.startsWith('04-') && wb.worksheets[1].name.startsWith('05-'), wb.worksheets.map((w) => w.name).join());
 const ws = wb.worksheets[0];
-ok('month Excel: A4 landscape, right-to-left', ws.pageSetup.orientation === 'landscape' && ws.pageSetup.paperSize === 9 && ws.views[0].rightToLeft === true);
+ok('month Excel: A4 landscape, one page per sheet, columns in the visual order of the form', ws.pageSetup.orientation === 'landscape' && ws.pageSetup.paperSize === 9 && ws.pageSetup.fitToHeight === 1 && !ws.views[0].rightToLeft);
 ok('month Excel: the general-management line is "<Arabic sector> / <Arabic department>"', String(ws.getCell('A4').value).endsWith('قطاع الاختبار / قسم الاختبار'), String(ws.getCell('A4').value));
-const names = [8, 9, 10, 11].map((r) => ws.getCell(r, 2).value);
-ok('month Excel: the four people of the day, hours per person, payroll numbers', names.join() === 'مستخدم واحد,مستخدم اثنان,OTF User Three,OTF User Four' && [8, 9, 10, 11].map((r) => ws.getCell(r, 5).value).join() === '2,3,4,1' && ws.getCell('C8').value === 'OTF-901' && (ws.getCell('C11').value ?? '') === '', names.join());
-ok('month Excel: the two people with the same note (other case, double blank) share ONE cell; the others are not merged', ws.model.merges.includes('D8:D9') && !ws.model.merges.some((m) => /^D1[01]/.test(m)) && ws.getCell('D8').value === 'Pump seal change' && ws.getCell('D10').value === 'Other job', ws.model.merges.join());
-const signRow = ws.model.merges.find((m) => /^A\d+:B\d+$/.test(m) && Number(m.slice(1, m.indexOf(':'))) > 12)?.match(/\d+/)[0];
-ok('month Excel: sign-off titles are built from the sector (left: GM) and the department (right: assistant GM)', ws.getCell(`D${signRow}`).value === 'مدير عام قطاع الاختبار' && ws.getCell(`A${signRow}`).value === 'مدير عام مساعد قسم الاختبار', String(ws.getCell(`A${signRow}`).value));
+const names = [8, 9, 10, 11].map((r) => ws.getCell(r, 5).value);
+ok('month Excel: the four people of the day, hours per person, payroll numbers', names.join() === 'مستخدم واحد,مستخدم اثنان,OTF User Three,OTF User Four' && [8, 9, 10, 11].map((r) => ws.getCell(r, 1).value).join() === '2,3,4,1' && ws.getCell('D8').value === 'OTF-901' && (ws.getCell('D11').value ?? '') === '', names.join());
+ok('month Excel: the two people with the same note (other case, double blank) share ONE cell; the others are not merged', ws.model.merges.includes('B8:C9') && !ws.model.merges.some((m) => /^B1[01]:C1[2-9]/.test(m)) && ws.getCell('B8').value === 'Pump seal change' && ws.getCell('B10').value === 'Other job', ws.model.merges.join());
+const signRow = ws.rowCount;
+ok('month Excel: sign-off titles are built from the sector (left: GM) and the department (right: assistant GM)', ws.getCell(`B${signRow}`).value === 'مدير عام قطاع الاختبار' && ws.getCell(`E${signRow}`).value === 'مدير عام مساعد قسم الاختبار', String(ws.getCell(`E${signRow}`).value));
 ok('month Excel: the DB date is the sheet date', String(ws.getCell('A5').value).includes(`${dstr(4).slice(8)}/${month.slice(5)}/${month.slice(0, 4)}`), String(ws.getCell('A5').value));
 
 // ---- the whole month as PDF
@@ -91,13 +91,13 @@ ok('day window: Print, Excel and PDF are there', (await p.locator('dialog[open] 
 const d1 = await download(p, () => p.click('#otd-xlsx'));
 ok('day Excel: file name has the day; one sheet with the 4 people', d1.name === `overtime_OTF_Dept_${dstr(4)}.xlsx`);
 const w1 = new ExcelJS.Workbook(); await w1.xlsx.readFile(d1.f);
-ok('day Excel: one sheet, the 4 people', w1.worksheets.length === 1 && [8, 9, 10, 11].map((r) => w1.worksheets[0].getCell(r, 2).value).join() === 'مستخدم واحد,مستخدم اثنان,OTF User Three,OTF User Four');
+ok('day Excel: one sheet, the 4 people', w1.worksheets.length === 1 && [8, 9, 10, 11].map((r) => w1.worksheets[0].getCell(r, 5).value).join() === 'مستخدم واحد,مستخدم اثنان,OTF User Three,OTF User Four');
 // not saved yet: Three gets the SAME note as One and Two -> the form shows 3 merged rows, the database stays as it was
 const row = (n) => p.locator(`dialog[open] .otrow:has(strong:text-is("${n}"))`);
 await row('OTF User Three').locator('.ot-note').fill('Pump seal change');
 const d2 = await download(p, () => p.click('#otd-xlsx'));
 const w2 = new ExcelJS.Workbook(); await w2.xlsx.readFile(d2.f);
-ok('day Excel: shows what is in the window (unsaved): three people share the note', w2.worksheets[0].model.merges.includes('D8:D10'), w2.worksheets[0].model.merges.join());
+ok('day Excel: shows what is in the window (unsaved): three people share the note', w2.worksheets[0].model.merges.includes('B8:C10'), w2.worksheets[0].model.merges.join());
 ok('...and nothing was saved by exporting', db(`select note from public.overtime where user_id='${ID.u3}' and day='${dstr(4)}'`) === 'Other job');
 await p.click('#otd-print');
 ok('day Print: the printed HTML has ONE form (that day) with the 3-row merged cell', await eventually(async () => (await p.evaluate(() => window.__printed || 0)) === 2) && ((await p.evaluate(() => window.__printedDoc)).match(/class="pg"/g) || []).length === 1 && /rowspan="3"/.test(await p.evaluate(() => window.__printedDoc)));
@@ -159,8 +159,8 @@ await p.context().close();
   ok('...saved in the database (name_ar, sector_ar); the English sector is unchanged', await eventually(() => db(`select name_ar||'|'||sector_ar||'|'||sector from public.departments where id='${DA}'`) === 'التوربينات|الصيانة|Maintenance' && db(`select report->>'ot_sign_left' from public.departments where id='${DA}'`) === 'توقيع مخصص'));
   await ed.click('.nav a:has(.lbl:text-is("Overtime"))'); await ed.waitForSelector('.ot-day');
   const x3 = await download(ed, () => ed.click('#ot-xlsx')); const w3 = new ExcelJS.Workbook(); await w3.xlsx.readFile(x3.f); const s3 = w3.worksheets[0];
-  const sr = s3.model.merges.find((m) => /^A\d+:B\d+$/.test(m) && Number(m.slice(1, m.indexOf(':'))) > 12)?.match(/\d+/)[0];
-  ok('the next form uses them: "الصيانة / التوربينات", the given left title, the DEFAULT right title "مدير عام مساعد التوربينات", the new Arabic name', String(s3.getCell('A4').value).endsWith('الصيانة / التوربينات') && s3.getCell(`D${sr}`).value === 'توقيع مخصص' && s3.getCell(`A${sr}`).value === 'مدير عام مساعد التوربينات' && s3.getCell('B10').value === 'مستخدم ثلاثة', String(s3.getCell('A4').value));
+  const sr = s3.rowCount;
+  ok('the next form uses them: "الصيانة / التوربينات", the given left title, the DEFAULT right title "مدير عام مساعد التوربينات", the new Arabic name', String(s3.getCell('A4').value).endsWith('الصيانة / التوربينات') && s3.getCell(`B${sr}`).value === 'توقيع مخصص' && s3.getCell(`E${sr}`).value === 'مدير عام مساعد التوربينات' && s3.getCell('E10').value === 'مستخدم ثلاثة', String(s3.getCell('A4').value));
   await ed.context().close(); }
 
 cleanup();
