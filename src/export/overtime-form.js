@@ -2,12 +2,13 @@
 // to print and sign. Built from what is entered in the app (hours + note per employee), as HTML (print / PDF) and as an Excel workbook (one sheet per page).
 //  - employees with the SAME note share ONE "work required" cell (merged), but the hours stay per employee;
 //  - the page is always upright (portrait), right-to-left Arabic;
-//  - the department name and the two sign-off titles come from the department's report settings (dept_ar, ot_sign_left, ot_sign_right), with defaults.
+//  - the names are the Arabic ones (profiles.full_name_ar), the English name when a person has none; the "general management" line and the two sign-off titles are
+//    built from the Arabic sector and department (departments.sector_ar / name_ar): "الصيانة / التوربينات", "مدير عام الصيانة", "مدير عام مساعد التوربينات".
 export const TEXT = {
   title: 'بيان بالمكلفين بالعمل الاضافي بعد انتهاء مواعيد العمل الرسمية',
   general: 'الإدارة العامة', maint: 'الصيانة', day: 'اليوم', date: 'الموافق',
   cols: ['م', 'الاسم', 'الرقم الوظيفي', 'الأعمال المطلوبة', 'عدد الساعات'],
-  signLeft: 'مدير عام الصيانة', signRightPrefix: 'مدير عام مساعد', page: 'صفحة', of: 'من',
+  gm: 'مدير عام', agm: 'مدير عام مساعد', page: 'صفحة', of: 'من',
 };
 const AR_DAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -15,11 +16,10 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const norm = (n) => String(n ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-// department texts of the form
+// department texts of the form: sector (default "الصيانة") and department (default: its name as entered) in Arabic
 export function formSettings(dept) {
-  const r = dept?.report ?? {};
-  const deptAr = (r.dept_ar ?? '').trim() || dept?.name || '';
-  return { deptAr, signLeft: (r.ot_sign_left ?? '').trim() || TEXT.signLeft, signRight: (r.ot_sign_right ?? '').trim() || `${TEXT.signRightPrefix} ${deptAr}`.trim() };
+  const sectorAr = (dept?.sector_ar ?? '').trim() || TEXT.maint, deptAr = (dept?.name_ar ?? '').trim() || dept?.name || '';
+  return { sectorAr, deptAr, general: `${sectorAr} / ${deptAr}`.replace(/ \/ $/, ''), signLeft: `${TEXT.gm} ${sectorAr}`, signRight: `${TEXT.agm} ${deptAr}`.trim() };
 }
 
 // the employees with overtime on one day, same notes next to each other (first appearance decides the order of the groups)
@@ -30,7 +30,7 @@ function rowsOfDay(people, overtime, day) {
     if (!v || !(v.hours > 0)) continue;
     const note = String(v.note ?? '').trim(), k = note ? norm(note) : `\u0000${p.id}`;        // no note: never grouped
     if (!groups.has(k)) { groups.set(k, []); order.push(k); }
-    groups.get(k).push({ name: p.full_name, payroll: p.payroll ?? '', note, hours: v.hours, group: k });
+    groups.get(k).push({ name: (p.full_name_ar ?? '').trim() || p.full_name, payroll: p.payroll ?? '', note, hours: v.hours, group: k });
   }
   return order.map((k) => groups.get(k));
 }
@@ -71,7 +71,7 @@ export function buildForms({ dept, people, overtime, days }) {
     pages.forEach((groups, pi) => {
       const rows = [];
       for (const g of groups) g.forEach((r, i) => rows.push({ no: ++no, name: r.name, payroll: r.payroll, hours: r.hours, note: i === 0 ? r.note : '', span: i === 0 ? g.length : 0, skip: i > 0 && !!r.note, mergedNote: !!r.note }));
-      forms.push({ day, weekday: AR_DAYS[d.getUTCDay()], dateText, general: `${TEXT.maint} / ${S.deptAr}`, deptAr: S.deptAr, signLeft: S.signLeft, signRight: S.signRight, part: pi + 1, parts: pages.length, rows, sheetName: `${String(d.getUTCDate()).padStart(2, '0')}-${MON[d.getUTCMonth()]}${pages.length > 1 ? `-${pi + 1}` : ''}` });
+      forms.push({ day, weekday: AR_DAYS[d.getUTCDay()], dateText, general: S.general, deptAr: S.deptAr, sectorAr: S.sectorAr, signLeft: S.signLeft, signRight: S.signRight, part: pi + 1, parts: pages.length, rows, sheetName: `${String(d.getUTCDate()).padStart(2, '0')}-${MON[d.getUTCMonth()]}${pages.length > 1 ? `-${pi + 1}` : ''}` });
     });
   }
   return forms;

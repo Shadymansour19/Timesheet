@@ -17,7 +17,8 @@ const logos = { left: png('logo-left.png'), right: png('logo-right.png') };
 
 const NOTE = 'Invistigation of Discharge valve Trip Train A Booster Compressor';
 const names = ['Mohamed Salah', 'Hassan Abdelsalam', 'Mohamed Ahmed', 'Mohamed Gomaa', 'Islam Ashraf', 'Hamdy Mahmoud', 'Ali Fathy'];
-const people = names.map((n, i) => ({ id: 'p' + i, full_name: n, payroll: 'EMC-' + (400 + i) }));
+const namesAr = ['محمد صلاح', 'حسن عبد السلام', 'محمد أحمد', '  ', null, undefined, 'علي فتحي'];       // the form shows the Arabic name; none (or blank) = the English name
+const people = names.map((n, i) => ({ id: 'p' + i, full_name: n, full_name_ar: namesAr[i], payroll: 'EMC-' + (400 + i) }));
 const D1 = '2026-10-22', D2 = '2026-10-23';
 const ot = new Map([
   ['p0|' + D1, { hours: 1, note: '' }],
@@ -30,22 +31,25 @@ const ot = new Map([
   ['p0|' + D2, { hours: 2, note: '' }],
   ['p1|' + D2, { hours: 2, note: '' }],                                                          // two people without a note are NOT merged
 ]);
-const dept = { name: 'Turbo', report: { dept_ar: 'التوربينات' } };
+const dept = { name: 'Turbo', name_ar: 'التوربينات', sector: 'Maintenance', sector_ar: 'الصيانة' };
 
 // ---------- the model ----------
 const forms = buildForms({ dept, people, overtime: ot, days: [D1, D2, '2026-10-24'] });
 ok('one form per day with overtime (a day without overtime gets none)', forms.length === 2 && forms[0].day === D1 && forms[1].day === D2);
 const f1 = forms[0];
-ok('rows are numbered and keep the employees\' order; hours = 0 are left out', f1.rows.map((r) => r.no).join() === '1,2,3,4,5,6' && f1.rows.map((r) => r.name).join() === 'Mohamed Salah,Hassan Abdelsalam,Mohamed Ahmed,Mohamed Gomaa,Islam Ashraf,Hamdy Mahmoud');
+ok('rows are numbered and keep the employees\' order; hours = 0 are left out', f1.rows.map((r) => r.no).join() === '1,2,3,4,5,6' && f1.rows.map((r) => r.name).join() === 'محمد صلاح,حسن عبد السلام,محمد أحمد,Mohamed Gomaa,Islam Ashraf,Hamdy Mahmoud');
 ok('no note: not merged (span 1)', f1.rows[0].span === 1 && f1.rows[0].note === '');
 ok('three people with the same note (any case / blanks): ONE cell over 3 rows, the first note shown', f1.rows[1].span === 3 && f1.rows[1].note === NOTE && f1.rows[2].span === 0 && f1.rows[2].skip && f1.rows[3].span === 0 && f1.rows[3].skip);
 ok('hours stay per employee', f1.rows.map((r) => r.hours).join() === '1,2,3,2,4,4');
 ok('the Arabic note is merged over 2 rows', f1.rows[4].span === 2 && f1.rows[4].note === 'مشتريات' && f1.rows[5].skip);
 ok('people without a note are not merged with each other', forms[1].rows.every((r) => r.span === 1 && !r.skip));
 ok('weekday and date in Arabic form', f1.weekday === 'الخميس' && f1.dateText === '22/10/2026' && forms[1].weekday === 'الجمعة');
-ok('department line and sign-off titles come from the settings (Arabic department name)', f1.general === 'الصيانة / التوربينات' && f1.signLeft === TEXT.signLeft && f1.signRight === `${TEXT.signRightPrefix} التوربينات`);
-const S = formSettings({ name: 'Turbo', report: { dept_ar: 'X', ot_sign_left: 'L', ot_sign_right: 'R' } });
-ok('own sign-off titles win over the defaults; no Arabic name falls back to the department name', S.signLeft === 'L' && S.signRight === 'R' && formSettings({ name: 'Turbo' }).deptAr === 'Turbo');
+ok('names: the Arabic name is used, a person without one (empty, blank, missing) shows the English name', f1.rows.slice(0, 3).every((r, i) => r.name === namesAr[i]) && f1.rows[3].name === 'Mohamed Gomaa' && f1.rows[4].name === 'Islam Ashraf' && f1.rows[5].name === 'Hamdy Mahmoud');
+ok('department line and sign-off titles are built from the Arabic sector and department: "الصيانة / التوربينات", "مدير عام الصيانة" (left), "مدير عام مساعد التوربينات" (right)', f1.general === 'الصيانة / التوربينات' && f1.signLeft === 'مدير عام الصيانة' && f1.signRight === 'مدير عام مساعد التوربينات' && f1.sectorAr === 'الصيانة' && f1.deptAr === 'التوربينات');
+const S = formSettings({ name: 'Turbo', name_ar: 'X', sector_ar: 'Y' });
+ok('another sector / department changes all three texts', S.general === 'Y / X' && S.signLeft === 'مدير عام Y' && S.signRight === 'مدير عام مساعد X');
+const S0 = formSettings({ name: 'Turbo', sector: 'Maintenance' });
+ok('no Arabic department falls back to its name, no Arabic sector to "الصيانة"; the English sector word is not used on the form', S0.deptAr === 'Turbo' && S0.sectorAr === 'الصيانة' && S0.general === 'الصيانة / Turbo' && S0.signLeft === 'مدير عام الصيانة' && S0.signRight === 'مدير عام مساعد Turbo');
 
 const many = Array.from({ length: 45 }, (_, i) => ({ id: 'q' + i, full_name: 'Person ' + i, payroll: 'E' + i }));
 const otMany = new Map(many.map((p, i) => [`${p.id}|${D1}`, { hours: 1, note: i < 30 ? 'same' : 'n' + i }]));
@@ -78,7 +82,7 @@ const text = (n) => execFileSync('pdftotext', ['-f', String(n), '-l', String(n),
 const squash = (x) => x.replace(/[\s\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '');
 const has = (txt, word) => squash(txt).includes(word) || squash(txt).includes([...word].reverse().join(''));         // poppler hands Arabic back with gaps between letters, maybe in visual order
 ok('page 1 carries the title, the date and the sign-off texts', has(text(1), 'بيان') && has(text(1), 'المكلفين') && text(1).includes('22/10/2026') && has(text(1), 'الصيانة') && has(text(1), 'التوربينات'), text(1).slice(0, 400));
-ok('page 1 shows the merged note once and every employee', (text(1).match(/Invistigation/g) || []).length === 1 && names.slice(0, 6).every((n) => text(1).includes(n)) && !text(1).includes('no hours'));
+ok('page 1 shows the merged note once and every employee', (text(1).match(/Invistigation/g) || []).length === 1 && f1.rows.every((r) => r.name.split(' ').filter((w) => w.length >= 4).every((w) => has(text(1), w))) && has(text(1), 'محمدصلاح') && text(1).includes('Mohamed Gomaa') && !text(1).includes('no hours'));
 ok('page 2 is the next day', text(2).includes('23/10/2026') && has(text(2), 'الجمعة'));
 // wide and tall viewports must not change the page (everything is relative to the sheet)
 const big = buildForms({ dept, people: many, overtime: new Map(many.slice(0, 20).map((q, i) => [`${q.id}|${D1}`, { hours: 1 + (i % 3), note: 'x'.repeat(i % 4 === 0 ? 190 : 5) + i }])), days: [D1] });
@@ -99,7 +103,7 @@ ok('the title and the day are written', ws.getCell(2, 1).value === TEXT.title &&
 const merges = ws.model.merges;
 ok('the three rows with the same note have one merged work cell, the two others another', merges.includes('D9:D11') && merges.includes('D12:D13'), merges.join());
 ok('the merged cell holds the note once; hours and numbers are per row', ws.getCell('D9').value === NOTE && ws.getCell('D10').isMerged && ws.getCell('D10').master.address === 'D9' && ws.getCell('D13').master.address === 'D12' && !ws.getCell('D8').isMerged && [8, 9, 10, 11, 12, 13].map((r) => ws.getCell(r, 5).value).join() === '1,2,3,2,4,4' && [8, 9, 10, 11, 12, 13].map((r) => ws.getCell(r, 1).value).join() === '1,2,3,4,5,6');
-ok('names and payroll numbers are in their columns', ws.getCell('B9').value === 'Hassan Abdelsalam' && ws.getCell('C9').value === 'EMC-401');
+ok('names and payroll numbers are in their columns', ws.getCell('B9').value === 'حسن عبد السلام' && ws.getCell('B11').value === 'Mohamed Gomaa' && ws.getCell('C9').value === 'EMC-401');
 ok('the two sign-off titles close the sheet (right title in column A, which is on the right)', ws.getCell('A16').value === f1.signRight && ws.getCell('D16').value === f1.signLeft && merges.includes('A16:B16') && merges.includes('D16:E16'), merges.join());
 
 console.log(fails ? `=== ${fails} FAILURES ===` : '=== ALL OVERTIME FORM TESTS PASSED ===');

@@ -27,7 +27,7 @@ timesheet/
 │   ├── i18n/                 # en.js, ar.js (kept in sync by tests/check-i18n.mjs)
 │   └── styles/main.css
 ├── supabase/
-│   ├── migrations/           # numbered *.sql (27 so far); applied with `supabase db push`
+│   ├── migrations/           # numbered *.sql (28 so far); applied with `supabase db push`
 │   ├── functions/admin-manage-users/   # Edge Function: create / reset / delete logins
 │   ├── seed/                 # first_super_admin.sql (manual, template only)
 │   └── tests/                # rls.sql (impersonation tests), run.sh, e2e_admin_users.sh

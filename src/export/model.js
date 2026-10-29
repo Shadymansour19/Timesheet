@@ -48,7 +48,7 @@ export function buildModel({ dept, people, data, year, month, departureRule = DE
       return {
         status, eff: effective(status, dy.holiday), ot: ov?.hours ?? 0, note: ov?.note ?? '',
         arrival, departure, trips: marks.length, tin: outside ? 0 : marks.length, tex: outside ? marks.length : 0,
-        comment: [marks.join(' / '), ov?.note ?? ''].filter(Boolean).join(' - '),   // "Arrival", "Departure" or the overtime note (both: "Arrival - note")
+        comment: marks.join(' / '),   // "Arrival", "Departure" or both ("Arrival / Departure"): the overtime note is NOT printed in the timesheet (it goes on the overtime form)
       };
     });
     const totals = { X: 0, Y: 0, XH: 0, YH: 0, E: 0, ot: 0, tin: 0, tex: 0 };

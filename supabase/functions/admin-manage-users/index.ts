@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
           if (typeof v !== "string" || v.length > max) throw new HttpError(400, `invalid ${name}`);
           return v.trim() || null;
         };
+        const fullNameAr = optional(body.full_name_ar, "full_name_ar", 200);   // the name in Arabic (overtime form), optional
         const opr = optional(body.opr, "opr", 50);   // optional for everyone
         const level = optional(typeof body.level === "number" ? String(body.level) : body.level, "level", 50);   // free text (3, 3A, Senior ...)
         const jobTitle = optional(body.job_title, "job_title", 100);
@@ -127,6 +128,7 @@ Deno.serve(async (req) => {
           id: created.user.id,
           username,
           full_name: fullName,
+          full_name_ar: fullNameAr,
           opr,
           level,
           department_id: deptId,

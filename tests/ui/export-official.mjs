@@ -98,10 +98,10 @@ ok('department data missing -> a notice lists what is missing (defaults are used
 await p.keyboard.press('Escape');
 // the report data comes from the DEPARTMENT record (set here as a super admin would, via the department data dialog / RPC)
 await p.locator('button:text-is("Department data")').click(); await p.waitForSelector('dialog[open]');
-await dlg(p).getByLabel('Department code').fill('19'); await dlg(p).getByLabel('Sector (printed').fill('Maintenance Sector X'); await dlg(p).getByLabel('Field (printed').fill('Operations [Fields] X');
+await dlg(p).getByLabel('Department code').fill('19'); await dlg(p).getByLabel('Sector (printed').fill('Maintenance X'); await dlg(p).getByLabel('Field (printed').fill('Operations [Fields] X');
 await dlg(p).getByLabel('Department name as printed').fill('TURBO (MAINT.)'); await dlg(p).getByLabel('Total approved (Engineer)').fill('264'); await dlg(p).getByLabel('Total approved (Tech)').fill('295');
 await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
-ok('a DEPARTMENT ADMIN edits the department data himself (same dialog as the super admin)', await eventually(() => sql(`select code||'|'||sector||'|'||field||'|'||approved_engineer||'|'||approved_tech||'|'||(report->>'dept_print_name') from public.departments where id='${DA}'`) === '19|Maintenance Sector X|Operations [Fields] X|264|295|TURBO (MAINT.)'));
+ok('a DEPARTMENT ADMIN edits the department data himself (same dialog as the super admin)', await eventually(() => sql(`select code||'|'||sector||'|'||field||'|'||approved_engineer||'|'||approved_tech||'|'||(report->>'dept_print_name') from public.departments where id='${DA}'`) === '19|Maintenance X|Operations [Fields] X|264|295|TURBO (MAINT.)'));
 sql(`update public.profiles set work_location='IDKU Site' where opr='XOT-901'`);
 sql(`update public.profiles set position='Engineer' where opr in ('XOT-901','XOT-902'); update public.profiles set position='Tech' where opr='XOT-903'`);
 await p.reload(); await p.waitForSelector('.tgrid tbody tr');
@@ -120,18 +120,18 @@ ok('employee sheets are named "<name> <payroll>" in the report order (engineers,
 { await p.goto(BASE + '/#/team'); await p.waitForSelector('.tgrid tbody tr'); const rowNames = await p.locator('.tgrid tbody th.nm .nm-name').allTextContents();
   ok('the department grid lists people in the SAME order as the reports', JSON.stringify(rowNames) === JSON.stringify(emps.map((e) => e.name)), rowNames.join(' | ')); }
 const d1 = wb.getWorksheet('1');
-ok('settings are applied: title line and sign-offs on a day sheet', d1.getCell('A4').value === 'XO Alpha Dept. Daily Attendance Sheet' && tx(d1.getCell('C1')).includes('Maintenance Sector X') && tx(d1.getCell('C1')).includes('Operations [Fields] X') && d1.getCell(9 + emps.length + 1, 1).value === 'XO Alpha SH/DH' && d1.getCell(9 + emps.length + 1, 8).value === 'XO Alpha AGM', '');
+ok('settings are applied: title line and sign-offs on a day sheet', d1.getCell('A4').value === 'XO Alpha Dept. Daily Attendance Sheet' && tx(d1.getCell('C1')).includes('Maintenance X Sector') && tx(d1.getCell('C1')).includes('Operations [Fields] X') && d1.getCell(9 + emps.length + 1, 1).value === 'XO Alpha SH/DH' && d1.getCell(9 + emps.length + 1, 8).value === 'XO Alpha AGM', '');
 // every cell of every day sheet equals the database
 const dbRows = sql(`select p.payroll, extract(day from d.day)::int, coalesce(s.status,'E'), coalesce(o.hours::text,''), coalesce(o.note,'') from public.profiles p cross join generate_series(date_trunc('month',current_date)::date, (date_trunc('month',current_date)+interval '1 month - 1 day')::date, '1 day') d(day) left join public.day_status s on s.user_id=p.id and s.day=d.day left join public.overtime o on o.user_id=p.id and o.day=d.day where p.department_id='${DA}' and p.active`).split('\n').map((l) => l.split('|'));
 let mism = 0; for (const [opr, day, status, hours, note] of dbRows) {
   const ws = wb.getWorksheet(String(Number(day))); let found = false;
-  for (let r = 9; r < 9 + emps.length; r++) if (ws.getCell(r, 5).value === opr) { found = true; if (ws.getCell(r, 6).value !== status || String(ws.getCell(r, 10).value ?? '') !== hours || !String(ws.getCell(r, 11).value ?? '').includes(note)) mism++; }
+  for (let r = 9; r < 9 + emps.length; r++) if (ws.getCell(r, 5).value === opr) { found = true; if (ws.getCell(r, 6).value !== status || String(ws.getCell(r, 10).value ?? '') !== hours || (note && String(ws.getCell(r, 11).value ?? '').includes(note))) mism++; }
   if (!found) mism++;
 }
-ok(`all ${dbRows.length} day-sheet rows (status, overtime hours, note) equal the database`, mism === 0, `${mism} mismatches`);
+ok(`all ${dbRows.length} day-sheet rows (status, overtime hours) equal the database and no comment holds the overtime note`, mism === 0, `${mism} mismatches`);
 const e1 = wb.worksheets[nDays + emps.findIndex((e) => e.opr === 'XOT-901')];
 ok('employee sheet: name, title, level, location, contract number, department, code, payroll', e1.getCell('C8').value === 'XO Engineer One' && e1.getCell('C9').value === 'Engineer' && e1.getCell('C10').value === 'Level 3' && e1.getCell('C11').value === 'IDKU Site' && e1.getCell('P9').value === '033/2019' && e1.getCell('P10').value === 'TURBO (MAINT.)' && e1.getCell('P7').value === '19' && e1.getCell('P11').value === 'XOT-901');
-ok('employee sheet: daily values come from formulas that read the day sheets (day 1 X / 2h / "inventory")', typeof e1.getCell('B15').value === 'object' && e1.getCell('B15').value.formula.includes("'1'!") && res(e1.getCell('B15')) === 'X' && res(e1.getCell('I15')) === 2 && String(res(e1.getCell('J15'))).includes('inventory'));
+ok('employee sheet: daily values come from formulas that read the day sheets (day 1 X / 2h, the note "inventory" is not in the comment)', typeof e1.getCell('B15').value === 'object' && e1.getCell('B15').value.formula.includes("'1'!") && res(e1.getCell('B15')) === 'X' && res(e1.getCell('I15')) === 2 && !String(res(e1.getCell('J15')) ?? '').includes('inventory'));
 const rv = wb.getWorksheet('Review'); let rvOk = true, rvMsg = '';
 for (let i = 0; i < emps.length; i++) {
   const t = JSON.parse(sql(`select json_build_object('x', count(*) filter (where status='X'), 'y', count(*) filter (where status='Y'), 'ot', coalesce((select sum(hours) from public.overtime where user_id='${emps[i].id}' and day >= date_trunc('month',current_date) and day < date_trunc('month',current_date) + interval '1 month'),0)) from public.day_status where user_id='${emps[i].id}' and day >= date_trunc('month',current_date) and day < date_trunc('month',current_date) + interval '1 month'`));
@@ -425,7 +425,7 @@ await big.context().close();
   await dx.saveAs(S + '/xo-user.xlsx'); const wu = new ExcelJS.Workbook(); await wu.xlsx.readFile(S + '/xo-user.xlsx');
   const sh = wu.worksheets[0];
   ok('user export: ONE sheet, only that person (their name, OPR, contract no.)', wu.worksheets.length === 1 && sh.getCell('C8').value === 'XO Engineer One' && sh.getCell('P11').value === 'XOT-901' && sh.getCell('P9').value === '033/2019' && dx.suggestedFilename().startsWith('timesheet_XO_Engineer_One_'), dx.suggestedFilename());
-  ok('user export: first day X with 2h overtime "inventory"; day 3 Y', sh.getCell('B15').value === 'X' && sh.getCell('I15').value === 2 && String(sh.getCell('J15').value).includes('inventory') && sh.getCell('B17').value === 'Y');
+  ok('user export: first day X with 2h overtime and no note in the comment; day 3 Y', sh.getCell('B15').value === 'X' && sh.getCell('I15').value === 2 && !String(sh.getCell('J15').value ?? '').includes('inventory') && sh.getCell('B17').value === 'Y');
   await u.click('.cal-tools button:has-text("Export")'); await u.waitForSelector('dialog[open]');
   await dlg(u).locator('input[type=radio][value="pdf"]').check();
   const [dpdf] = await Promise.all([u.waitForEvent('download', { timeout: 60000 }), dlg(u).locator('button.primary').click()]);

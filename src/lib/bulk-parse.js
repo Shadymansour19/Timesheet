@@ -3,7 +3,7 @@
 import { t } from '../i18n/index.js';
 
 export const COLUMNS = [
-  ['full_name', 'Full name', ['full name', 'name', 'fullname']], ['opr', 'OPR', ['opr']], ['payroll', 'Payroll', ['payroll', 'p/r', 'pr']],
+  ['full_name', 'Full name', ['full name', 'name', 'fullname']], ['full_name_ar', 'Full name (Arabic)', ['full name (arabic)', 'arabic name', 'name (arabic)', 'name ar', 'full name ar', 'الاسم بالعربي', 'الاسم بالعربية']], ['opr', 'OPR', ['opr']], ['payroll', 'Payroll', ['payroll', 'p/r', 'pr']],
   ['username', 'Username', ['username', 'user name', 'login']], ['password', 'Password', ['password', 'pass']], ['level', 'Level', ['level']],
   ['job_title', 'Job title', ['job title', 'title']], ['contract_no', 'Contract no', ['contract no', 'contract no.', 'contract', 'contr. no']],
   ['work_location', 'Work location', ['work location', 'location', 'site']], ['position', 'Position', ['position']], ['residence', 'Residence', ['residence', 'lives']], ['y_allowed', 'Y allowed', ['y allowed', 'y']],
@@ -68,9 +68,9 @@ export async function templateFile(multi = false, sup = false) {
   ws.addRow(cols.map(([, label]) => label)).font = { bold: true };
   // rows showing the possible values: empty username / password (-> payroll letters+numbers / random), Y allowed yes | no, residence inside | outside, role user | admin | manager
   const rows = [
-    ['Ahmed Ali Hassan', 'OPRCTR123', 'EMC-123', '', '', '3', 'Engineer', '033/2019', 'IDKU Site', 'Engineer', 'inside', 'yes', multi ? 'admin' : ''],
-    ['Sara Mahmoud Ibrahim', 'OPRCTR124', 'EMC-124', 'sara.m', 'Pass-12345', '3A', 'Technician', '033/2019', 'IDKU Site', 'Tech', 'outside', 'no', multi ? 'manager' : 'user'],
-    ['Omar Khaled Samir', 'OPRCTR125', 'EMC-125', '', 'Temp-Pass-9', 'Senior', 'Supervisor', '', '', 'Engineer', '', 'yes', multi ? '' : 'manager'],
+    ['Ahmed Ali Hassan', 'أحمد علي حسن', 'OPRCTR123', 'EMC-123', '', '', '3', 'Engineer', '033/2019', 'IDKU Site', 'Engineer', 'inside', 'yes', multi ? 'admin' : ''],
+    ['Sara Mahmoud Ibrahim', 'سارة محمود إبراهيم', 'OPRCTR124', 'EMC-124', 'sara.m', 'Pass-12345', '3A', 'Technician', '033/2019', 'IDKU Site', 'Tech', 'outside', 'no', multi ? 'manager' : 'user'],
+    ['Omar Khaled Samir', '', 'OPRCTR125', 'EMC-125', '', 'Temp-Pass-9', 'Senior', 'Supervisor', '', '', 'Engineer', '', 'yes', multi ? '' : 'manager'],
   ];
   rows.forEach((r, i) => ws.addRow(multi ? [['Turbo', 'Turbo', 'Mechanical'][i], ...r] : r));
   cols.forEach((_, i) => { ws.getColumn(i + 1).width = 18; });

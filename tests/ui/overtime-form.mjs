@@ -11,16 +11,16 @@ const BASE = process.env.BASE_URL ?? 'http://localhost:4173';
 const db = (q) => execSync(`psql "$TS_DB_URL" -X -q -At -c "${q.replace(/"/g, '\\"')}"`, { encoding: 'utf8' }).trim();
 const PW = 'Otf-Pass-12345', DA = '62000000-0000-0000-0000-00000000000a';
 const ID = { adm: '62000000-0000-0000-0000-0000000000a1', u1: '62000000-0000-0000-0000-0000000000a2', u2: '62000000-0000-0000-0000-0000000000a3', u3: '62000000-0000-0000-0000-0000000000a4', u4: '62000000-0000-0000-0000-0000000000a5', sm: '62000000-0000-0000-0000-0000000000a6' };
-const mk = (id, un, role, name, payroll) => db(`
+const mk = (id, un, role, name, payroll, nameAr = null) => db(`
  insert into auth.users (instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at,confirmation_token,recovery_token,email_change_token_new,email_change)
  values ('00000000-0000-0000-0000-000000000000','${id}','authenticated','authenticated','${un}@timesheet.local',crypt('${PW}',gen_salt('bf')),now(),'{"provider":"email","providers":["email"]}','{}',now(),now(),'','','','');
  insert into auth.identities (id,user_id,provider_id,identity_data,provider,last_sign_in_at,created_at,updated_at) values (gen_random_uuid(),'${id}','${id}','{"sub":"${id}"}','email',now(),now(),now());
- insert into public.profiles (id,username,full_name,opr,level,department_id,role,payroll) values ('${id}','${un}','${name}','OPR-${un}',1,${role === 'super_manager' ? 'null' : `'${DA}'`},'${role}',${payroll ? `'${payroll}'` : 'null'});`);
+ insert into public.profiles (id,username,full_name,full_name_ar,opr,level,department_id,role,payroll) values ('${id}','${un}','${name}',${nameAr ? `'${nameAr}'` : 'null'},'OPR-${un}',1,${role === 'super_manager' ? 'null' : `'${DA}'`},'${role}',${payroll ? `'${payroll}'` : 'null'});`);
 const cleanup = () => db(`delete from auth.users where id::text like '62000000%'; delete from public.departments where id = '${DA}';
   delete from public.audit_log where (target_user is not null and target_user not in (select id from public.profiles)) or (department_id is not null and department_id not in (select id from public.departments));`);
 cleanup();
-db(`insert into public.departments (id,name,report) values ('${DA}','OTF Dept','{"dept_ar":"قسم الاختبار","ot_sign_left":"توقيع يسار"}')`);
-mk(ID.adm, 'otfadm', 'admin', 'OTF Admin', 'OTF-900'); mk(ID.u1, 'otfu1', 'user', 'OTF User One', 'OTF-901'); mk(ID.u2, 'otfu2', 'user', 'OTF User Two', 'OTF-902');
+db(`insert into public.departments (id,name,name_ar,sector,sector_ar) values ('${DA}','OTF Dept','قسم الاختبار','Maintenance','قطاع الاختبار')`);
+mk(ID.adm, 'otfadm', 'admin', 'OTF Admin', 'OTF-900'); mk(ID.u1, 'otfu1', 'user', 'OTF User One', 'OTF-901', 'مستخدم واحد'); mk(ID.u2, 'otfu2', 'user', 'OTF User Two', 'OTF-902', 'مستخدم اثنان');
 mk(ID.u3, 'otfu3', 'user', 'OTF User Three', 'OTF-903'); mk(ID.u4, 'otfu4', 'user', 'OTF User Four', null); mk(ID.sm, 'otfsm', 'super_manager', 'OTF Super Manager', null);
 const M = "date_trunc('month', current_date)::date";
 db(`insert into public.overtime (user_id, day, hours, note) values ('${ID.u1}', ${M}+3, 2, 'Pump seal change'), ('${ID.u2}', ${M}+3, 3, 'pump  SEAL change'), ('${ID.u3}', ${M}+3, 4, 'Other job'), ('${ID.u4}', ${M}+3, 1, null), ('${ID.u1}', ${M}+4, 5, 'Next day job')`);
@@ -60,12 +60,12 @@ const wb = new ExcelJS.Workbook(); await wb.xlsx.readFile(x.f);
 ok('month Excel: one sheet per day with overtime (4th and 5th)', wb.worksheets.length === 2 && wb.worksheets[0].name.startsWith('04-') && wb.worksheets[1].name.startsWith('05-'), wb.worksheets.map((w) => w.name).join());
 const ws = wb.worksheets[0];
 ok('month Excel: upright (portrait A4), right-to-left', ws.pageSetup.orientation === 'portrait' && ws.pageSetup.paperSize === 9 && ws.views[0].rightToLeft === true);
-ok('month Excel: department line uses the Arabic name of the settings', String(ws.getCell('A4').value).includes('قسم الاختبار'), String(ws.getCell('A4').value));
+ok('month Excel: the general-management line is "<Arabic sector> / <Arabic department>"', String(ws.getCell('A4').value).endsWith('قطاع الاختبار / قسم الاختبار'), String(ws.getCell('A4').value));
 const names = [8, 9, 10, 11].map((r) => ws.getCell(r, 2).value);
-ok('month Excel: the four people of the day, hours per person, payroll numbers', names.join() === 'OTF User One,OTF User Two,OTF User Three,OTF User Four' && [8, 9, 10, 11].map((r) => ws.getCell(r, 5).value).join() === '2,3,4,1' && ws.getCell('C8').value === 'OTF-901' && (ws.getCell('C11').value ?? '') === '', names.join());
+ok('month Excel: the four people of the day, hours per person, payroll numbers', names.join() === 'مستخدم واحد,مستخدم اثنان,OTF User Three,OTF User Four' && [8, 9, 10, 11].map((r) => ws.getCell(r, 5).value).join() === '2,3,4,1' && ws.getCell('C8').value === 'OTF-901' && (ws.getCell('C11').value ?? '') === '', names.join());
 ok('month Excel: the two people with the same note (other case, double blank) share ONE cell; the others are not merged', ws.model.merges.includes('D8:D9') && !ws.model.merges.some((m) => /^D1[01]/.test(m)) && ws.getCell('D8').value === 'Pump seal change' && ws.getCell('D10').value === 'Other job', ws.model.merges.join());
 const signRow = ws.model.merges.find((m) => /^A\d+:B\d+$/.test(m) && Number(m.slice(1, m.indexOf(':'))) > 12)?.match(/\d+/)[0];
-ok('month Excel: sign-off titles', ws.getCell(`D${signRow}`).value === 'توقيع يسار' && String(ws.getCell(`A${signRow}`).value).endsWith('قسم الاختبار'), String(ws.getCell(`A${signRow}`).value));
+ok('month Excel: sign-off titles are built from the sector (left: GM) and the department (right: assistant GM)', ws.getCell(`D${signRow}`).value === 'مدير عام قطاع الاختبار' && ws.getCell(`A${signRow}`).value === 'مدير عام مساعد قسم الاختبار', String(ws.getCell(`A${signRow}`).value));
 ok('month Excel: the DB date is the sheet date', String(ws.getCell('A5').value).includes(`${dstr(4).slice(8)}/${month.slice(5)}/${month.slice(0, 4)}`), String(ws.getCell('A5').value));
 
 // ---- the whole month as PDF
@@ -81,7 +81,7 @@ ok('month PDF: the off-screen pages are removed again', (await p.locator('div[st
 await p.click('#ot-print');
 ok('month Print: sent to print() once, as HTML (no download)', await eventually(async () => (await p.evaluate(() => window.__printed || 0)) === 1));
 const doc = await p.evaluate(() => window.__printedDoc);
-ok('month Print: A4 portrait, right-to-left, 2 forms, the merged cell once', /size: A4 portrait/.test(doc) && /dir="rtl"/.test(doc) && (doc.match(/class="pg"/g) || []).length === 2 && (doc.match(/Pump seal change/g) || []).length === 1 && /rowspan="2"/.test(doc) && doc.includes('قسم الاختبار'));
+ok('month Print: A4 portrait, right-to-left, 2 forms, the merged cell once', /size: A4 portrait/.test(doc) && /dir="rtl"/.test(doc) && (doc.match(/class="pg"/g) || []).length === 2 && (doc.match(/Pump seal change/g) || []).length === 1 && /rowspan="2"/.test(doc) && doc.includes('قطاع الاختبار / قسم الاختبار') && doc.includes('مستخدم واحد') && !doc.includes('OTF User One'));
 ok('month Print: no page errors', p.errs.length === 0, p.errs.join('|'));
 
 // ---- one day: the window has the same three buttons; it prints what it shows
@@ -91,7 +91,7 @@ ok('day window: Print, Excel and PDF are there', (await p.locator('dialog[open] 
 const d1 = await download(p, () => p.click('#otd-xlsx'));
 ok('day Excel: file name has the day; one sheet with the 4 people', d1.name === `overtime_OTF_Dept_${dstr(4)}.xlsx`);
 const w1 = new ExcelJS.Workbook(); await w1.xlsx.readFile(d1.f);
-ok('day Excel: one sheet, the 4 people', w1.worksheets.length === 1 && [8, 9, 10, 11].map((r) => w1.worksheets[0].getCell(r, 2).value).join() === 'OTF User One,OTF User Two,OTF User Three,OTF User Four');
+ok('day Excel: one sheet, the 4 people', w1.worksheets.length === 1 && [8, 9, 10, 11].map((r) => w1.worksheets[0].getCell(r, 2).value).join() === 'مستخدم واحد,مستخدم اثنان,OTF User Three,OTF User Four');
 // not saved yet: Three gets the SAME note as One and Two -> the form shows 3 merged rows, the database stays as it was
 const row = (n) => p.locator(`dialog[open] .otrow:has(strong:text-is("${n}"))`);
 await row('OTF User Three').locator('.ot-note').fill('Pump seal change');
@@ -139,6 +139,24 @@ await p.context().close();
   const sx = await download(sm, () => sm.click('#ot-xlsx')); const sw1 = new ExcelJS.Workbook(); await sw1.xlsx.readFile(sx.f);
   ok('super manager: the month Excel has the department\'s forms', sw1.worksheets.length === 2);
   await sm.context().close(); }
+
+// ---- the Arabic names are edited in the app: a person (Edit data) and the department / sector (Report settings)
+{ const ed = await login('otfadm'); const dlgOf = () => ed.locator('dialog[open]');
+  await ed.click('.nav a:has(.lbl:text-is("Users"))'); await ed.waitForSelector('.person');
+  await ed.locator('.person', { hasText: 'OTF User Three' }).first().locator('button:text-is("Edit data")').click(); await ed.waitForSelector('dialog[open]');
+  ok('Edit data has the field "Full name in Arabic"', (await dlgOf().getByLabel('Full name in Arabic').count()) === 1 && (await dlgOf().getByLabel('Full name in Arabic').getAttribute('dir')) === 'rtl');
+  await dlgOf().getByLabel('Full name in Arabic').fill('مستخدم ثلاثة'); await dlgOf().locator('button.primary').click(); await ed.waitForSelector('dialog[open]', { state: 'detached' });
+  ok('...saved in the database, the English name untouched', await eventually(() => db(`select full_name_ar||'|'||full_name from public.profiles where id='${ID.u3}'`) === 'مستخدم ثلاثة|OTF User Three'));
+  await ed.click('.nav a:has(.lbl:text-is("Department"))'); await ed.waitForSelector('button:text-is("Department data")');
+  await ed.locator('button:text-is("Department data")').click(); await ed.waitForSelector('dialog[open]');
+  ok('Report settings: the sector box shows the value only, the Arabic department and sector boxes hold the saved values', (await dlgOf().getByLabel('Sector (printed').inputValue()) === 'Maintenance' && (await dlgOf().getByLabel('Department name in Arabic').inputValue()) === 'قسم الاختبار' && (await dlgOf().getByLabel('Sector in Arabic').inputValue()) === 'قطاع الاختبار' && (await dlgOf().getByLabel('Signature title').count()) === 0);
+  await dlgOf().getByLabel('Department name in Arabic').fill('التوربينات'); await dlgOf().getByLabel('Sector in Arabic').fill('الصيانة'); await dlgOf().locator('button.primary').click(); await ed.waitForSelector('dialog[open]', { state: 'detached' });
+  ok('...saved in the database (name_ar, sector_ar); the English sector is unchanged', await eventually(() => db(`select name_ar||'|'||sector_ar||'|'||sector from public.departments where id='${DA}'`) === 'التوربينات|الصيانة|Maintenance'));
+  await ed.click('.nav a:has(.lbl:text-is("Overtime"))'); await ed.waitForSelector('.ot-day');
+  const x3 = await download(ed, () => ed.click('#ot-xlsx')); const w3 = new ExcelJS.Workbook(); await w3.xlsx.readFile(x3.f); const s3 = w3.worksheets[0];
+  const sr = s3.model.merges.find((m) => /^A\d+:B\d+$/.test(m) && Number(m.slice(1, m.indexOf(':'))) > 12)?.match(/\d+/)[0];
+  ok('the next form uses them: "الصيانة / التوربينات", "مدير عام الصيانة", "مدير عام مساعد التوربينات", the new Arabic name', String(s3.getCell('A4').value).endsWith('الصيانة / التوربينات') && s3.getCell(`D${sr}`).value === 'مدير عام الصيانة' && s3.getCell(`A${sr}`).value === 'مدير عام مساعد التوربينات' && s3.getCell('B10').value === 'مستخدم ثلاثة', String(s3.getCell('A4').value));
+  await ed.context().close(); }
 
 cleanup();
 await b.close();

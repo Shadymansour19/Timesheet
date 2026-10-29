@@ -4,7 +4,9 @@ Newest first. Grouped by day from the git history; the reasons are in [SPEC.md](
 
 ## 2026-10-29
 - Overtime form from the app: Print / Excel / PDF of one day (in the day window) or of the whole month (Overtime tab); one upright A4 page per day in Arabic with the logos, people with the same note share one "work required" cell, hours per person; the scan is unchanged.
-- Report settings: Arabic department name and the two sign-off titles of the overtime form (needs migration 27).
+- Arabic names (migration 28): a person's Arabic name (Edit data, Add user, bulk add), the department's Arabic name and the Arabic sector (Report settings); the overtime form uses them: the Arabic name of each person, "الإدارة العامة: <sector> / <department>", "مدير عام <sector>", "مدير عام مساعد <department>". Replaces the Arabic department / sign-off fields of migration 27.
+- Sector is stored as the value only ("Maintenance"); the exports append the word "Sector".
+- Timesheet exports (Excel / PDF / print): the Comments column holds only Arrival / Departure, no overtime note.
 - Guide: language is the button next to the menu (new Language step, the Menu step corrected), Overtime steps for the form.
 
 ## 2026-10-26

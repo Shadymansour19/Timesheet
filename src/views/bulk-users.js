@@ -55,7 +55,7 @@ async function createRow(r, dupError = '', departments = null, sup = false) {
   else if (r.role && !ROLES[r.role.toLowerCase()]) out.error = t('bulk_err_role');
   if (out.error) return out;
   try {
-    await callFn('create_user', { username: out.username, password: out.password, full_name: r.full_name, opr: r.opr, level, department_id: dept.id, role,
+    await callFn('create_user', { username: out.username, password: out.password, full_name: r.full_name, full_name_ar: r.full_name_ar, opr: r.opr, level, department_id: dept.id, role,
       job_title: r.job_title, contract_no: r.contract_no, work_location: r.work_location, residence: r.residence.toLowerCase(), position: r.position, payroll: r.payroll, y_allowed: !NO.includes((r.y_allowed || 'yes').toLowerCase()) });
     out.ok = true;
   } catch (e) { out.error = explain(e); }

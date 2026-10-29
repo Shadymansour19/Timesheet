@@ -22,6 +22,7 @@ export function personFields(initial = {}, { withLogin = false, isNew = false, r
     username: withLogin ? field(t('username'), { required: true, autocapitalize: 'none', autocomplete: 'off', pattern: '[a-z0-9._\\-]{3,32}', minlength: 3, maxlength: 32 }) : null,
     password: withLogin ? field(t('temp_password'), { type: 'text', required: true, minlength: 8, autocomplete: 'off', value: randomPassword() }) : null,
     full_name: field(t('full_name'), { required: true, value: initial.full_name ?? '' }),
+    full_name_ar: field(t('full_name_ar'), { maxlength: 200, value: initial.full_name_ar ?? '', dir: 'rtl' }),   // the name on the overtime form (empty = the English name)
     opr: field(t('opr'), { value: initial.opr ?? '' }),
     level: field(t('level'), { maxlength: 50, value: initial.level ?? '', placeholder: '3' }),
     job_title: field(t('job_title'), { maxlength: 100, value: initial.job_title ?? '' }),
@@ -100,7 +101,7 @@ export function usersView() {
       title: t('add_user'), wide: 'xl', content: h('div', { class: 'form two-col' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
       buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {
         await callFn('create_user', {
-          username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
+          username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value, full_name_ar: p.f.full_name_ar.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: myDept(), role: p.role(),
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
           work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value, payroll: p.f.payroll.input.value, y_allowed: p.f.y_allowed.input.value === 'yes',
@@ -115,7 +116,7 @@ export function usersView() {
     openDialog({
       title: `${t('edit_data')}: ${person.full_name}`, wide: 'xl', content: h('div', { class: 'form two-col' }, h('p', { class: 'muted' }, `${t('username')}: ${person.username}`), p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
-        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value, p.f.payroll.input.value, p.f.y_allowed.input.value === 'yes');
+        await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value, p.f.payroll.input.value, p.f.y_allowed.input.value === 'yes', p.f.full_name_ar.input.value);
         await load();
       } }],
     });

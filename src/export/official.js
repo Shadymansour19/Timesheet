@@ -43,11 +43,12 @@ export function employeeSheetName(fullName, payroll, used) {
 export function reportSettings(model, tpl) {
   const c = tpl.constants, r = model.report ?? {};
   const pick = (v, fallback) => (typeof v === 'string' && v.trim() ? v.trim() : fallback);
+  const sectorLine = (v) => { const s = pick(v, ''); return s ? (/\bsector$/i.test(s) ? s : `${s} Sector`) : c.defaultSector; };   // the department stores the sector value only ("Maintenance"): the banner adds the word
   const name = model.department;
   return {
     deptName: name, deptTitle: `${name} Dept.`, code: model.deptCode ?? '',
     printName: pick(r.dept_print_name, name.toUpperCase()),
-    manpower: c.manpower, banner: [c.banner1, pick(model.field, c.defaultField), pick(model.sector, c.defaultSector)],
+    manpower: c.manpower, banner: [c.banner1, pick(model.field, c.defaultField), sectorLine(model.sector)],
     captionLeft: c.captionLeft, captionRight: c.captionRight,
     signLeft: `${name} SH/DH`, signRight: `${name} AGM`,
     otTitle: `${name} EMC overtime`, otMiddle: c.overtimeSignoffMiddle, otRight: c.overtimeSignoffRight,

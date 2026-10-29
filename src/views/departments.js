@@ -36,7 +36,7 @@ export function departmentsView() {
       title: `${t('add_admin')} – ${dept.name}`, wide: 'xl', content: h('div', { class: 'form two-col' }, p.rows, h('p', { class: 'muted' }, t('share_password_hint'))),
       buttons: [{ label: t('cancel') }, { label: t('add'), kind: 'primary', onClick: async () => {
         await callFn('create_user', {
-          username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value,
+          username: p.f.username.input.value, password: p.f.password.input.value, full_name: p.f.full_name.input.value, full_name_ar: p.f.full_name_ar.input.value,
           opr: p.f.opr.input.value, level: p.level(), department_id: dept.id, role: p.role(),
           job_title: p.f.job_title.input.value, contract_no: p.f.contract_no.input.value,
           work_location: p.f.work_location.input.value, residence: p.f.residence.input.value, position: p.f.position.input.value, payroll: p.f.payroll.input.value, y_allowed: p.f.y_allowed.input.value === 'yes',
