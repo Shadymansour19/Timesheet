@@ -59,7 +59,7 @@ const otMany = new Map(many.map((p, i) => [`${p.id}|${D1}`, { hours: 1, note: i 
 const pages = buildForms({ dept, people: many, overtime: otMany, days: [D1] });
 ok('many rows: several pages, numbering goes on, every page says "page n of m"', pages.length >= 4 && pages[1].rows[0].no === pages[0].rows.length + 1 && pages.every((p, i) => p.part === i + 1 && p.parts === pages.length));
 ok('a group longer than a page is split, the note is repeated at the top of each part', pages[0].rows[0].note === 'same' && pages[1].rows[0].note === 'same' && pages[0].rows[0].span === pages[0].rows.length);
-ok('no page is longer than 12 rows (the landscape page is low) and all 45 people are on some page', pages.every((p) => p.rows.length <= 12) && pages.reduce((a, p) => a + p.rows.length, 0) === 45);
+ok('no page is longer than 10 rows (the landscape page is low) and all 45 people are on some page', pages.every((p) => p.rows.length <= 10) && pages.reduce((a, p) => a + p.rows.length, 0) === 45);
 const small = buildForms({ dept, people: many, overtime: new Map(many.slice(0, 5).map((p) => [`${p.id}|${D1}`, { hours: 1, note: 'together' }])), days: [D1] });
 ok('a group that fits is kept together on one page', small.length === 1 && small[0].rows[0].span === 5);
 const long = buildForms({ dept, people: many.slice(0, 40), overtime: new Map(many.slice(0, 40).map((p, i) => [`${p.id}|${D1}`, { hours: 1, note: i >= 14 && i < 24 ? 'a' : 'b' + i }])), days: [D1] });

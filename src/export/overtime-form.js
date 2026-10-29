@@ -43,9 +43,9 @@ function rowsOfDay(people, overtime, day) {
 
 // groups -> pages. The body of a page is BODY mm tall (what is left between the table head and the sign-offs); a row is ROW_H mm, taller when its name or its
 // merged note needs more lines (CHARS_NAME / CHARS_NOTE characters per line of that column, estimated on the safe side). A group is kept together unless it is taller than a page.
-const ROW_H = 8.2, LINE_H = 5.6, PAD_H = 3.4, BODY = 98, CHARS_NAME = 28, CHARS_NOTE = 48;
+const ROW_H = 8.2, LINE_H = 5.6, PAD_H = 3.4, BODY = 84, CHARS_NAME = 28, CHARS_NOTE = 40;
 const lines = (s, chars) => Math.max(1, Math.ceil(String(s ?? '').length / chars));
-const rowH = (r) => Math.max(ROW_H, lines(r.name, CHARS_NAME) * LINE_H + PAD_H);
+const rowH = (r) => (lines(r.name, CHARS_NAME) > 1 ? Math.max(ROW_H, lines(r.name, CHARS_NAME) * LINE_H + PAD_H) : ROW_H);
 const groupH = (rows) => Math.max(rows.reduce((a, r) => a + rowH(r), 0), rows[0]?.note ? lines(rows[0].note, CHARS_NOTE) * LINE_H + PAD_H : 0);
 function paginate(groups) {
   const pages = []; let cur = [], used = 0;
@@ -88,7 +88,7 @@ const m = (n) => `calc(var(--u) * ${n})`;
 export const formCss = (root = '.otf') => `
 ${root}, ${root} * { box-sizing: border-box; }
 ${root} { direction: rtl; color: #000; font-family: "Noto Naskh Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.35; }
-${root} .pg { position: relative; width: ${m(297)}; height: ${m(209)}; padding: ${m(8)} ${m(14)}; background: #fff; overflow: hidden; page-break-after: always; break-after: page; }
+${root} .pg { position: relative; width: ${m(297)}; height: ${m(209)}; padding: ${m(19.2)} ${m(33.6)}; background: #fff; overflow: hidden; page-break-after: always; break-after: page; }
 ${root} .pg:last-child { page-break-after: auto; break-after: auto; }
 ${root} .logos { display: flex; justify-content: space-between; align-items: center; height: ${m(22)}; }
 ${root} .logos img { height: ${m(20)}; width: auto; max-width: ${m(60)}; object-fit: contain; }
@@ -98,9 +98,9 @@ ${root} table { width: 100%; border-collapse: collapse; margin-top: ${m(4)}; fon
 ${root} th, ${root} td { border: ${m(0.3)} solid #000; padding: ${m(1.6)} ${m(1.5)}; text-align: center; vertical-align: middle; word-wrap: break-word; overflow-wrap: anywhere; height: ${m(8.2)}; }
 ${root} th { font-weight: 700; }
 ${root} td.work { white-space: pre-wrap; }
-${root} .sign { position: absolute; left: ${m(14)}; right: ${m(14)}; bottom: ${m(14)}; display: flex; justify-content: space-between; font-weight: 700; font-size: ${m(4.2)}; }
+${root} .sign { position: absolute; left: ${m(33.6)}; right: ${m(33.6)}; bottom: ${m(19.2)}; display: flex; justify-content: space-between; font-weight: 700; font-size: ${m(4.2)}; }
 ${root} .sign div { width: ${m(70)}; border-top: ${m(0.4)} solid #000; padding-top: ${m(2)}; text-align: center; }
-${root} .cont { position: absolute; bottom: ${m(5)}; left: 0; right: 0; text-align: center; font-size: ${m(3)}; color: #444; }
+${root} .cont { position: absolute; bottom: ${m(8)}; left: 0; right: 0; text-align: center; font-size: ${m(3)}; color: #444; }
 `;
 
 export function formsBody(forms, { logos = {} } = {}) {
@@ -144,7 +144,7 @@ export async function buildOvertimeWorkbook(forms, ExcelJS, { loadAsset } = {}) 
   const used = new Set();
   for (const f of forms) {
     let name = f.sheetName, k = 2; while (used.has(name)) name = `${f.sheetName}-${k++}`; used.add(name);
-    const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, showGridLines: false }], pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } } });
+    const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, showGridLines: false }], pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true, margins: { left: 0.96, right: 0.96, top: 1.2, bottom: 1.2, header: 0.3, footer: 0.3 } } });
     const WIDTHS = [6, 40, 18, 66, 14], px = (w) => w * 7 + 5, total = WIDTHS.reduce((a, w) => a + px(w), 0);
     WIDTHS.forEach((w, i) => { ws.getColumn(i + 1).width = w; });              // م | الاسم | الرقم الوظيفي | الأعمال المطلوبة | عدد الساعات (A is on the right in a right-to-left sheet)
     const merged = (r, text, o = {}) => { ws.mergeCells(r, 1, r, 5); const c = ws.getCell(r, 1); c.value = text; c.font = font(o.font); c.alignment = { horizontal: o.align ?? 'center', vertical: 'middle', readingOrder: 'rtl' }; return c; };
