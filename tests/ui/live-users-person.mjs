@@ -97,7 +97,7 @@ await A2.goto('http://localhost:4173/#/users'); await A2.waitForSelector('.perso
 const before = await A2.locator('.person').count();
 await A.goto('http://localhost:4173/#/users'); await A.waitForSelector('.person');
 await A.click('button:text-is("Add user")'); await A.waitForSelector('dialog[open]');
-await A.locator('dialog[open]').getByLabel('Username').fill('lvnew'); await A.locator('dialog[open]').getByLabel('Full name').fill('LV Brand New'); await A.locator('dialog[open]').getByLabel('OPR').fill('OPR-LVN'); await A.locator('dialog[open]').getByLabel('Payroll number').fill('PR-OPR-LVN');
+await A.locator('dialog[open]').getByLabel('Username').fill('lvnew'); await A.locator('dialog[open]').getByLabel('Full name', { exact: true }).fill('LV Brand New'); await A.locator('dialog[open]').getByLabel('OPR').fill('OPR-LVN'); await A.locator('dialog[open]').getByLabel('Payroll number').fill('PR-OPR-LVN');
 await submit(A);
 ok("users tab on A2 shows the new person LIVE", await eventually(async () => (await A2.locator('.person').count()) === before + 1 && (await A2.locator('.person:has-text("LV Brand New")').count()) === 1));
 await A.locator('.person', { hasText: 'LV Brand New' }).locator('button:text-is("Delete")').click(); await A.locator('dialog[open] button.danger').click();
@@ -153,7 +153,7 @@ await A.screenshot({ path: S + '/lv-users.png' });
 const G = await login('lnew'); await G.goto('http://localhost:4173/#/users'); await G.waitForSelector('.person');
 ok('a department with no employees shows a helpful empty state', (await G.locator('.empty').isVisible()) && (await G.locator('.empty').textContent()).includes('No employees yet'));
 await G.click('.empty button:text-is("Add user")'); await G.waitForSelector('dialog[open]');
-await G.locator('dialog[open]').getByLabel('Username').fill('lvg1'); await G.locator('dialog[open]').getByLabel('Full name').fill('LV Gamma One'); await G.locator('dialog[open]').getByLabel('OPR').fill('OPR-LG9'); await G.locator('dialog[open]').getByLabel('Payroll number').fill('PR-OPR-LG9');
+await G.locator('dialog[open]').getByLabel('Username').fill('lvg1'); await G.locator('dialog[open]').getByLabel('Full name', { exact: true }).fill('LV Gamma One'); await G.locator('dialog[open]').getByLabel('OPR').fill('OPR-LG9'); await G.locator('dialog[open]').getByLabel('Payroll number').fill('PR-OPR-LG9');
 await submit(G);
 ok('...adding the first employee from it works and the empty state disappears', await eventually(async () => (await G.locator('.person:has-text("LV Gamma One")').count()) === 1 && (await G.locator('.empty').isHidden())));
 await G.screenshot({ path: S + '/lv-empty.png' });

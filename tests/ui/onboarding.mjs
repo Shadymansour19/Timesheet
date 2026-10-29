@@ -27,7 +27,7 @@ const marks = () => p.locator('#onboarding .ob-step').evaluateAll((e) => e.map((
 ok('a new department shows the 3-step checklist, nothing done', (await p.locator('#onboarding .ob-step').count()) === 3 && (await marks()).join() === 'false,false,false', (await marks()).join());
 // step 1: add a person
 await p.click('#onboarding button:text-is("Add user")'); await p.waitForSelector('dialog[open]');
-await p.fill('dialog[open] input[autocapitalize="none"]', 'obu1'); await p.getByRole('textbox', { name: 'Full name' }).fill('OB Person'); await p.getByLabel('Payroll number').fill('OBP-1'); await p.click('dialog[open] button:text-is("Add")');
+await p.fill('dialog[open] input[autocapitalize="none"]', 'obu1'); await p.getByRole('textbox', { name: 'Full name', exact: true }).fill('OB Person'); await p.getByLabel('Payroll number').fill('OBP-1'); await p.click('dialog[open] button:text-is("Add")');
 ok('step 1 is ticked after adding a person', await eventually(async () => (await marks())[0] === true));
 // step 2: department data
 await p.click('#onboarding button:text-is("Department data")'); await p.waitForSelector('dialog[open]');

@@ -70,7 +70,7 @@ await p.click('button:text-is("Add user")'); await p.waitForSelector('dialog[ope
 { const bx = await dlg(p).evaluate((d) => { const r = d.getBoundingClientRect(); const u = d.querySelector('input').getBoundingClientRect(); const pw = [...d.querySelectorAll('input')][1].getBoundingClientRect(); return { w: r.width, h: r.height, vh: innerHeight, sameRow: Math.abs(u.top - pw.top) < 4 && pw.left > u.left + 100 }; });
   ok('Add user dialog: two columns, wider, and short enough for one screen', bx.sameRow && bx.w >= 700 && bx.h <= bx.vh - 20, JSON.stringify(bx)); await p.screenshot({ path: S + '/xo-add-user.png' }); }
 ok('Add user dialog has Job title and Contract no. fields', (await dlg(p).getByLabel('Job title').count()) === 1 && (await dlg(p).getByLabel('Contract no.').count()) === 1);
-await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name').fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('XOT-999'); await dlg(p).getByLabel('Payroll number').fill('PR-999');
+await dlg(p).getByLabel('Username').fill('xonew'); await dlg(p).getByLabel('Full name', { exact: true }).fill('XO Brand New'); await dlg(p).getByLabel('OPR').fill('XOT-999'); await dlg(p).getByLabel('Payroll number').fill('PR-999');
 ok('Add user dialog: contract no. is pre-filled with 033/2019 (UI only) and residence defaults to inside', (await dlg(p).getByLabel('Contract no.').inputValue()) === '033/2019' && (await dlg(p).locator('.choice:has-text("Lives in") input:checked').inputValue()) === 'inside');
 await dlg(p).getByLabel('Job title').fill('Certified Rigger'); await dlg(p).getByLabel('Contract no.').fill('202/2024');
 await dlg(p).getByLabel('Position').fill('Tech'); await dlg(p).getByLabel('Work location (site)').fill('Abu Qir Site'); await dlg(p).locator('label.choice-card:has(input[value="outside"])').click();
@@ -224,13 +224,13 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   ok('table view: a row per person with payroll, position and job title columns; the cards are hidden', (await p.locator('.plist').isHidden()) && (await p.locator('.utable tbody tr.urow').count()) >= 5 && (await p.locator('.utable thead th').allTextContents()).join('|').includes('Payroll'));
   const row = p.locator('.utable tbody tr.urow', { hasText: 'XO Engineer Two' });
   await row.dblclick(); await p.waitForSelector('dialog[open]');
-  ok('table view: double-click opens Edit data of that person', (await dlg(p).textContent()).includes('XO Engineer Two') && (await dlg(p).getByLabel('Full name').inputValue()) === 'XO Engineer Two');
+  ok('table view: double-click opens Edit data of that person', (await dlg(p).textContent()).includes('XO Engineer Two') && (await dlg(p).getByLabel('Full name', { exact: true }).inputValue()) === 'XO Engineer Two');
   await p.keyboard.press('Escape'); await p.waitForSelector('dialog[open]', { state: 'detached' });
   await row.click({ button: 'right' }); await p.waitForSelector('.ctx-menu');
   const items = await p.locator('.ctx-menu .ctx-item').allTextContents();
   ok('table view: right-click opens a menu with the same actions as the card (Timesheet, Edit data, Reset password, Make admin / user, Delete)', ['Timesheet', 'Edit data', 'Reset password', 'Delete'].every((x) => items.includes(x)) && items.length >= 5, items.join('|'));
   await p.locator('.ctx-menu .ctx-item', { hasText: 'Edit data' }).click(); await p.waitForSelector('dialog[open]');
-  ok('...choosing Edit data from the menu opens the same dialog', (await dlg(p).getByLabel('Full name').inputValue()) === 'XO Engineer Two'); await p.keyboard.press('Escape'); await p.waitForSelector('dialog[open]', { state: 'detached' });
+  ok('...choosing Edit data from the menu opens the same dialog', (await dlg(p).getByLabel('Full name', { exact: true }).inputValue()) === 'XO Engineer Two'); await p.keyboard.press('Escape'); await p.waitForSelector('dialog[open]', { state: 'detached' });
   await row.click({ button: 'right' }); await p.waitForSelector('.ctx-menu'); await p.mouse.click(3, 3); await p.waitForTimeout(200);
   ok('the menu closes when clicking elsewhere', (await p.locator('.ctx-menu').count()) === 0);
   await p.reload(); await p.waitForSelector('.person, .utable tbody tr.urow');
@@ -404,13 +404,13 @@ await big.context().close();
 
   // the person's own page is ONE orientation: the fast path (SVG pages as HTML, no PDF) is used
   ok('calendar Print (one portrait page): fast path, plain HTML with an SVG page from the frame (srcdoc), no PDF', (await up.evaluate(() => window.__printedDoc || '')).includes('<svg') && (await up.evaluate(() => window.__printedDoc)).includes('MONTHLY TIME REPORT') && !(await up.evaluate(() => window.__printedSrc || '')) && (await up.evaluate(() => window.__printedDoc)).includes('size: A4 portrait'));
-  const calPrint = async (setup) => { const ctx = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); await stub(ctx, 'ok'); await setup(ctx); const pg = await ctx.newPage();
+  const calPrint = async (setup) => { const ctx = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); await stub(ctx, 'ok'); await setup(ctx); const pg = await ctx.newPage(); const warns = []; pg.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') warns.push(m.text().slice(0, 300)); }); pg.on('pageerror', (e) => warns.push('pageerror: ' + e.message));
     await pg.goto(BASE + '/'); await pg.fill('#username', 'xou1'); await pg.fill('#password', PW); await pg.click('button[type=submit]'); await pg.waitForSelector('.cal .day');
-    await pg.click('.cal-tools button:has-text("Print")'); const done = await eventually(async () => (await pg.evaluate(() => window.__printed || 0)) === 1, 30000); const src = await pg.evaluate(() => window.__printedSrc || ''); await ctx.close(); return { done, src }; };
+    await pg.click('.cal-tools button:has-text("Print")'); const done = await eventually(async () => (await pg.evaluate(() => window.__printed || 0)) === 1, 30000); const src = await pg.evaluate(() => window.__printedSrc || ''); await ctx.close(); return { done, src, warns: warns.join(' || ') }; };
   { const r = await calPrint(async (ctx) => { await ctx.addInitScript(() => { CSS.supports = () => false; }); });
-    ok('a browser without named @page support -> the PDF path is used instead of the HTML pages', r.done && r.src.startsWith('blob:')); }
+    ok('a browser without named @page support -> the PDF path is used instead of the HTML pages', r.done && r.src.startsWith('blob:'), `src=${r.src.slice(0, 20)} warnings: ${r.warns}`); }
   { const r = await calPrint(async (ctx) => { await ctx.route(/print-svg/, (r) => r.abort()); });
-    ok('the fast path fails (its code is blocked) -> the PDF is built and sent from a blob frame as before', r.done && r.src.startsWith('blob:')); }
+    ok('the fast path fails (its code is blocked) -> the PDF is built and sent from a blob frame as before', r.done && r.src.startsWith('blob:'), `src=${r.src.slice(0, 20)} warnings: ${r.warns}`); }
   await pu.close(); }
 
 // ---- G. a plain user's compact calendar: help behind "i", own export (Excel + PDF)

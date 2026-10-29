@@ -110,7 +110,7 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   for (const [un, label, role] of [['smnew1', 'Super manager', 'super_manager'], ['smnew2', 'Super admin', 'super_admin']]) {
     await p.waitForSelector('dialog[open]', { state: 'detached' }); await p.click('button:text-is("Add Super User")'); await p.waitForSelector('dialog[open]');
     await p.fill('dialog[open] input[autocapitalize="none"]', un);
-    await p.getByLabel('Full name').fill('SM New ' + label);
+    await p.getByLabel('Full name', { exact: true }).fill('SM New ' + label);
     await p.locator('dialog[open] label:has-text("' + label + '") input[type=radio]').check();
     await p.click('dialog[open] button:text-is("Add")');
     ok(`super admin: adds a ${label.toLowerCase()} (no department)`, await eventually(() => sql(`select role||'|'||coalesce(department_id::text,'none') from public.profiles where username='${un}'`) === role + '|none', 30000));
@@ -118,7 +118,7 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
   ok('super admin: the new super admin and super manager are listed', await eventually(async () => /SM New Super admin/.test(await p.locator('.depts').innerText()) && /SM New Super manager/.test(await p.locator('.depts').innerText())));
   // a super admin edits their own name in the Super users tab
   await p.locator('.person', { hasText: 'SM Super' }).filter({ hasNotText: 'Manager' }).first().locator('button:text-is("Edit data")').click(); await p.waitForSelector('dialog[open]');
-  await p.getByLabel('Full name').fill('SM Super Edited'); await p.click('dialog[open] button:text-is("Save")');
+  await p.getByLabel('Full name', { exact: true }).fill('SM Super Edited'); await p.click('dialog[open] button:text-is("Save")');
   ok('super admin: edits their own name in the Super users tab', await eventually(() => sql(`select full_name from public.profiles where username='smsup'`) === 'SM Super Edited'));
   // bulk add super admins / super managers (no department)
   const sw = new ExcelJS.Workbook(); const ss = sw.addWorksheet('U');
@@ -138,7 +138,7 @@ const eventually = async (fn, ms = 20000) => { const t0 = Date.now(); while (Dat
 // a super manager fixes their own name / OPR on the Account page
 { const p = await login('smgr');
   await p.goto('http://localhost:4173/#/account'); await p.waitForSelector('#own-profile');
-  await p.locator('#own-profile').getByLabel('Full name').fill('SM Super Manager Edited'); await p.locator('#own-profile button[type=submit]').click();
+  await p.locator('#own-profile').getByLabel('Full name', { exact: true }).fill('SM Super Manager Edited'); await p.locator('#own-profile button[type=submit]').click();
   ok('super manager: edits their own name on the Account page', await eventually(() => sql(`select full_name from public.profiles where username='smgr'`) === 'SM Super Manager Edited'));
   await p.context().close(); }
 // a touch-only phone: no drop area (nothing can be dragged in), the file picker stays

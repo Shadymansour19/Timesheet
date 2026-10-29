@@ -131,7 +131,7 @@ const self = p.locator('.person', { hasText: 'UI Admin A' });
 ok('no delete/reset/demote buttons on own row', (await self.locator('button').allTextContents()).join('|') === 'Edit data');
 await p.click('button:text-is("Add user")'); await p.waitForSelector('dialog[open]');
 await dlg(p).getByLabel('Username').fill('uinew'); const tmpPw = await dlg(p).getByLabel('Temporary password').inputValue();
-await dlg(p).getByLabel('Full name').fill('UI New Person'); await dlg(p).getByLabel('OPR').fill('OPR-NEW'); await dlg(p).getByLabel('Payroll number').fill('PR-NEW'); await dlg(p).getByLabel('Level').fill('4');
+await dlg(p).getByLabel('Full name', { exact: true }).fill('UI New Person'); await dlg(p).getByLabel('OPR').fill('OPR-NEW'); await dlg(p).getByLabel('Payroll number').fill('PR-NEW'); await dlg(p).getByLabel('Level').fill('4');
 await dlg(p).locator('button.primary').click(); await p.waitForSelector('dialog[open]', { state: 'detached' });
 await p.waitForSelector('.person:has-text("UI New Person")');
 ok('add user: profile in own dept as plain user', db(`select role||'|'||department_id||'|'||level from public.profiles where username='uinew'`) === `user|${DA}|4`);
@@ -172,7 +172,7 @@ ok('acting as Dept A: a click sets the status exactly as its admin would (RLS + 
 await sa.goto('http://localhost:4173/#/users'); await sa.waitForSelector('.person');
 ok('Users tab lists Dept A people for the acting super admin', (await sa.locator('.person', { hasText: 'UI User One' }).count()) === 1);
 await sa.click('button:text-is("Add user")'); await sa.waitForSelector('dialog[open]');
-await dlg(sa).getByLabel('Username').fill('uiactnew'); await dlg(sa).getByLabel('Full name').fill('UI Acting New'); await dlg(sa).getByLabel('OPR').fill('OPR-ACT'); await dlg(sa).getByLabel('Payroll number').fill('PR-ACT'); await dlg(sa).getByLabel('Level').fill('2');
+await dlg(sa).getByLabel('Username').fill('uiactnew'); await dlg(sa).getByLabel('Full name', { exact: true }).fill('UI Acting New'); await dlg(sa).getByLabel('OPR').fill('OPR-ACT'); await dlg(sa).getByLabel('Payroll number').fill('PR-ACT'); await dlg(sa).getByLabel('Level').fill('2');
 await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialog[open]', { state: 'detached', timeout: 60000 });
 ok('acting: a user created through the Edge Function lands in the acting department', await until(() => db(`select role||'|'||department_id from public.profiles where username='uiactnew'`) === `user|${DA}`));
 await sa.click('.dept-switch'); await sa.waitForSelector('dialog[open]');
@@ -198,7 +198,7 @@ await dlg(sa).locator('button.primary').click(); await sa.waitForSelector('dialo
 ok('super_admin edits department data (code, sector, field, printed name)', await until(() => db(`select code||'|'||sector||'|'||field||'|'||(report->>'dept_print_name') from public.departments where name='UI Renamed Dept'`) === '77|UI Sector|UI Field|UI PRINT' && db(`select approved_engineer||'|'||approved_tech from public.departments where name='UI Renamed Dept'`) === '264|295'));
 await rd.locator('button:text-is("Add admin")').click(); await sa.waitForSelector('dialog[open]');
 await dlg(sa).getByLabel('Username').fill('uinewadm'); const apw = await dlg(sa).getByLabel('Temporary password').inputValue();
-await dlg(sa).getByLabel('Full name').fill('UI New Admin'); await dlg(sa).getByLabel('OPR').fill('OPR-NA'); await dlg(sa).getByLabel('Payroll number').fill('PR-NA'); await dlg(sa).locator('button.primary').click();
+await dlg(sa).getByLabel('Full name', { exact: true }).fill('UI New Admin'); await dlg(sa).getByLabel('OPR').fill('OPR-NA'); await dlg(sa).getByLabel('Payroll number').fill('PR-NA'); await dlg(sa).locator('button.primary').click();
 await sa.waitForSelector('dialog[open]', { state: 'detached' }); await sa.waitForSelector('.dept[open] .person:has-text("UI New Admin")');
 ok('admin created with role admin in that department', db(`select p.role||'|'||d.name from public.profiles p join public.departments d on d.id=p.department_id where username='uinewadm'`) === 'admin|UI Renamed Dept');
 const ctx2 = await b.newContext({ viewport: { width: 390, height: 800 } }); const np = await ctx2.newPage();
