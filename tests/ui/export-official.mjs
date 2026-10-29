@@ -187,9 +187,14 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   await p.click('button:text-is("Bulk add (Excel)")'); await p.waitForSelector('dialog[open]');
   await dlg(p).locator('input[type=file]').setInputFiles(S + '/xo-bulk.xlsx');
   ok('bulk add: the file is read (5 users found)', await eventually(async () => (await dlg(p).locator('p.muted').nth(1).textContent()).includes('5 users found')));
+  const pv = await dlg(p).locator('.bulk-table.preview tbody tr').allTextContents(); const pw0 = await dlg(p).locator('.bulk-table.preview tbody tr').nth(0).locator('td.mono').textContent();
+  ok('bulk add PREVIEW: all 5 rows are listed before anything is created, with the username and the password that will be used', pv.length === 5 && pv[0].includes('xot9001') && pv[1].includes('xobulk2') && pv[1].includes('Bulk-Pass-1234') && pv[4].includes('oprmgr9005') && pw0.length >= 8, pv.join(' | '));
+  ok('...the 2 rows with problems show their reason, the others "Ready"; the summary counts them', pv[2].includes('Repeated in the file') && pv[3].includes('required') && pv[0].includes('Ready') && (await dlg(p).textContent()).includes('Ready: 3 · With problems (skipped): 2'));
+  ok('...and nothing is in the database yet', sql(`select count(*) from public.profiles where username in ('xot9001','xobulk2','oprmgr9005')`) === '0');
   await dlg(p).locator('button:text-is("Create users")').click();
   ok('bulk add: result says 3 created, 2 failed', await eventually(async () => (await dlg(p).textContent()).includes('Created: 3 · Failed: 2'), 120000));
   const rowsTxt = await dlg(p).locator('.bulk-table tbody tr').allTextContents();
+  ok('bulk add: the user is created with exactly the password shown in the preview', rowsTxt[0].includes(pw0));
   ok('bulk add: a manager without payroll is created with the OPR as username and the manager role', rowsTxt[4].includes('oprmgr9005') && sql(`select role||'|'||coalesce(payroll,'-') from public.profiles where username='oprmgr9005'`) === 'manager|-', rowsTxt[4]);
   ok('bulk add: empty username = the PAYROLL with only letters and numbers (XOT-9001 -> xot9001) with a generated password (8+ chars), given username/password kept', rowsTxt[0].includes('xot9001') && /[A-Za-z0-9]{8,}/.test(rowsTxt[0].replace('XO Bulk One', '').replace('xot9001', '').replace('Created', '')) && rowsTxt[1].includes('xobulk2') && rowsTxt[1].includes('Bulk-Pass-1234'), rowsTxt.join(' | '));
   ok('bulk add: the duplicate and the row without payroll are reported as failed', rowsTxt[2].includes('Repeated in the file') && rowsTxt[2].includes('XO Bulk Dup') && rowsTxt[3].includes('required'), rowsTxt.slice(2).join(' | '));

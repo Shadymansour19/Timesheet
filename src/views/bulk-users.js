@@ -27,36 +27,52 @@ async function resultsFile(results, multi = false) {
   return wb.xlsx.writeBuffer();
 }
 
-// one row -> create_user (validation first, so a bad row costs no request)
-async function createRow(r, dupError = '', departments = null, sup = false) {
+// one row -> what would be created, or why not (nothing is sent here). The password (the given one or a random one) is fixed at this point, so the preview shows
+// the real password. Needed later: roleCode, level, deptId.
+function prepare(r, dupError = '', departments = null, sup = false) {
   const out = { ...r, username: usernameOf(r), password: r.password || randomPassword(), ok: false, error: dupError };
-  if (sup && !out.error) {                                    // super admin / super manager: empty role = super manager (read-only)
-    const role = SUPER_ROLES[(r.role || 'super manager').toLowerCase()];
+  if (sup) {                                                   // super admin / super manager: empty role = super manager (read-only)
+    out.roleCode = SUPER_ROLES[(r.role || 'super manager').toLowerCase()];
+    if (out.error) return out;
     if (!r.full_name) out.error = t('bulk_err_required_super');
     else if (!USERNAME.test(out.username)) out.error = t('bulk_err_username');
     else if (out.password.length < 8 || out.password.length > 72) out.error = t('bulk_err_password');
-    else if (!role) out.error = t('bulk_err_role_super');
-    if (out.error) return out;
-    try { await callFn('create_user', { username: out.username, password: out.password, full_name: r.full_name, opr: r.opr, role }); out.ok = true; }
-    catch (e) { out.error = explain(e); }
+    else if (!out.roleCode) out.error = t('bulk_err_role_super');
     return out;
   }
-  const level = r.level.trim() || null;                 // free text
-  if (out.error) return out;
-  const role = ROLES[(r.role || (departments ? 'admin' : 'user')).toLowerCase()];      // several departments (super admin): admins by default, never plain users
+  out.level = (r.level ?? '').trim() || null;                  // free text
+  out.roleCode = ROLES[(r.role || (departments ? 'admin' : 'user')).toLowerCase()];      // several departments (super admin): admins by default, never plain users
   const dept = departments ? departments.find((d) => plainName(d.name) === plainName(r.department)) : { id: myDept() };
+  out.deptId = dept?.id;
+  if (out.error) return out;
   if (!dept) out.error = `${t('bulk_err_dept')}: ${r.department || '-'}`;
-  else if (departments && role === 'user') out.error = t('bulk_err_role_admin');
-  else if (!r.full_name || (!r.payroll && role !== 'manager')) out.error = t('bulk_err_required');
+  else if (departments && out.roleCode === 'user') out.error = t('bulk_err_role_admin');
+  else if (!r.full_name || (!r.payroll && out.roleCode !== 'manager')) out.error = t('bulk_err_required');
   else if (!USERNAME.test(out.username)) out.error = t('bulk_err_username');
   else if (out.password.length < 8 || out.password.length > 72) out.error = t('bulk_err_password');
   else if (r.residence && !['inside', 'outside'].includes(r.residence.toLowerCase())) out.error = t('bulk_err_residence');
   else if (r.y_allowed && !YES.includes(r.y_allowed.toLowerCase()) && !NO.includes(r.y_allowed.toLowerCase())) out.error = t('bulk_err_y');
   else if (r.role && !ROLES[r.role.toLowerCase()]) out.error = t('bulk_err_role');
+  return out;
+}
+
+// the same username / OPR / payroll twice in the file: only the first row is created (parallel creation would make it random)
+function prepareAll(rows, departments, sup) {
+  const seen = { u: new Set(), o: new Set(), p: new Set() };
+  return rows.map((r) => {
+    const u = usernameOf(r); const d = seen.u.has(u) || (r.opr && seen.o.has(r.opr)) || (r.payroll && seen.p.has(r.payroll));
+    seen.u.add(u); if (r.opr) seen.o.add(r.opr); if (r.payroll) seen.p.add(r.payroll);
+    return prepare(r, d ? t('bulk_err_dup') : '', departments, sup);
+  });
+}
+
+// a prepared row -> create_user (rows with a problem are not sent)
+async function createRow(out, sup = false) {
   if (out.error) return out;
   try {
-    await callFn('create_user', { username: out.username, password: out.password, full_name: r.full_name, full_name_ar: r.full_name_ar, opr: r.opr, level, department_id: dept.id, role,
-      job_title: r.job_title, contract_no: r.contract_no, work_location: r.work_location, residence: r.residence.toLowerCase(), position: r.position, payroll: r.payroll, y_allowed: !NO.includes((r.y_allowed || 'yes').toLowerCase()) });
+    if (sup) await callFn('create_user', { username: out.username, password: out.password, full_name: out.full_name, opr: out.opr, role: out.roleCode });
+    else await callFn('create_user', { username: out.username, password: out.password, full_name: out.full_name, full_name_ar: out.full_name_ar, opr: out.opr, level: out.level, department_id: out.deptId, role: out.roleCode,
+      job_title: out.job_title, contract_no: out.contract_no, work_location: out.work_location, residence: out.residence.toLowerCase(), position: out.position, payroll: out.payroll, y_allowed: !NO.includes((out.y_allowed || 'yes').toLowerCase()) });
     out.ok = true;
   } catch (e) { out.error = explain(e); }
   return out;
@@ -65,7 +81,7 @@ async function createRow(r, dupError = '', departments = null, sup = false) {
 // departments: the department list when the super admin adds people to SEVERAL departments from one file (Department column)
 export function openBulkAdd({ onDone, departments = null, superUsers = false }) {
   const multi = !!departments, sup = superUsers;
-  let rows = [], busy = false;
+  let rows = [], prepared = [], busy = false;
   const file = h('input', { type: 'file', accept: '.xlsx', id: 'bulk-file' });
   const info = h('p', { class: 'muted', 'aria-live': 'polite' });
   const body = h('div', { class: 'bulk-results' });
@@ -74,29 +90,41 @@ export function openBulkAdd({ onDone, departments = null, superUsers = false }) 
     h('button', { type: 'button', class: 'btn small', onclick: async () => save(await templateFile(multi, sup), 'users_template.xlsx') }, t('bulk_template')),
     h('div', { class: 'field' }, h('label', { for: 'bulk-file' }, t('bulk_file')), file), dropZone(file), info, body);
   file.addEventListener('change', async () => {
-    rows = []; body.replaceChildren();
+    rows = []; prepared = []; body.replaceChildren();
     const f = file.files[0]; if (!f) { info.textContent = ''; return; }
     try {
       const parsed = await parseWorkbook(await f.arrayBuffer(), multi, sup);
       rows = parsed.rows;
       info.textContent = parsed.problems.length ? parsed.problems.join(' · ') : `${rows.length} ${t('bulk_rows_found')}`;
+      if (!parsed.problems.length) showPreview();
     } catch { info.textContent = t('bulk_bad_file'); }
   });
 
+  // the preview: every row as it would be created (effective username, role, password) or the reason it is skipped; nothing is created before the button is pressed
+  function showPreview() {
+    prepared = prepareAll(rows, departments, sup);
+    const bad = prepared.filter((r) => r.error).length;
+    const head = ['#', ...(multi ? [t('department_name')] : []), t('full_name'), ...(sup ? [] : [t('bulk_col_name_ar')]), t('role'), ...(sup ? [] : [t('payroll_short')]), t('opr'), t('username'), t('password'), t('bulk_result')];
+    const table = h('table', { class: 'bulk-table preview' }, h('thead', {}, h('tr', {}, head.map((x) => h('th', {}, x)))),
+      h('tbody', {}, prepared.map((r) => h('tr', { class: r.error ? 'bad' : 'ok' },
+        h('td', {}, r.line), ...(multi ? [h('td', {}, r.department)] : []), h('td', {}, r.full_name), ...(sup ? [] : [h('td', { dir: 'rtl' }, r.full_name_ar)]),
+        h('td', {}, r.roleCode ? t('role_' + r.roleCode) : r.role), ...(sup ? [] : [h('td', {}, r.payroll)]), h('td', {}, r.opr), h('td', {}, r.username), h('td', { class: 'mono' }, r.password),
+        h('td', {}, r.error || t('bulk_ready'))))));
+    body.replaceChildren(h('p', { class: 'muted', 'aria-live': 'polite' }, `${t('bulk_preview_hint')} ${t('bulk_ready')}: ${prepared.length - bad}${bad ? ` · ${t('bulk_problems')}: ${bad}` : ''}`), table);
+  }
+
   async function run() {
-    if (busy || !rows.length) return;
+    if (busy || !prepared.length) return;
     busy = true;
-    const results = new Array(rows.length);
+    const todo = prepared; prepared = [];                      // a second press does nothing: the rows below are created once
+    const results = todo;
     const table = h('table', { class: 'bulk-table' }, h('thead', {}, h('tr', {}, ['#', ...(multi ? [t('department_name')] : []), t('full_name'), t('username'), t('password'), t('bulk_result')].map((x) => h('th', {}, x)))), h('tbody', {}));
     body.replaceChildren(table);
-    // the same username / OPR / payroll twice in the file: only the first row is created (parallel creation would make it random)
-    const seen = { u: new Set(), o: new Set(), p: new Set() };
-    const dups = rows.map((r) => { const u = usernameOf(r); const d = seen.u.has(u) || (r.opr && seen.o.has(r.opr)) || (r.payroll && seen.p.has(r.payroll)); seen.u.add(u); if (r.opr) seen.o.add(r.opr); if (r.payroll) seen.p.add(r.payroll); return d ? t('bulk_err_dup') : ''; });
     let next = 0, done = 0;
     const worker = async () => {
-      while (next < rows.length) {
-        const i = next++; const r = await createRow(rows[i], dups[i], departments, sup); results[i] = r; done++;
-        info.textContent = `${done} / ${rows.length}`;
+      while (next < todo.length) {
+        const i = next++; await createRow(todo[i], sup); done++;
+        info.textContent = `${done} / ${todo.length}`;
       }
     };
     await Promise.all([worker(), worker(), worker()]);
