@@ -109,7 +109,7 @@ ok('the merged cell holds the note once; hours and numbers are per row', ws.getC
 ok('names and payroll numbers are in their columns (name E, payroll D)', ws.getCell('E9').value === 'حسن عبد السلام' && ws.getCell('E11').value === 'Mohamed Gomaa' && ws.getCell('D9').value === 'EMC-401');
 ok('the two sign-off titles close the sheet: the left one under the work column, the right one under the name column, one short cell each', ws.getCell('B16').value === f1.signLeft && ws.getCell('E16').value === f1.signRight && !merges.some((m) => /^[A-F]16:/.test(m)), merges.join());
 const wide = Math.round(ws.getImages()[0].range.ext.height);
-ok('the logos are big (76 px tall)', ws.getImages().every((im) => Math.round(im.range.ext.height) === 76), String(wide));
+ok('the logos are big (100 px tall)', ws.getImages().every((im) => Math.round(im.range.ext.height) === 100), String(wide));
 const W = [14, 33, 33, 18, 36, 6].map((w) => w * 7 + 5), TOT = W.reduce((a, b) => a + b, 0);
 const xs = ws.getImages().map((im) => ({ left: W.slice(0, im.range.tl.nativeCol).reduce((a, b) => a + b, 0) + im.range.tl.nativeColOff / 9525, w: im.range.ext.width })).sort((a, b) => a.left - b.left);
 ok('the logos sit at the two corners: the first starts at the left edge of the table, the last ends at its right edge', xs[0].left < 10 && Math.abs(xs[1].left + xs[1].w - TOT) < 10, JSON.stringify(xs) + ' ' + TOT);

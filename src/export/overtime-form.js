@@ -43,7 +43,7 @@ function rowsOfDay(people, overtime, day) {
 
 // groups -> pages. The body of a page is BODY mm tall (what is left between the table head and the sign-offs); a row is ROW_H mm, taller when its name or its
 // merged note needs more lines (CHARS_NAME / CHARS_NOTE characters per line of that column, estimated on the safe side). A group is kept together unless it is taller than a page.
-const ROW_H = 8.2, LINE_H = 5.6, PAD_H = 3.4, BODY = 79, CHARS_NAME = 28, CHARS_NOTE = 40;
+const ROW_H = 8.2, LINE_H = 5.6, PAD_H = 3.4, BODY = 74, CHARS_NAME = 28, CHARS_NOTE = 40;
 const lines = (s, chars) => Math.max(1, Math.ceil(String(s ?? '').length / chars));
 const rowH = (r) => (lines(r.name, CHARS_NAME) > 1 ? Math.max(ROW_H, lines(r.name, CHARS_NAME) * LINE_H + PAD_H) : ROW_H);
 const groupH = (rows) => Math.max(rows.reduce((a, r) => a + rowH(r), 0), rows[0]?.note ? lines(rows[0].note, CHARS_NOTE) * LINE_H + PAD_H : 0);
@@ -90,8 +90,8 @@ ${root}, ${root} * { box-sizing: border-box; }
 ${root} { direction: rtl; color: #000; font-family: "Noto Naskh Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.35; }
 ${root} .pg { position: relative; width: ${m(297)}; height: ${m(209)}; padding: ${m(19.2)} ${m(33.6)} ${m(24)}; background: #fff; overflow: hidden; page-break-after: always; break-after: page; }
 ${root} .pg:last-child { page-break-after: auto; break-after: auto; }
-${root} .logos { display: flex; justify-content: space-between; align-items: center; height: ${m(22)}; }
-${root} .logos img { height: ${m(20)}; width: auto; max-width: ${m(60)}; object-fit: contain; }
+${root} .logos { display: flex; justify-content: space-between; align-items: center; height: ${m(27)}; }
+${root} .logos img { height: ${m(26)}; width: auto; max-width: ${m(75)}; object-fit: contain; }
 ${root} .ttl { text-align: center; font-weight: 700; font-size: ${m(5.3)}; margin: ${m(3)} 0 ${m(5)}; }
 ${root} .ttl span { display: inline-block; line-height: 1.4; padding-bottom: ${m(0.7)}; border-bottom: ${m(0.5)} solid #000; }   /* a border, not text-decoration: it sits below the descenders in print and in the PDF (html2canvas) alike */
 ${root} .meta { font-size: ${m(4.2)}; font-weight: 700; margin: ${m(1.5)} 0; display: flex; gap: ${m(14)}; }
@@ -151,10 +151,10 @@ export async function buildOvertimeWorkbook(forms, ExcelJS, { loadAsset } = {}) 
     const WIDTHS = [14, 33, 33, 18, 36, 6], px = (w) => w * 7 + 5, total = WIDTHS.reduce((a, w) => a + px(w), 0);
     WIDTHS.forEach((w, i) => { ws.getColumn(i + 1).width = w; });              // A hours | B-C work required (merged) | D payroll | E name | F no.  (the form read from the right: no. first)
     const merged = (r, text, o = {}) => { ws.mergeCells(r, 1, r, 6); const c = ws.getCell(r, 1); c.value = text; c.font = font(o.font); c.alignment = { horizontal: o.align ?? 'center', vertical: 'middle', readingOrder: 'rtl' }; return c; };
-    ws.getRow(1).height = 60;
+    ws.getRow(1).height = 80;
     // logos as in the form: EMC at the left corner, Burullus at the right corner
     const at = (x) => { let acc = 0; for (let i = 0; i < WIDTHS.length; i++) { if (x < acc + px(WIDTHS[i]) || i === WIDTHS.length - 1) return { nativeCol: i, nativeColOff: Math.round((x - acc) * 9525), nativeRow: 0, nativeRowOff: 19050 }; acc += px(WIDTHS[i]); } };   // pixels from the left edge -> column + exact offset (EMU: ExcelJS scales a fractional "col" by its own column width, which put the logo in the wrong place)
-    const place = (lg, fromEnd) => { if (!lg) return; const h = 76, w = Math.round(h * lg.w / lg.h); ws.addImage(lg.id, { tl: at(fromEnd ? total - w - 4 : 4), ext: { width: w, height: h } }); };
+    const place = (lg, fromEnd) => { if (!lg) return; const h = 100, w = Math.round(h * lg.w / lg.h); ws.addImage(lg.id, { tl: at(fromEnd ? total - w - 4 : 4), ext: { width: w, height: h } }); };
     place(logos.left, false); place(logos.right, true);
     ws.getRow(2).height = 30; merged(2, TEXT.title, { font: font({ bold: true, size: 15, underline: true }) });
     ws.getRow(3).height = 8;
