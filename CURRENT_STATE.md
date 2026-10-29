@@ -32,8 +32,8 @@ Writes go only through `security definer` RPCs that check the caller's role (`ap
 counts as `admin` in `app_role()` but is refused by a trigger as the subject of timesheet rows; a super_manager has read policies only.
 Payroll number is required for users and admins (not for managers / super users); OPR is optional. 28 migrations in
 `supabase/migrations`; latest `20261029000028_arabic_names_sector.sql` (profiles.full_name_ar, departments.name_ar / sector_ar, sector without the word "Sector", dept_ar moves to name_ar,
-update_profile / set_department_report take the Arabic fields; the frontend needs it applied, and the Edge function redeployed to store the Arabic name when a user is
-created). The sector column holds the value only: exports append "Sector".
+update_profile / set_department_report take the Arabic fields; applied to the remote DB on 2026-10-29, Edge function `admin-manage-users` redeployed with `full_name_ar` in `create_user`).
+The sector column holds the value only: exports append "Sector".
 
 ## Tests (all in README; the browser ones need `npx vite preview --port 4173`)
 `npm run test:rls`, `test:e2e-users`, `test:i18n`, `test:export`, `test:export-official`, `test:export-pdf`, `test:ocr-parse`, `test:overtime-form`, and the

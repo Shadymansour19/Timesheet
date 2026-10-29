@@ -76,10 +76,11 @@ call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u1\",\"password\":
 check "short password rejected" 400
 
 # ---- department admin
-call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"E2E_U1\",\"password\":\"$PW\",\"full_name\":\"E2E User 1\",\"opr\":\"E2E-1\",\"payroll\":\"P-E2E-1\",\"level\":3,\"department_id\":\"$DEPT_A\"}"
+call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"E2E_U1\",\"password\":\"$PW\",\"full_name\":\"E2E User 1\",\"full_name_ar\":\"مستخدم اختبار\",\"opr\":\"E2E-1\",\"payroll\":\"P-E2E-1\",\"level\":3,\"department_id\":\"$DEPT_A\"}"
 check "admin creates user in own dept (username lower-cased)" 200
 U1=$(echo "$BODY" | jq -r .id)
 expect "profile row correct" "$(sql "select username||'|'||role||'|'||opr||'|'||level||'|'||department_id||'|'||active from public.profiles where id='$U1'")" "e2e_u1|user|E2E-1|3|$DEPT_A|true"
+expect "the Arabic name is stored by create_user" "$(sql "select full_name_ar from public.profiles where id='$U1'")" "مستخدم اختبار"
 [ -n "$(login e2e_u1 "$PW")" ] && echo "PASS: new user can log in" || { echo "FAIL: new user cannot log in"; fail=1; }
 call "$ADM_T" "{\"action\":\"create_user\",\"username\":\"e2e_u1\",\"password\":\"$PW\",\"full_name\":\"dup\",\"opr\":\"E2E-9\",\"payroll\":\"P-E2E-9\",\"department_id\":\"$DEPT_A\"}"
 check "duplicate username -> 409" 409
