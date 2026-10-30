@@ -74,19 +74,21 @@ ok('month Excel: sign-off titles are built from the sector (left: GM) and the de
 ok('month Excel: the DB date is the sheet date', String(ws.getCell('A5').value).includes(`${dstr(4).slice(8)}/${month.slice(5)}/${month.slice(0, 4)}`), String(ws.getCell('A5').value));
 
 // ---- the whole month as PDF
+const fontReq = p.waitForRequest(/noto-naskh-arabic-(regular|bold)\.woff2/, { timeout: 60000 }).then(() => true, () => false);
 const pd = await download(p, viaMenu(p, 'pdf'));
 const info = pdfInfo(pd.f);
 ok('month PDF: file name', pd.name === `overtime_OTF_Dept_${month}.pdf`, pd.name);
 ok('month PDF: 2 pages (one per day), A4 landscape', /Pages:\s+2/.test(info) && /Page size:\s+841\.\d+ x 595\.\d+ pts/.test(info), info.match(/Pages.*|Page size.*/g)?.join(' / '));
 execFileSync('pdftoppm', ['-r', '60', '-png', pd.f, `${S}/otf-month`]);
 ok('month PDF: the pages are not blank (text, lines and logos are drawn)', dark(`${S}/otf-month-1.png`) > 1500 && dark(`${S}/otf-month-2.png`) > 1500, `${dark(`${S}/otf-month-1.png`)} ${dark(`${S}/otf-month-2.png`)}`);
+ok('month PDF: the embedded Arabic font (Noto Naskh Arabic) is fetched, so the look does not depend on the machine\'s fonts', await fontReq);
 ok('month PDF: the off-screen pages are removed again', (await p.locator('div[style*="-10000px"]').count()) === 0);
 
 // ---- the whole month: print
 await p.click('#ot-print');
 ok('month Print: sent to print() once, as HTML (no download)', await eventually(async () => (await p.evaluate(() => window.__printed || 0)) === 1));
 const doc = await p.evaluate(() => window.__printedDoc);
-ok('month Print: A4 landscape, right-to-left, 2 forms, the merged cell once', /size: A4 landscape/.test(doc) && /dir="rtl"/.test(doc) && (doc.match(/class="pg"/g) || []).length === 2 && (doc.match(/Pump seal change/g) || []).length === 1 && /rowspan="2"/.test(doc) && doc.includes('قطاع الاختبار / قسم الاختبار') && doc.includes('مستخدم واحد') && !doc.includes('OTF User One'));
+ok('month Print: A4 landscape, right-to-left, 2 forms, the merged cell once', /size: A4 landscape/.test(doc) && /dir="rtl"/.test(doc) && (doc.match(/class="pg"/g) || []).length === 2 && (doc.match(/Pump seal change/g) || []).length === 1 && /rowspan="2"/.test(doc) && doc.includes('OTF Naskh') && doc.includes('/fonts/noto-naskh-arabic-bold.woff2')&& doc.includes('قطاع الاختبار / قسم الاختبار') && doc.includes('مستخدم واحد') && !doc.includes('OTF User One'));
 ok('month Print: no page errors', p.errs.length === 0, p.errs.join('|'));
 
 // ---- one day: the window has the same three buttons; it prints what it shows

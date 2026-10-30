@@ -248,6 +248,7 @@ export async function exportOvertimeForm({ dept, people, overtime, days, name, f
     host.innerHTML = `<style>.otf{--u:4px}${form.formCss('.otf')}</style><div class="otf">${form.formsBody(forms, { logos: await loadPdfLogos(officialTemplate) })}</div>`;
     document.body.append(host);
     try {
+      await Promise.all([document.fonts?.load('400 16px "OTF Naskh"', 'م'), document.fonts?.load('700 16px "OTF Naskh"', 'م')].filter(Boolean).map((x) => x.catch(() => {})));      // the embedded Arabic font must be there before the pages are drawn
       await document.fonts?.ready;
       await Promise.all([...host.querySelectorAll('img')].map((i) => i.decode?.().catch(() => {})));
       const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape', compress: true });

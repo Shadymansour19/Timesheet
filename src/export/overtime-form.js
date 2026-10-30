@@ -86,8 +86,10 @@ export function buildForms({ dept, people, overtime, days }) {
 // ---------- HTML (print and PDF): every length is in units of u = 1 mm of an A4 LANDSCAPE page (297 x 210), so the page scales to whatever the print dialog gives it ----------
 const m = (n) => `calc(var(--u) * ${n})`;
 export const formCss = (root = '.otf') => `
+@font-face { font-family: "OTF Naskh"; font-weight: 400; src: url("/fonts/noto-naskh-arabic-regular.woff2") format("woff2"); font-display: block; }
+@font-face { font-family: "OTF Naskh"; font-weight: 700; src: url("/fonts/noto-naskh-arabic-bold.woff2") format("woff2"); font-display: block; }
 ${root}, ${root} * { box-sizing: border-box; }
-${root} { direction: rtl; color: #000; font-family: "Noto Naskh Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.35; }
+${root} { direction: rtl; color: #000; font-family: "OTF Naskh", "Noto Naskh Arabic", Tahoma, Arial, sans-serif; line-height: 1.35; }   /* the Arabic font is embedded (same look on every machine); Latin letters come from Tahoma / Arial, which Windows and most Linux desktops have */
 ${root} .pg { position: relative; width: ${m(297)}; height: ${m(209)}; padding: ${m(19.2)} ${m(33.6)} ${m(24)}; background: #fff; overflow: hidden; page-break-after: always; break-after: page; }
 ${root} .pg:last-child { page-break-after: auto; break-after: auto; }
 ${root} .logos { display: flex; justify-content: space-between; align-items: center; height: ${m(27)}; }
