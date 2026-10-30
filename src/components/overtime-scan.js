@@ -21,6 +21,7 @@ export function pageCard(res, { existing = () => null, onRemove = () => {} } = {
     const inc = h('input', { type: 'checkbox', checked: !r.warn.includes('hours_missing'), 'aria-label': t('scan_include') });
     const hours = h('input', { type: 'number', min: 0, max: 24, step: 1, class: 'ot-hours', value: r.hours ?? '', 'aria-label': t('scan_hours') });
     const note = h('input', { type: 'text', maxlength: 200, class: 'ot-note', value: r.note, 'aria-label': t('scan_note') });
+    note.title = r.note; note.addEventListener('input', () => { note.title = note.value; });      // the whole text on hover, when it is longer than the box
     const ex = h('span', { class: 'warn-chip exist' });
     const tr = h('tr', { 'data-p': r.payroll, ...(r.group ? { class: 'merged', 'data-g': r.group } : {}) },
       h('td', {}, inc), h('td', { class: 'mono' }, r.payroll), h('td', {}, r.name), h('td', {}, hours), h('td', { class: 'scan-note' }, note),

@@ -466,9 +466,12 @@ body.has-install .floating { inset-block-start: 68px; }
 .mono { font-family: ui-monospace, monospace; }
 .warn-chip { display: inline-block; margin: 0 4px 2px 0; padding: 1px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: .72rem; }
 @media (max-width: 700px) { .scan-body { grid-template-columns: 1fr; } .scan-thumb { width: 120px; } }
-.dlg.xxl { width: min(96vw, 1120px); }
+.dlg.xxl { width: min(98vw, 1560px); }                                  /* the scan preview: wide on a desktop, so long notes can be read */
 .scan-rows { min-width: 0; overflow-x: auto; }
-.scan-table .scan-note input { min-width: 180px; }
+.scan-table { width: 100%; }
+.scan-table .scan-note { width: 100%; }
+.scan-table .scan-note input { width: 100%; min-width: 260px; }       /* the note column takes all the free width */
+@media (min-width: 1100px) { .scan-body { grid-template-columns: 220px 1fr; } .scan-thumb { width: 220px; } }
 .scan-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .scan-head-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .warn-chip.exist { background: #fee2e2; color: #991b1b; }
 @media (max-width: 700px) { .scan-pickers { grid-template-columns: 1fr; } }
@@ -597,3 +600,4 @@ body.has-install .floating { inset-block-start: 68px; }
 .tgrid th.dh.hlc:not(.today):not(.holiday) { background: color-mix(in srgb, var(--brand) 14%, var(--card)); }
 .scan-table tr.merged td:first-child { box-shadow: inset 3px 0 0 var(--brand); }     /* rows that share one work cell on the form */
 .warn-chip.shared { background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand-dark); }
+.warn-chip[hidden] { display: none; }

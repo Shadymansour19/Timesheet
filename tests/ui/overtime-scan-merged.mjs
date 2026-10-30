@@ -37,7 +37,7 @@ const pg = await (await b.newContext()).newPage();
 await pg.setContent(formsHtml(forms, { logos: { left: png('logo-left.png'), right: png('logo-right.png') } }), { waitUntil: 'load' }); await pg.evaluate(() => document.fonts.ready);
 const PDF = `${S}/ocm-form.pdf`; await pg.pdf({ path: PDF, preferCSSPageSize: true, printBackground: true });
 
-const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } }); const p = await ctx.newPage(); p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message));
+const ctx = await b.newContext({ viewport: { width: 1700, height: 900 } }); const p = await ctx.newPage(); p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message));
 await p.goto('http://localhost:4173/'); await p.fill('#username', 'ocmadm'); await p.fill('#password', PW); await p.click('button[type=submit]'); await p.waitForSelector('.topbar');
 await p.goto('http://localhost:4173/#/overtime'); await p.waitForSelector('#scan-open'); await p.click('#scan-open'); await p.waitForSelector('dialog[open]');
 const t0 = Date.now();
