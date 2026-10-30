@@ -461,6 +461,23 @@ export function teamView() {
     el.table = h('table', { class: 'tgrid', role: 'grid', 'aria-label': t('nav_team'), 'aria-keyshortcuts': 'ArrowUp ArrowDown ArrowLeft ArrowRight X Y E Delete H D Control+Z' });
     el.announce = h('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
     el.table.addEventListener('keydown', onKey);
+    // hover (mouse only): the row of the employee and the column of the day under the pointer are tinted; a name lights its row, a day number its column
+    if (matchMedia('(hover: hover)').matches) {
+      let hl = { u: null, d: null };
+      const clearHl = () => { el.table.querySelector('tr.hl')?.classList.remove('hl'); el.table.querySelectorAll('.hlc').forEach((c) => c.classList.remove('hlc')); hl = { u: null, d: null }; };
+      const setHl = (u, d) => {
+        const tr = u ? el.table.querySelector(`tr[data-u="${u}"]`) : null;
+        if (hl.u === u && hl.d === d && (!u || tr?.classList.contains('hl'))) return;      // unchanged (a re-drawn row has lost its class: set again)
+        clearHl(); hl = { u, d };
+        tr?.classList.add('hl');
+        if (d) el.table.querySelectorAll(`[data-d="${d}"]`).forEach((c) => c.classList.add('hlc'));
+      };
+      el.table.addEventListener('mouseover', (e) => {
+        const td = e.target.closest?.('td.c'), nm = e.target.closest?.('tbody th.nm'), th = e.target.closest?.('th.dh');
+        if (td) setHl(td.dataset.u, td.dataset.d); else if (nm) setHl(nm.closest('tr').dataset.u, null); else if (th) setHl(null, th.dataset.d); else clearHl();
+      });
+      el.table.addEventListener('mouseleave', clearHl);
+    }
     el.table.addEventListener('focusin', (e) => { const n = e.target.closest?.('td.c, tbody th.nm'); if (n && el.table.contains(n)) markActive(n); });   // mouse/touch focus moves the active cell too
     el.table.addEventListener('click', (e) => {
       const td = e.target.closest('td.c');

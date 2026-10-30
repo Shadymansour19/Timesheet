@@ -589,3 +589,9 @@ body.has-install .floating { inset-block-start: 68px; }
 }
 
 .dev-name { white-space: nowrap; }      /* "Shady Mansour" never splits over two lines (in a narrow menu the line breaks before the name instead) */
+
+/* department grid, mouse hover: the employee's row and the day's column are tinted (the cell where they meet a little more) */
+.tgrid tr.hl > td.c::after, .tgrid td.c.hlc::after { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--brand) 14%, transparent); pointer-events: none; }
+.tgrid tr.hl > td.c.hlc::after { background: color-mix(in srgb, var(--brand) 28%, transparent); }
+.tgrid tr.hl > th.nm { background: color-mix(in srgb, var(--brand) 12%, var(--card)); }
+.tgrid th.dh.hlc:not(.today):not(.holiday) { background: color-mix(in srgb, var(--brand) 14%, var(--card)); }

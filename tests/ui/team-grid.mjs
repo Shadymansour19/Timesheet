@@ -321,6 +321,10 @@ await d.screenshot({ path: S + '/tg-desktop.png' });
   await badge(t1).click();
   ok('grid: clicking the badge moves the departure onto the last working day and stores it', await until(async () => (await moves()) === T, 30000) && (await badge(T).count()) === 1 && (await badge(T).getAttribute('class')).includes('dpb-work') && (await badge(t1).count()) === 0);
   await d.locator(`td.c[data-u="${u20}"][data-d="${T}"]`).focus(); await d.keyboard.press('d');
+  { const cellT = d.locator(`td.c[data-u="${u20}"][data-d="${T}"]`); await cellT.hover();
+    ok('hover: the employee\'s row, the day\'s column (cells and day header) and the name are highlighted', (await d.locator(`tr[data-u="${u20}"].hl`).count()) === 1 && (await d.locator('td.c.hlc').count()) === (await d.locator(`td.c[data-d="${T}"]`).count()) && (await d.locator(`th.dh.hlc[data-d="${T}"]`).count()) === 1 && (await d.locator('tr.hl').count()) === 1);
+    ok('hover: only that row and that column (no other cell has the tint)', (await d.locator('tr.hl > td.c, td.c.hlc').count()) <= (await d.locator(`tr[data-u="${u20}"] td.c`).count()) + (await d.locator(`td.c[data-d="${T}"]`).count()));
+    await d.mouse.move(2, 2); ok('hover: leaving the grid clears it', (await d.locator('tr.hl, .hlc').count()) === 0); }
   ok('grid: the D key on that cell puts it back on the rest day', await until(async () => (await moves()) === '', 30000) && (await badge(t1).count()) === 1);
   // phone, month view, scrolled sideways: a D badge under the sticky name column must be hidden BEHIND the name, not on top of it
   { const m = await open(390); await m.evaluate(() => localStorage.setItem('ts.teamView', 'month')); await m.reload(); await m.waitForSelector('.tgrid.month .dpb');
