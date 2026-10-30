@@ -452,6 +452,9 @@ body.has-install .floating { inset-block-start: 68px; }
 .tgrid th.dh.ctx, .tgrid td.c.ctx { opacity: .6; }
 
 .dep::before, .tgrid .dpb::before { content: attr(data-t); }
+/* Arabic: the letter م has a tail below the baseline, which pulled it to the bottom of the round badge; lift it into the middle and give the small grid badge a larger letter */
+:lang(ar) .tgrid .dpb { font-size: .62rem; }
+:lang(ar) .dep::before, :lang(ar) .tgrid .dpb::before { display: block; transform: translateY(-.16em); }
 
 /* overtime scan preview */
 .scan-page { max-width: none; margin: 10px 0; padding: 12px; }
