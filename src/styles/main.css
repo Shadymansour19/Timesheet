@@ -593,11 +593,14 @@ body.has-install .floating { inset-block-start: 68px; }
 
 .dev-name { white-space: nowrap; }      /* "Shady Mansour" never splits over two lines (in a narrow menu the line breaks before the name instead) */
 
-/* department grid, mouse hover: the employee's row and the day's column are tinted (the cell where they meet a little more) */
-.tgrid tr.hl > td.c::after, .tgrid td.c.hlc::after { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--brand) 14%, transparent); pointer-events: none; }
-.tgrid tr.hl > td.c.hlc::after { background: color-mix(in srgb, var(--brand) 28%, transparent); }
-.tgrid tr.hl > th.nm { background: color-mix(in srgb, var(--brand) 12%, var(--card)); }
-.tgrid th.dh.hlc:not(.today):not(.holiday) { background: color-mix(in srgb, var(--brand) 14%, var(--card)); }
-.scan-table tr.merged td:first-child { box-shadow: inset 3px 0 0 var(--brand); }     /* rows that share one work cell on the form */
-.warn-chip.shared { background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand-dark); }
+/* department grid, mouse hover: the employee's row and the day's column are tinted violet (not green = X, blue = Y, amber = overtime / holiday); the cell where they meet a little more */
+:root { --hl: #7c3aed; }
+:root[data-theme="dark"] { --hl: #a78bfa; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hl: #a78bfa; } }
+.tgrid tr.hl > td.c::after, .tgrid td.c.hlc::after { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--hl) 14%, transparent); pointer-events: none; }
+.tgrid tr.hl > td.c.hlc::after { background: color-mix(in srgb, var(--hl) 28%, transparent); }
+.tgrid tr.hl > th.nm { background: color-mix(in srgb, var(--hl) 12%, var(--card)); }
+.tgrid th.dh.hlc:not(.today):not(.holiday) { background: color-mix(in srgb, var(--hl) 14%, var(--card)); }
+.scan-table tr.merged td:first-child { box-shadow: inset 3px 0 0 var(--hl); }     /* rows that share one work cell on the form */
+.warn-chip.shared { background: color-mix(in srgb, var(--hl) 14%, transparent); color: var(--brand-dark); }
 .warn-chip[hidden] { display: none; }
