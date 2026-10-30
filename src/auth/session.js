@@ -17,10 +17,10 @@ const notify = () => listeners.forEach((fn) => fn(state.profile));
 const KEY = 'ts.accounts';
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? []; } catch { return []; } };
 const write = (a) => { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch { /* storage unavailable */ } };
-export const listAccounts = () => read().map(({ id, username, full_name, role }) => ({ id, username, full_name, role }));
+export const listAccounts = () => read().map(({ id, username, full_name, full_name_ar, role }) => ({ id, username, full_name, full_name_ar, role }));
 
 const entry = (session, p) => ({
-  id: p.id, username: p.username, full_name: p.full_name, role: p.role,
+  id: p.id, username: p.username, full_name: p.full_name, full_name_ar: p.full_name_ar, role: p.role,
   access_token: session.access_token, refresh_token: session.refresh_token,
 });
 function upsert(e) {

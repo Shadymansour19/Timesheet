@@ -1,5 +1,5 @@
 import { h } from '../dom.js';
-import { t } from '../i18n/index.js';
+import { t, personName, nameText } from '../i18n/index.js';
 import { fetchDepartments, fetchAllPeople, createDepartment, renameDepartment, callFn } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { openDialog } from '../components/dialog.js';
@@ -55,7 +55,7 @@ export function departmentsView() {
 
   function row(p) {
     return h('li', { class: 'person' },
-      h('div', { class: 'pinfo' }, h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role)),
+      h('div', { class: 'pinfo' }, h('strong', {}, personName(p)), h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role)),
         h('span', { class: 'muted' }, `${p.username} · ${t('payroll_short')} ${p.payroll || '-'}`)),
       h('div', { class: 'pactions' },
         p.role === 'user' ? h('button', { class: 'btn small', onclick: () => changeRole(p, 'admin', load) }, t('promote')) : null,
@@ -71,7 +71,7 @@ export function departmentsView() {
   search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { query = search.value.trim().toLowerCase(); drawList(); }, 120); });
   const head = h('div', {}), list = h('div', { class: 'dept-list' });
   root.append(head, h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), search)), list);
-  const personMatch = (p) => `${p.full_name} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query);
+  const personMatch = (p) => `${nameText(p)} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query);
 
   function draw() {
     head.replaceChildren(h('div', { class: 'cal-head' }, h('h2', {}, `${t('nav_departments')} (${depts.length})`),

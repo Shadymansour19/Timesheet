@@ -1,5 +1,5 @@
 import { h } from '../dom.js';
-import { t, getLang } from '../i18n/index.js';
+import { t, getLang, personName, nameText } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchRangeData, fetchPaddedMonthData, effective, setDepartureMove } from '../api/timesheet.js';
 import { WEEK_START, sameData, nextStatus } from '../lib/core.js';
@@ -72,7 +72,7 @@ export function teamView() {
     // write's announcement triggers a fresh refetch afterwards)
     if (quiet && (writes > 0 || writeEpoch !== epoch)) { scheduleLive(false); return; }
     if (quiet && built) {
-      const samePeople = !p || JSON.stringify(p.map((x) => [x.id, x.full_name, x.payroll, x.level, x.role])) === JSON.stringify(people.map((x) => [x.id, x.full_name, x.payroll, x.level, x.role]));
+      const samePeople = !p || JSON.stringify(p.map((x) => [x.id, x.full_name, x.full_name_ar, x.payroll, x.level, x.role])) === JSON.stringify(people.map((x) => [x.id, x.full_name, x.full_name_ar, x.payroll, x.level, x.role]));
       const sameRange = drawnRange && drawnRange[0] === rd[0] && drawnRange[1] === rd.length;   // a view / month change must always redraw (compared with what is DRAWN, `days` is already the new range while a navigation is loading)
       if (sameRange && samePeople && sameData(data, d)) return;
     }
@@ -159,7 +159,7 @@ export function teamView() {
     let entry;
     if (drag?.entry) { entry = drag.entry; entry.cells.push({ uid, day, prev, next: status }); }          // one drag = ONE undo step
     else { entry = pushUndo({ type: 'cells', stroke: stroke && !drag, cells: [{ uid, day, prev, next: status }] }); if (drag) drag.entry = entry; }
-    announce(`${people.find((x) => x.id === uid)?.full_name}, ${dayLabels.get(day) ?? day}: ${status}`);
+    announce(`${personName(people.find((x) => x.id === uid))}, ${dayLabels.get(day) ?? day}: ${status}`);
     // writes to the same cell go out one after another, so two quick key presses (X then Y) cannot overtake each other
     const k = key(uid, day);
     const run = (chains.get(k) ?? Promise.resolve()).catch(() => {}).then(() => setStatus(uid, day, status));
@@ -337,7 +337,7 @@ export function teamView() {
     const tr = h('tr', { 'data-u': p.id });
     const mine = focusPos && focusPos.uid === p.id;
     tr.append(h('th', { class: 'nm', scope: 'row', tabindex: mine && focusPos.day === null ? 0 : -1 },
-      h('span', { class: 'nm-name' }, p.full_name),
+      h('span', { class: 'nm-name' }, personName(p)),
       h('span', { class: 'nm-sub' }, h('small', { class: 'opr' }, (p.payroll ?? '')), h('span', { class: 'tots' }, totalsLine(p.id)))));
     for (const day of days) tr.append(tdFor(p, day, mine && focusPos.day === day));
     return tr;
@@ -366,7 +366,7 @@ export function teamView() {
     const hol = data.holidays.has(day), ot = otOf(p.id, day);
     const eff = effective(statusOf(p.id, day), hol);
     return h('td', { class: `c s-${eff.toLowerCase()}${hol ? ' holiday' : ''}${ot ? ' has-ot' : ''}${day === t0 ? ' today' : ''}${isCtx(day) ? ' ctx' : ''}`, 'data-u': p.id, 'data-d': day,
-      tabindex: focusable ? 0 : -1, 'aria-label': `${p.full_name}, ${dayLabels.get(day) ?? day}: ${eff}${ot ? `, ${ot} ${t('overtime_h')}` : ''}` },
+      tabindex: focusable ? 0 : -1, 'aria-label': `${personName(p)}, ${dayLabels.get(day) ?? day}: ${eff}${ot ? `, ${ot} ${t('overtime_h')}` : ''}` },
       depBadge(p, day), eff, ot ? h('sup', {}, ot) : null);
   }
   const rowEls = new Map();
@@ -393,7 +393,7 @@ export function teamView() {
   }
   function updateFoot() { const old = el.table.querySelector('tfoot'); if (old) old.replaceChildren(footRow()); }
 
-  function matches(p) { return !query || `${p.full_name} ${p.payroll ?? ''} ${p.opr ?? ''} ${p.username}`.toLowerCase().includes(query); }
+  function matches(p) { return !query || `${nameText(p)} ${p.payroll ?? ''} ${p.opr ?? ''} ${p.username}`.toLowerCase().includes(query); }
 
   let drawnRange = null;                       // [first day, number of days] of the grid on screen
   function drawGrid() {

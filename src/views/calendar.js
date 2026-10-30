@@ -146,7 +146,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     const v = data[day] ?? { status: 'E', ot: 0, note: '', hol: false };
     busy.add(day); wver++;   // hold live refetches while the dialog is open and saving
     openDayEditor({
-      person: { id: uid, full_name: person?.full_name ?? state.profile.full_name }, day,
+      person: { id: uid, full_name: person?.full_name ?? state.profile.full_name, full_name_ar: person?.full_name_ar ?? state.profile.full_name_ar }, day,
       status: v.status, overtime: v.ot ? { hours: v.ot, note: v.note } : null, holiday: v.hol,
       onSaved: () => { busy.delete(day); wver++; load({ quiet: false }); },
     });

@@ -1,7 +1,7 @@
 // Bulk fill dialog of the department grid: people, date range, status, with a live "N cells will change" preview.
 // The grid does the local update / undo entry / redraw in onApplied(cells: [{ uid, day, prev, next }]).
 import { h } from '../dom.js';
-import { t } from '../i18n/index.js';
+import { t, personName } from '../i18n/index.js';
 import { ymd, fetchRangeData } from '../api/timesheet.js';
 import { setStatusRows } from '../api/admin.js';
 import { openDialog } from './dialog.js';
@@ -54,7 +54,7 @@ export function openBulkFill({ people, days, isCtx, yOk, track, onApplied }) {
   const content = h('div', { class: 'form' },
     from.row, to.row, st.row,
     h('label', { class: 'check strong' }, all, t('select_all')),
-    h('div', { class: 'checklist' }, people.map((p, i) => h('label', { class: 'check' }, boxes[i], p.full_name))),
+    h('div', { class: 'checklist' }, people.map((p, i) => h('label', { class: 'check' }, boxes[i], personName(p)))),
     preview);
   openDialog({
     title: t('bulk_fill'), content, wide: true,

@@ -8,7 +8,7 @@
 import * as live from './live.js';
 import { state, myDept } from './auth/session.js';
 import { fetchTimesheetPeople } from './api/admin.js';
-import { t } from './i18n/index.js';
+import { t, personName } from './i18n/index.js';
 
 const KEY = 'ts.notify';
 const QUIET_MS = 60_000, MAX_WAIT_MS = 600_000;
@@ -33,7 +33,7 @@ export async function setEnabled(on) {
 const pending = new Map();                      // person id -> { timer, first, n }   (one timer per person, never shared)
 const names = new Map();
 async function nameOf(uid) {
-  if (!names.has(uid)) { try { (await fetchTimesheetPeople(myDept())).forEach((p) => names.set(p.id, p.full_name)); } catch { /* ignore */ } }
+  if (!names.has(uid)) { try { (await fetchTimesheetPeople(myDept())).forEach((p) => names.set(p.id, personName(p))); } catch { /* ignore */ } }
   return names.get(uid) ?? '';
 }
 async function fire(uid) {

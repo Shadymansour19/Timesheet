@@ -3,7 +3,7 @@ import { openBulkAdd } from './bulk-users.js';
 import { renderOnboarding } from '../components/onboarding.js';
 import { createColumnFilter } from '../components/column-filter.js';
 import { h } from '../dom.js';
-import { t } from '../i18n/index.js';
+import { t, personName, nameText } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { fetchDeptPeople, updateProfile, setUserRole, callFn } from '../api/admin.js';
 import { explain } from '../api/errors.js';
@@ -53,7 +53,7 @@ export function personFields(initial = {}, { withLogin = false, isNew = false, r
 export const resetPasswordDialog = (person) => {
   const pw = field(t('new_password'), { type: 'text', required: true, minlength: 8, autocomplete: 'off', value: randomPassword() });
   openDialog({
-    title: `${t('reset_password')}: ${person.full_name}`, content: h('div', { class: 'form' }, pw.row, h('p', { class: 'muted' }, t('share_password_hint')), h('p', { class: 'muted' }, t('reset_signout_hint'))),
+    title: `${t('reset_password')}: ${personName(person)}`, content: h('div', { class: 'form' }, pw.row, h('p', { class: 'muted' }, t('share_password_hint')), h('p', { class: 'muted' }, t('reset_signout_hint'))),
     buttons: [{ label: t('cancel') }, { label: t('reset_password'), kind: 'primary', onClick: async () => {
       await callFn('reset_password', { user_id: person.id, password: pw.input.value });
       toast(t('password_reset_done'), 'success');
@@ -62,14 +62,14 @@ export const resetPasswordDialog = (person) => {
 };
 
 export async function deletePerson(person, reload) {
-  if (!(await confirmDialog(`${t('delete_user')}: ${person.full_name}?`, { danger: true, confirmLabel: t('delete') }))) return;
+  if (!(await confirmDialog(`${t('delete_user')}: ${personName(person)}?`, { danger: true, confirmLabel: t('delete') }))) return;
   try { await callFn('delete_user', { user_id: person.id }); toast(t('deleted'), 'success'); await reload(); }
   catch (e) { toast(explain(e)); }
 }
 
 export async function changeRole(person, role, reload) {
   const q = role === 'admin' ? t('promote_confirm') : role === 'manager' ? t('manager_confirm') : t('demote_confirm');
-  if (!(await confirmDialog(`${q} ${person.full_name}?`))) return;
+  if (!(await confirmDialog(`${q} ${personName(person)}?`))) return;
   try { await setUserRole(person.id, role); await reload(); }
   catch (e) { toast(explain(e)); }
 }
@@ -114,7 +114,7 @@ export function usersView() {
   function editUser(person) {
     const p = personFields(person);
     openDialog({
-      title: `${t('edit_data')}: ${person.full_name}`, wide: 'xl', content: h('div', { class: 'form two-col' }, h('p', { class: 'muted' }, `${t('username')}: ${person.username}`), p.rows),
+      title: `${t('edit_data')}: ${personName(person)}`, wide: 'xl', content: h('div', { class: 'form two-col' }, h('p', { class: 'muted' }, `${t('username')}: ${person.username}`), p.rows),
       buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
         await updateProfile(person.id, p.f.full_name.input.value.trim(), p.f.opr.input.value.trim(), p.level(), p.f.job_title.input.value, p.f.contract_no.input.value, p.f.work_location.input.value, p.f.residence.input.value, p.f.position.input.value, p.f.payroll.input.value, p.f.y_allowed.input.value === 'yes', p.f.full_name_ar.input.value);
         await load();
@@ -142,8 +142,8 @@ export function usersView() {
   const closeMenu = () => { if (menu) { menu.remove(); menu = null; } };
   function openMenu(e, p) {
     e.preventDefault(); closeMenu();
-    menu = h('div', { class: 'ctx-menu', role: 'menu', 'aria-label': p.full_name },
-      h('p', { class: 'ctx-title' }, p.full_name),
+    menu = h('div', { class: 'ctx-menu', role: 'menu', 'aria-label': personName(p) },
+      h('p', { class: 'ctx-title' }, personName(p)),
       ...actionsOf(p).map((a) => (a.href
         ? h('a', { class: 'ctx-item', role: 'menuitem', href: a.href, onclick: closeMenu }, a.label)
         : h('button', { type: 'button', class: 'ctx-item' + (a.kind === 'danger' ? ' danger' : ''), role: 'menuitem', onclick: () => { closeMenu(); a.run(); } }, a.label))));
@@ -162,7 +162,7 @@ export function usersView() {
     return h('tr', { class: 'urow', 'data-u': p.id, tabindex: 0, title: t('users_table_hint'),
       ondblclick: () => editUser(p), oncontextmenu: (e) => openMenu(e, p),
       onkeydown: (e) => { if (e.key === 'Enter') editUser(p); } },
-      h('th', { scope: 'row' }, p.full_name),
+      h('th', { scope: 'row' }, personName(p)),
       h('td', {}, p.payroll ?? ''), h('td', {}, p.opr ?? ''), h('td', {}, p.position ?? ''), h('td', {}, p.job_title ?? ''), h('td', {}, p.level ?? ''),
       h('td', {}, h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role))), h('td', {}, p.work_location ?? ''));
   }
@@ -171,7 +171,7 @@ export function usersView() {
     const self = p.id === me.id;
     return h('li', { class: 'person card', 'data-u': p.id },
       h('div', { class: 'pinfo' },
-        h('strong', {}, p.full_name), h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role)),
+        h('strong', {}, personName(p)), h('span', { class: 'badge' + (p.role === 'admin' || p.role === 'manager' ? ' admin' : '') }, t('role_' + p.role)),
         h('span', { class: 'muted' }, `${p.payroll || '-'}${p.position ? ' · ' + p.position : ''}`)),   // everything else is in Edit data
       h('div', { class: 'pactions' },
         ...actionsOf(p).map((a) => (a.href ? h('a', { class: 'btn small' + (a.kind ? ' ' + a.kind : ''), href: a.href }, a.label) : h('button', { class: 'btn small' + (a.kind ? ' ' + a.kind : ''), onclick: a.run }, a.label)))));
@@ -189,7 +189,7 @@ export function usersView() {
   // skip: a column whose own filter is ignored (its filter list offers the values that the OTHER filters leave)
   const matches = (p, skip = null) => (roleFilter === 'all' || p.role === roleFilter)
     && COLS.every(([k]) => k === skip || !colFilter[k] || colFilter[k].has(cellText(p, k)))
-    && (!query || `${p.full_name} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query));
+    && (!query || `${nameText(p)} ${p.username} ${p.payroll ?? ''} ${p.opr ?? ''}`.toLowerCase().includes(query));
 
   const columnFilter = createColumnFilter({ rows: () => people, matches: (p, skip) => matches(p, skip), cellText, filters: colFilter, labelOf: (k) => t(COLS.find((c) => c[0] === k)[1]), onChange: () => update() });
   const openFilter = (k, btn) => columnFilter.open(k, btn);

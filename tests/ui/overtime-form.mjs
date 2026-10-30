@@ -130,7 +130,14 @@ await p.context().close();
 { const ph = await login('otfadm', { w: 390 }); await ph.click('.nav a:has(.lbl:text-is("Overtime"))'); await ph.waitForSelector('.ot-day');
   const box = await ph.locator('.cal-tools').boundingBox();
   ok('phone: the toolbar stays inside the screen (wraps)', box && box.x >= 0 && box.x + box.width <= 391, JSON.stringify(box));
+  await ph.goto(BASE + '/#/team'); await ph.waitForSelector('.tgrid tbody tr .nm-name');
+  ok('English UI: the department grid shows the English names', (await ph.locator('.tgrid .nm-name').allTextContents()).includes('OTF User One'));
+  await ph.goto(BASE + '/#/overtime'); await ph.waitForSelector('.ot-day');
   await ph.click('.topbar .lang-btn'); await ph.waitForSelector('html[lang=ar]');
+  await ph.goto(BASE + '/#/team'); await ph.waitForSelector('.tgrid tbody tr .nm-name');
+  { const nmA = await ph.locator('.tgrid .nm-name').allTextContents();
+    ok('Arabic UI: the department grid shows the Arabic name of each employee (the English one when there is none)', nmA.includes('مستخدم واحد') && nmA.includes('مستخدم اثنان') && nmA.includes('OTF User Three') && !nmA.includes('OTF User One'), nmA.join(' | ')); }
+  await ph.goto(BASE + '/#/overtime'); await ph.waitForSelector('.ot-day');
   ok('Arabic UI: the group is named "نموذج الإضافي" and the buttons are Print / Excel / PDF in Arabic', (await ph.locator('.cal-tools .ot-form-tools').getAttribute('aria-label')) === 'نموذج الإضافي' && (await ph.locator('#ot-print').getAttribute('aria-label')) === 'طباعة' && (await ph.locator('#scan-open').textContent()).includes('مسح'));
   await ph.screenshot({ path: `${S}/otf-phone-ar.png` }); await ph.context().close(); }
 

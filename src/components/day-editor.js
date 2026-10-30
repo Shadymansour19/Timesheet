@@ -1,5 +1,5 @@
 import { h } from '../dom.js';
-import { t, getLang } from '../i18n/index.js';
+import { t, getLang, personName } from '../i18n/index.js';
 import { openDialog } from './dialog.js';
 import { field } from './form.js';
 import { setStatus, setOvertime } from '../api/admin.js';
@@ -13,7 +13,7 @@ export function openDayEditor({ person, day, status, overtime, holiday = false, 
   const note = field(t('note'), { type: 'text', maxlength: 200, value: overtime?.note ?? '' });
   const date = new Date(day + 'T00:00:00').toLocaleDateString(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', { weekday: 'long', day: 'numeric', month: 'long' });
   const content = h('div', { class: 'form' },
-    h('p', { class: 'muted' }, `${person.full_name} · ${date}${holiday ? ' · ' + t('holiday') : ''}`),
+    h('p', { class: 'muted' }, `${personName(person)} · ${date}${holiday ? ' · ' + t('holiday') : ''}`),
     h('div', { class: 'radios' }, radios), hours.row, note.row);
   openDialog({
     title: t('edit_day'), content, onClose,

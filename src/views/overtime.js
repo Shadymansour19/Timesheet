@@ -1,5 +1,5 @@
 import { h } from '../dom.js';
-import { t, getLang } from '../i18n/index.js';
+import { t, getLang, personName, nameText } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { cursor, shiftMonth, goToday, ymd, daysIn, fetchMonthData } from '../api/timesheet.js';
 import { WEEK_START } from '../lib/core.js';
@@ -101,10 +101,10 @@ export function overtimeView() {
     const parse = (r) => { const raw = r.hours.value.trim(); if (raw === '') return 0; const n = Number(raw); return Number.isInteger(n) && n >= 0 && n <= 24 ? n : null; };
     const rows = people.map((p) => {
       const cur = data.overtime.get(key(p.id, day));
-      const hours = h('input', { type: 'number', min: 0, max: 24, step: 1, inputmode: 'numeric', class: 'ot-hours', value: cur?.hours ?? '', placeholder: '0', 'aria-label': `${t('overtime_hours_short')}: ${p.full_name}` });
-      const note = h('input', { type: 'text', maxlength: 200, class: 'ot-note', value: cur?.note ?? '', placeholder: t('note'), 'aria-label': `${t('note')}: ${p.full_name}` });
-      const el = h('div', { class: 'otrow' }, h('div', { class: 'otname' }, h('strong', {}, p.full_name), h('small', { class: 'muted' }, (p.payroll ?? ''))), hours, note);
-      return { p, cur, hours, note, el, search: `${p.full_name} ${p.payroll ?? ''} ${p.opr ?? ''} ${p.username}`.toLowerCase() };
+      const hours = h('input', { type: 'number', min: 0, max: 24, step: 1, inputmode: 'numeric', class: 'ot-hours', value: cur?.hours ?? '', placeholder: '0', 'aria-label': `${t('overtime_hours_short')}: ${personName(p)}` });
+      const note = h('input', { type: 'text', maxlength: 200, class: 'ot-note', value: cur?.note ?? '', placeholder: t('note'), 'aria-label': `${t('note')}: ${personName(p)}` });
+      const el = h('div', { class: 'otrow' }, h('div', { class: 'otname' }, h('strong', {}, personName(p)), h('small', { class: 'muted' }, (p.payroll ?? ''))), hours, note);
+      return { p, cur, hours, note, el, search: `${nameText(p)} ${p.payroll ?? ''} ${p.opr ?? ''} ${p.username}`.toLowerCase() };
     });
 
     const search = h('input', { type: 'search', class: 'ot-search', placeholder: t('search_people'), 'aria-label': t('search_people') });

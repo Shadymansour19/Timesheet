@@ -17,6 +17,10 @@ try {
 } catch { /* storage unavailable: keep default */ }
 
 export const getLang = () => lang;
+// the name of a person as shown in the UI: the Arabic name in the Arabic view (when there is one), else the English name
+export const personName = (p) => (lang === 'ar' && String(p?.full_name_ar ?? '').trim()) || p?.full_name || '';
+// what a name search looks in: both names
+export const nameText = (p) => `${p?.full_name ?? ''} ${p?.full_name_ar ?? ''}`;
 
 export function applyDir() {
   document.documentElement.lang = lang;

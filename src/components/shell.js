@@ -1,5 +1,5 @@
 import { h } from '../dom.js';
-import { t, otherLang, setLang } from '../i18n/index.js';
+import { t, otherLang, setLang, personName } from '../i18n/index.js';
 import { state, signOut, signOutAll, switchTo, addAccount, removeAccount, listAccounts } from '../auth/session.js';
 import { navFor } from '../router.js';
 import { openDialog, confirmDialog } from './dialog.js';
@@ -53,12 +53,12 @@ function accountMenu() {
         const key = await switchTo(a.id);
         if (key) toast(t(key));
       } },
-      h('span', { class: 'avatar' }, initials(a.full_name)),
-      h('span', { class: 'acct-text' }, h('strong', {}, a.full_name), h('small', { class: 'muted' }, `${t('role_' + a.role)} · ${a.username}`)),
+      h('span', { class: 'avatar' }, initials(personName(a))),
+      h('span', { class: 'acct-text' }, h('strong', {}, personName(a)), h('small', { class: 'muted' }, `${t('role_' + a.role)} · ${a.username}`)),
       active ? h('span', { class: 'tick', 'aria-label': t('current_account') }, '✓') : null),
-      active ? null : h('button', { class: 'acct-x', type: 'button', title: t('remove_account'), 'aria-label': `${t('remove_account')}: ${a.full_name}`, onclick: async () => {
+      active ? null : h('button', { class: 'acct-x', type: 'button', title: t('remove_account'), 'aria-label': `${t('remove_account')}: ${personName(a)}`, onclick: async () => {
         // our own dialog (never the browser's): removing an account is easy to hit by accident and means typing the password again
-        const yes = await confirmDialog(t('remove_account_title').replaceAll('{name}', a.full_name),
+        const yes = await confirmDialog(t('remove_account_title').replaceAll('{name}', personName(a)),
           { danger: true, confirmLabel: t('remove'), detail: t('remove_account_detail') });
         if (!yes) return;
         await removeAccount(a.id);
@@ -68,8 +68,8 @@ function accountMenu() {
 
   det.append(
     h('summary', { class: 'who', 'aria-label': t('account_menu') },
-      h('span', { class: 'avatar big' }, initials(p.full_name)),
-      h('span', { class: 'acct-text' }, h('strong', {}, p.full_name), h('span', { class: 'muted' }, t('role_' + p.role))),
+      h('span', { class: 'avatar big' }, initials(personName(p))),
+      h('span', { class: 'acct-text' }, h('strong', {}, personName(p)), h('span', { class: 'muted' }, t('role_' + p.role))),
       h('span', { class: 'caret', 'aria-hidden': 'true' }, icon(CHEVRON_UPDOWN, 18))),
     h('div', { class: 'menu' },
       h('p', { class: 'menu-title muted' }, t('accounts_here')),
