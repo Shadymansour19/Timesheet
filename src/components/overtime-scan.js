@@ -22,11 +22,13 @@ export function pageCard(res, { existing = () => null, onRemove = () => {} } = {
     const hours = h('input', { type: 'number', min: 0, max: 24, step: 1, class: 'ot-hours', value: r.hours ?? '', 'aria-label': t('scan_hours') });
     const note = h('input', { type: 'text', maxlength: 200, class: 'ot-note', value: r.note, 'aria-label': t('scan_note') });
     const ex = h('span', { class: 'warn-chip exist' });
-    const tr = h('tr', { 'data-p': r.payroll },
+    const tr = h('tr', { 'data-p': r.payroll, ...(r.group ? { class: 'merged', 'data-g': r.group } : {}) },
       h('td', {}, inc), h('td', { class: 'mono' }, r.payroll), h('td', {}, r.name), h('td', {}, hours), h('td', { class: 'scan-note' }, note),
-      h('td', { class: 'scan-warn' }, r.warn.map((w) => h('span', { class: 'warn-chip' }, t(WARN[w]))), ex));
+      h('td', { class: 'scan-warn' }, r.group ? h('span', { class: 'warn-chip shared', title: t('scan_shared_hint') }, t('scan_shared')) : null, r.warn.map((w) => h('span', { class: 'warn-chip' }, t(WARN[w]))), ex));
     return { r, tr, inc, hours, note, ex };
   });
+  // people who share ONE work cell on the form share one note: editing it in one row changes it in the others (the hours stay per person)
+  for (const x of rows) if (x.r.group) x.note.addEventListener('input', () => { for (const y of rows) if (y !== x && y.r.group === x.r.group) y.note.value = x.note.value; });
   const refresh = () => rows.forEach((x) => { const e = date.value ? existing(x.r.personId, date.value) : null; x.ex.textContent = e ? t('scan_exist').replace('{h}', e.hours) : ''; x.ex.hidden = !e; x.ex.title = e?.note ?? ''; });
   date.addEventListener('change', refresh); refresh();
   const el = h('section', { class: 'scan-page card' },

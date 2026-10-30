@@ -54,6 +54,7 @@ Put the DB connection string in an untracked `.env.db` (`TS_DB_URL='postgresql:/
 | `npm run test:ui-theme` | Light/Dark/System: device vs manual choice, no flash before the app loads, persistence, Arabic labels, all roles, navigation unchanged |
 | `npm run test:ocr-parse` | The overtime-form row parser on made-up OCR words: other layouts, OCR slips, unknown payrolls, bad hours |
 | `npm run test:ui-ocr` | Overtime form scan in the browser on a real scanned sample (set `OCR_SAMPLE`; skipped when missing): local OCR, preview, edit, save, folder, duplicates |
+| `npm run test:ui-ocr-merged` | The scan reads a form printed by the app: merged work cell shared by several people, a note wrapping over two lines, English name on the form, hours per person (real OCR, makes its own PDF; needs the preview server and Chromium) |
 | `npm run test:overtime-form` | The overtime form: same notes merged into one work cell, hours per person, pages, A4 landscape print (Chromium, any margins), Excel read back (needs Chromium and poppler) |
 | `npm run test:ui-overtime-form` | Overtime form buttons in the browser: month and day, print / Excel / PDF, unsaved window, Arabic UI, phone, view-only super manager |
 | `npm run test:ui-polish` | Browser checks: password show/hide, Arabic wording, month arrows in both languages |

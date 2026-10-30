@@ -423,6 +423,8 @@ export default {
   scan_warn_hours_check: "راجع الساعات",
   scan_warn_note_missing: "لا يوجد نص للعمل",
   scan_warn_duplicate: "الشخص مكرر",
+  scan_shared: "ملاحظة مشتركة",
+  scan_shared_hint: "هؤلاء يشتركون في خانة أعمال واحدة في النموذج. تعديل الملاحظة هنا يغيّرها للجميع، أما الساعات فلكل شخص.",
   scan_confirm: "حفظ الإضافي",
   scan_drop: "أو اسحب وأفلت ملفات PDF أو مجلداً كاملاً هنا",
   scan_pick_folder: "أو مجلد كامل (كل ملفات PDF / الصور بداخله)",

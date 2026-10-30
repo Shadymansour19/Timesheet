@@ -423,6 +423,8 @@ export default {
   scan_warn_hours_check: "check the hours",
   scan_warn_note_missing: "no work text",
   scan_warn_duplicate: "person appears twice",
+  scan_shared: "shared note",
+  scan_shared_hint: "These people share one work cell on the form. Editing the note here changes it for all of them; the hours are per person.",
   scan_confirm: "Save overtime",
   scan_drop: "Or drag and drop PDF files or a whole folder here",
   scan_pick_folder: "Or a whole folder (every PDF / image inside)",

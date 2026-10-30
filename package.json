@@ -34,7 +34,8 @@
     "test:ocr-parse": "node tests/ocr-parse.test.mjs",
     "test:ui-ocr": "node tests/ui/overtime-scan.mjs",
     "test:overtime-form": "node tests/overtime-form.test.mjs",
-    "test:ui-overtime-form": "node tests/ui/overtime-form.mjs"
+    "test:ui-overtime-form": "node tests/ui/overtime-form.mjs",
+    "test:ui-ocr-merged": "node tests/ui/overtime-scan-merged.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

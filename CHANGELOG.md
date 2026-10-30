@@ -3,7 +3,7 @@
 Newest first. Grouped by day from the git history; the reasons are in [SPEC.md](SPEC.md).
 
 ## 2026-10-29
-- Overtime form from the app (Excel in the form's visual column order with bigger logos and short signature lines; title underline below the letters): Print / Excel / PDF of one day (in the day window) or of the whole month (Overtime tab); one A4 landscape page per day in Arabic with the logos, people with the same note share one "work required" cell, hours per person; the scan is unchanged.
+- Scan of overtime forms reads merged work cells (same note for several people), wrapped notes and the form's columns; shared notes are edited together. Overtime form from the app (Excel in the form's visual column order with bigger logos and short signature lines; title underline below the letters): Print / Excel / PDF of one day (in the day window) or of the whole month (Overtime tab); one A4 landscape page per day in Arabic with the logos, people with the same note share one "work required" cell, hours per person; the scan is unchanged.
 - Arabic names (migration 28): a person's Arabic name (Edit data, Add user, bulk add), the department's Arabic name and the Arabic sector (Report settings); the overtime form uses them: the Arabic name of each person, "الإدارة العامة: <sector> / <department>", "مدير عام <sector>", "مدير عام مساعد <department>". The two signature titles stay optional; the defaults are "مدير عام مساعد <department in Arabic>" and "مدير عام <sector in Arabic>".
 - Report settings ("Department data") is wide and two-column on a desktop.
 - Sector is stored as the value only ("Maintenance"); the exports append the word "Sector".

@@ -595,3 +595,5 @@ body.has-install .floating { inset-block-start: 68px; }
 .tgrid tr.hl > td.c.hlc::after { background: color-mix(in srgb, var(--brand) 28%, transparent); }
 .tgrid tr.hl > th.nm { background: color-mix(in srgb, var(--brand) 12%, var(--card)); }
 .tgrid th.dh.hlc:not(.today):not(.holiday) { background: color-mix(in srgb, var(--brand) 14%, var(--card)); }
+.scan-table tr.merged td:first-child { box-shadow: inset 3px 0 0 var(--brand); }     /* rows that share one work cell on the form */
+.warn-chip.shared { background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand-dark); }
