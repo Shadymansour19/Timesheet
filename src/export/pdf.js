@@ -320,7 +320,7 @@ function sumsOf(e) {
   for (const c of e.cells) {
     const status = c.eff;
     const baseStatus = status.endsWith('H') ? status.slice(0, -1) : status;
-    if (a[status] !== undefined) a[status]++;
+    if (a[baseStatus] !== undefined) a[baseStatus]++;
     if (NORMAL.includes(baseStatus)) a.otN += c.ot; else if (SHIFT.includes(baseStatus)) a.otS += c.ot;
     a.tin += c.tin; a.tex += c.tex;
   }

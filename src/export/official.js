@@ -45,13 +45,17 @@ export function reportSettings(model, tpl) {
   const pick = (v, fallback) => (typeof v === 'string' && v.trim() ? v.trim() : fallback);
   const sectorLine = (v) => { const s = pick(v, ''); return s ? (/\bsector$/i.test(s) ? s : `${s} Sector`) : c.defaultSector; };   // the department stores the sector value only ("Maintenance"): the banner adds the word
   const name = model.department;
+  const year = model.year;
+  // get month in 3 char form
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[model.month] || `${model.month + 1}`;
   return {
     deptName: name, deptTitle: `${name} Dept.`, code: model.deptCode ?? '',
     printName: pick(r.dept_print_name, name.toUpperCase()),
     manpower: c.manpower, banner: [c.banner1, pick(model.field, c.defaultField), sectorLine(model.sector)],
     captionLeft: c.captionLeft, captionRight: c.captionRight,
     signLeft: `${name} SH/DH`, signRight: `${name} AGM`,
-    otTitle: `${name} EMC overtime`, otMiddle: c.overtimeSignoffMiddle, otRight: c.overtimeSignoffRight,
+    otTitle: `${name} EMC overtime (${month}-${year})`, otMiddle: c.overtimeSignoffMiddle, otRight: c.overtimeSignoffRight,
   };
 }
 
@@ -128,7 +132,7 @@ function daySheet(wb, model, S, di, name, logos) {
     setCell(ws, r, D.title, e.jobTitle, { bold: true, size: 8, shrink: true });
     setCell(ws, r, D.level, e.levelText, { bold: true, size: 8 });
     setCell(ws, r, D.pr, e.payroll, { bold: true, size: 8 });
-    setCell(ws, r, D.status, c.status, { bold: true, size: 11 });                  // X / Y / E (holidays are shown in the date line)
+    setCell(ws, r, D.status, c.eff, { bold: true, size: 11 });                     // X / Y / XH / YH / E
     setCell(ws, r, D.acc, null);
     setCell(ws, r, D.tin, c.tin || null, { bold: true, size: 9 });
     setCell(ws, r, D.tex, c.tex || null, { bold: true, size: 9 });
@@ -204,10 +208,12 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
       setCell(ws, r, eCol(base, 0), d, lblOpt);
       for (let q = 1; q <= 9; q++) setCell(ws, r, eCol(base, q), null, { font: CAL, size: 9 });
       const c = e.cells[d - 1];
-      cells.push({ work: c.status, ot: c.ot });
+      const work = c.eff;
+      const baseWork = work.endsWith('H') ? work.slice(0, -1) : work;
+      cells.push({ work, baseWork, ot: c.ot });
       const put = (q, formula, result, plain, o = {}) => setCell(ws, r, eCol(base, q), standalone ? plain : fx(formula, result), { font: CAL, size: 9, ...o });
       const ds = dayNames[d - 1];
-      put(1, `IFERROR(${idx('F', ds)},"E")`, c.status, c.status);
+      put(1, `IFERROR(${idx('F', ds)},"E")`, c.eff, c.eff);
       put(5, `IFERROR(${idx('G', ds)},0)`, 0, 0);
       put(6, `IFERROR(${idx('H', ds)},0)`, c.tin, c.tin);
       put(7, `IFERROR(${idx('I', ds)},0)`, c.tex, c.tex);
@@ -235,10 +241,10 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
 
   // totals
   const T0 = L0 + 4;
-  const count = (code) => `COUNTIF(${workL},"${code}")+COUNTIF(${workR},"${code}")`;
-  const sum = (codes) => codes.map((c) => `SUMIF(${workL},"${c}",${otL})+SUMIF(${workR},"${c}",${otR})`).join('+');
+  const count = (code) => `COUNTIF(${workL},"${code}")+COUNTIF(${workR},"${code}")+COUNTIF(${workL},"${code+'H'}")+COUNTIF(${workR},"${code+'H'}")`;
+  const sum = (codes) => codes.flatMap((c) => [c, c + 'H']).map((c) => `SUMIF(${workL},"${c}",${otL})+SUMIF(${workR},"${c}",${otR})`).join('+');
   const cnt = (code) => cells.filter((x) => x.work === code).length;
-  const otOf = (codes) => cells.filter((x) => codes.includes(x.work)).reduce((a, x) => a + x.ot, 0);
+  const otOf = (codes) => cells.filter((x) => codes.includes(x.baseWork)).reduce((a, x) => a + x.ot, 0);
   const box = (r, c1, c2, text) => merge(ws, r, c1, r, c2, text, { font: AR, bold: true, size: 10, underline: true });
   box(T0, 1, 8, 'Codes of Normal Daily Rates'); box(T0, 12, 20, 'Codes of 1.2X Daily Rates');
   // label right-aligned, value centred; the small "Total Overtime Hours" label is left-aligned; no inner lines (one outer frame per box)
