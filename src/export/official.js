@@ -113,7 +113,7 @@ function frame(ws, r1, c1, r2, c2, style = thin) {
 const D = { first: 9, no: 1, name: 2, title: 3, level: 4, pr: 5, status: 6, acc: 7, tin: 8, tex: 9, ot: 10, cmt: 11, cols: 11 };
 function daySheet(wb, model, S, di, name, logos) {
   const ws = wb.addWorksheet(name);
-  page(ws, { height: 0 });
+  page(ws, { height: 1 });
   [5.5, 29, 17, 10, 11, 8.5, 9.5, 10.5, 10.5, 10.5, 28].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   // banner box: logo | blue title | logo
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 25;
@@ -296,7 +296,7 @@ function employeeSheet(wb, model, S, e, name, dayNames, dayLast, logos, standalo
 const V = { first: 9, no: 1, name: 2, title: 3, level: 4, pr: 5, x: 6, y: 7, total: 8, ot: 9, ext: 10, in: 11, sig: 12, cols: 12, pos: 13 };   // column 13 = the person's position (hidden), used by the totals
 function reviewSheet(wb, model, S, emps, name, logos) {
   const ws = wb.addWorksheet(name);
-  page(ws, { landscape: true, height: 0 });
+  page(ws, { landscape: true, height: 1 });
   [5, 36, 17, 10, 11, 10, 10, 11, 9, 9, 9, 30].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   for (let r = 1; r <= 3; r++) ws.getRow(r).height = 22;
   merge(ws, 1, 1, 3, 2, null); merge(ws, 1, 3, 3, 10, bannerText(S), { wrap: true }); merge(ws, 1, 11, 3, 12, null);
@@ -387,7 +387,7 @@ function overtimeSheet(wb, model, S, emps, name) {
 // sheets. "Actual No. of days" = the sum of the total column; "Total No. B/B days" = the approved total of the department data.
 function b2bSheet(wb, model, S, emps, name, logos, kind) {
   const ws = wb.addWorksheet(name);
-  page(ws, { landscape: true, height: 0 });
+  page(ws, { landscape: true, height: 1 });
   [5, 12, 28, 10, 5, 5, 5, 5, 5, 9, 9, 9, 5, 5, 5, 6, 6, 9, 9, 10, 34].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   const mine = model.employees.map((e, i) => ({ e, i })).filter(({ e }) => (kind === 'eng' ? /engineer/i.test(e.position) : /tech/i.test(e.position)));
   const approved = kind === 'eng' ? model.approvedEngineer : model.approvedTech;
