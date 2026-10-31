@@ -203,19 +203,22 @@ function employeePage(model, S, logos, e, doc) {
 const VW = [5, 36, 17, 10, 11, 10, 10, 11, 9, 9, 9, 30];
 function reviewPages(model, S, logos, newPage, doc, sums) {
   const W = 841.89 - 2 * M, u = W / VW.reduce((a, b) => a + b, 0), cw = VW.map((w) => w * u), xs = cw.map((_, i) => M + cw.slice(0, i).reduce((a, b) => a + b, 0));
-  const RH = 17;
+  const RH = (model.employees.length < 20 || model.employees.length > 30) ? 16 : 16 - Math.ceil((model.employees.length - 20) / 2);  // fit the table on one page if possible
   let i = 0, first = true;
+  let y = 26;
   do {
     newPage('landscape');
-    let y = 26;
+    y = 26;
     if (first) {
       banner(doc, S, logos, M, y, W, 56, 130, 130); y += 60;
       const mid = M + W / 2; tx(doc, `${S.deptTitle} Monthly Attendance Sheet Review`, mid, y + 6, { size: 9, ...TIMES, align: 'center' }); tx(doc, S.manpower, mid, y + 18, { size: 9, ...TIMES, align: 'center' }); tx(doc, 'Closeout Calculation Sheet', mid, y + 30, { size: 9, ...TIMES, align: 'center' });
       y += 38;
     }
-    ['No.', 'Name', 'Title', 'Level', 'P/R', '(X)DAYS', '(Y) DAYS', 'Total Days', 'O/T', 'EXT', 'IN', 'Signature'].forEach((h, k) => cell(doc, xs[k], y, cw[k], 16, h, { ...TIMES, size: 7.5, fill: k === 7 ? GREY : undefined }));
-    y += 16;
-    const room = Math.floor((PH_L - M - y) / RH), left = model.employees.length - i, tail = 6 * RH;
+    ['No.', 'Name', 'Title', 'Level', 'P/R', '(X)DAYS', '(Y) DAYS', 'Total Days', 'O/T', 'EXT', 'IN', 'Signature'].forEach(
+      (h, k) => cell(doc, xs[k], y, cw[k], RH, h, { ...TIMES, size: 7.5, fill: k === 7 ? GREY : undefined })
+    );
+    y += RH;
+    const room = Math.floor((PH_L - M - y) / RH), left = model.employees.length - i;
     const n = left <= room - 6 ? left : Math.min(room, left);
     for (let k = 0; k < n; k++, i++) {
       const e = model.employees[i], s = sums[i], r = y + k * RH, b = { ...TIMES, size: 7.5 };
@@ -226,20 +229,28 @@ function reviewPages(model, S, logos, newPage, doc, sums) {
       cell(doc, xs[9], r, cw[9], RH, String(s.tex), b); cell(doc, xs[10], r, cw[10], RH, String(s.tin), b); cell(doc, xs[11], r, cw[11], RH, '', b);
     }
     y += n * RH;
-    if (i >= model.employees.length) {
-      void tail;
-      const days = (k) => sums[k].X + sums[k].C + sums[k].Q + sums[k].Y + sums[k].O;
-      let eng = 0, tech = 0; model.employees.forEach((e, k) => { if (/engineer/i.test(e.position)) eng += days(k); if (/tech/i.test(e.position)) tech += days(k); });
-      y += 12;
-      const b9 = { ...TIMES, size: 8.5 };
-      cell(doc, xs[1], y, cw[1] + cw[2], 18, 'Total Engineer Days', b9); cell(doc, xs[3], y, cw[3], 18, String(eng), { ...b9, fill: GREEN }); cell(doc, xs[4], y, xs[11] - xs[4], 18, 'Total Approved (Engineer)', b9); cell(doc, xs[11], y, cw[11], 18, model.approvedEngineer === null ? '' : String(model.approvedEngineer), b9);
-      y += 26;
-      cell(doc, xs[1], y, cw[1] + cw[2], 18, 'Total Technition Days', b9); cell(doc, xs[3], y, cw[3], 18, String(tech), { ...b9, fill: GREEN }); cell(doc, xs[4], y, xs[11] - xs[4], 18, 'Total Approved (Tech)', b9); cell(doc, xs[11], y, cw[11], 18, model.approvedTech === null ? '' : String(model.approvedTech), b9);
-      y += 34;
-      tx(doc, S.signLeft, M, y, { size: 8, ...TIMES }); tx(doc, S.signRight, M + W, y, { size: 8, ...TIMES, align: 'right' });
-    }
     first = false;
   } while (i < model.employees.length);
+  
+  const days = (k) => sums[k].X + sums[k].C + sums[k].Q + sums[k].Y + sums[k].O;
+  let eng = 0, tech = 0; 
+  model.employees.forEach((e, k) => { 
+    if (/engineer/i.test(e.position)) eng += days(k); 
+    if (/tech/i.test(e.position)) tech += days(k); 
+  });
+  y += 4;
+  const b9 = { ...TIMES, size: 8.5 };
+  cell(doc, xs[1], y, cw[1] + cw[2], RH, 'Total Engineer Days', b9); 
+  cell(doc, xs[3], y, cw[3], RH, String(eng), { ...b9, fill: GREEN }); 
+  cell(doc, xs[4], y, xs[11] - xs[4], RH, 'Total Approved (Engineer)', b9); 
+  cell(doc, xs[11], y, cw[11], RH, model.approvedEngineer === null ? '' : String(model.approvedEngineer), b9);
+  y += RH + 2;
+  cell(doc, xs[1], y, cw[1] + cw[2], RH, 'Total Technition Days', b9); 
+  cell(doc, xs[3], y, cw[3], RH, String(tech), { ...b9, fill: GREEN }); 
+  cell(doc, xs[4], y, xs[11] - xs[4], RH, 'Total Approved (Tech)', b9); 
+  cell(doc, xs[11], y, cw[11], RH, model.approvedTech === null ? '' : String(model.approvedTech), b9);
+  y += RH + 8;
+  tx(doc, S.signLeft, M, y, { size: 8, ...TIMES }); tx(doc, S.signRight, M + W, y, { size: 8, ...TIMES, align: 'right' });
 }
 const PH_L = 595.28;
 
@@ -249,17 +260,20 @@ function overtimePage(model, S, newPage, doc, sums) {
   if (!who.length) return;                                  // no overtime in the month: no overtime page
   newPage('landscape');
   tx(doc, S.otTitle, M + W / 2, 44, { size: 16, bold: true, align: 'center', maxW: W });
-  const xs = [M + 80, M + 130, M + 440, M + 590], RH = 24;
+  const xs = [M + 80, M + 130, M + 440, M + 590];
+  const RH = (who.length < 15 || who.length > 30) ? 22 : 22 - Math.ceil((who.length - 15) / 3);  // fit the table on one page if possible
   let y = 70;
   ['No.', 'Name', 'P/R', 'Total'].forEach((h, k) => cell(doc, xs[k], y, [50, 310, 150, 100][k], RH, h, { bold: true, size: 11 }));
   y += RH;
   who.forEach(({ e, i }, k) => {
     if (y + RH > PH_L - 80) { newPage('landscape'); y = 40; }
     const s = sums[i];
-    [String(k + 1), e.fullName, e.payroll, String(s.otN + s.otS)].forEach((v, q) => cell(doc, xs[q], y, [50, 310, 150, 100][q], RH, v, { bold: true, size: 11, h: q === 1 ? 'left' : 'center' }));
+    [String(k + 1), e.fullName, e.payroll, String(s.otN + s.otS)].forEach((v, q) => cell(
+      doc, xs[q], y, [50, 310, 150, 100][q], RH, v, { bold: true, size: 11, h: q === 1 ? 'left' : 'center' })
+    );
     y += RH;
   });
-  y += 36;
+  y += RH + 10;
   const tx0 = xs[0], tw = xs[3] + 100 - xs[0];            // the three sign-offs in three EQUAL parts of the table width (no borders)
   [S.signRight, S.otMiddle, S.otRight].forEach((t, k) => tx(doc, t, tx0 + tw * (2 * k + 1) / 6, y, { size: 11, bold: true, align: 'center' }));
 }
@@ -272,7 +286,8 @@ function b2bPages(model, S, logos, newPage, doc, sums, kind) {
   const mine = model.employees.map((e, i) => ({ e, i })).filter(({ e }) => (kind === 'eng' ? /engineer/i.test(e.position) : /tech/i.test(e.position)));
   const approved = kind === 'eng' ? model.approvedEngineer : model.approvedTech;
   const actual = mine.reduce((a, { i }) => { const x = sums[i]; return a + x.X + x.C + x.Q + x.Y + x.O; }, 0);
-  const RH = 22, HEADY = 128, TOPY = HEADY + 40, per = Math.max(1, Math.floor((PH_L - M - 60 - TOPY) / RH));
+  const RH = (mine.length < 15 || mine.length > 30) ? 20 : 20 - Math.ceil((mine.length - 15) / 3);  // fit the table on one page if possible
+  const HEADY = 128, TOPY = HEADY + 40, per = Math.max(1, Math.floor((PH_L - M - 60 - TOPY) / RH));
   const pages = Math.max(1, Math.ceil(mine.length / per));
   const hide = (n) => (n ? String(n) : '');
   const loc = mine.map(({ e }) => e.workLocation).find((v) => v) ?? '';
@@ -283,8 +298,10 @@ function b2bPages(model, S, logos, newPage, doc, sums, kind) {
     tx(doc, S.captionLeft, M + 70, 96, { size: 8.5, align: 'center' }); tx(doc, S.captionRight, xe - 54, 96, { size: 8.5, align: 'center' });
     tx(doc, 'Month:', xs[3], 96, { size: 10, bold: true }); tx(doc, monthText(model), xs[5], 96, { size: 9, underline: true });
     const by = 106;
-    cell(doc, xs[0], by, cw[0] + cw[1], 16, 'Location:', { size: 7.5, h: 'left' }); cell(doc, xs[2], by, cw[2] + cw[3], 16, loc, { size: 7.5, bold: true });
-    cell(doc, xs[10], by, cw[10] + cw[11] + cw[12], 16, 'Department:', { size: 7.5 }); cell(doc, xs[13], by, cw[13] + cw[14] + cw[15] + cw[16], 16, S.deptName, { size: 7.5, bold: true });
+    cell(doc, xs[0], by, cw[0] + cw[1], 16, 'Location:', { size: 7.5, h: 'left' }); 
+    cell(doc, xs[2], by, cw[2] + cw[3], 16, loc, { size: 7.5, bold: true });
+    cell(doc, xs[10], by, cw[10] + cw[11] + cw[12], 16, 'Department:', { size: 7.5 }); 
+    cell(doc, xs[13], by, cw[13] + cw[14] + cw[15] + cw[16], 16, S.deptName, { size: 7.5, bold: true });
     cell(doc, xs[18], by, xe - xs[18], 16, `Department Code: ${S.code}`, { size: 7.5, bold: true, h: 'left' });
     // header (two rows)
     let y = HEADY;
