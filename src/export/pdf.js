@@ -85,7 +85,7 @@ function dayPages(model, S, logos, newPage, doc) {
         const e = model.employees[i], c = e.cells[di], r = y + k * RH, b = { ...TIMES, size: 7.5 };
         cell(doc, xs[0], r, cw[0], RH, String(i + 1), b); cell(doc, xs[1], r, cw[1], RH, e.fullName, { ...b, h: 'left' });
         cell(doc, xs[2], r, cw[2], RH, e.jobTitle, b); cell(doc, xs[3], r, cw[3], RH, e.levelText, b); cell(doc, xs[4], r, cw[4], RH, e.payroll, b);
-        cell(doc, xs[5], r, cw[5], RH, c.status, { ...b, size: 10 }); cell(doc, xs[6], r, cw[6], RH, '', b);
+        cell(doc, xs[5], r, cw[5], RH, c.eff, { ...b, size: 10 }); cell(doc, xs[6], r, cw[6], RH, '', b);
         cell(doc, xs[7], r, cw[7], RH, c.tin ? String(c.tin) : '', { ...b, size: 9 }); cell(doc, xs[8], r, cw[8], RH, c.tex ? String(c.tex) : '', { ...b, size: 9 });
         cell(doc, xs[9], r, cw[9], RH, c.ot ? String(c.ot) : '', { ...b, size: 9 }); cell(doc, xs[10], r, cw[10], RH, c.comment, { ...b, size: 9 });
       }
@@ -154,7 +154,7 @@ function employeePage(model, S, logos, e, doc) {
     for (let k = 1; k < n; k++) line(x0, top + hdr + 2 + k * rowH, xe, top + hdr + 2 + k * rowH, 0.4);   // all internal borders
     for (let k = 0; k < count; k++) {
       const d = d0 + k, c = e.cells[d - 1], y1 = top + hdr + 2 + k * rowH, y2 = y1 + rowH;
-      put(String(d), xs[0], y1, xs[1], y2, { ...T, size: 7.5 }); put(c.status, xs[1], y1, xs[2], y2, { size: 7.5 });
+      put(String(d), xs[0], y1, xs[1], y2, { ...T, size: 7.5 }); put(c.eff, xs[1], y1, xs[2], y2, { size: 7.5 });
       put('0', xs[5], y1, xs[6], y2, { size: 7.5 }); put(String(c.tin), xs[6], y1, xs[7], y2, { size: 7.5 }); put(String(c.tex), xs[7], y1, xs[8], y2, { size: 7.5 });
       put(String(c.ot), xs[8], y1, xs[9], y2, { size: 7.5 }); put(c.comment, xs[9], y1, xs[10], y2, { size: 7.5 });
     }
@@ -317,7 +317,13 @@ function b2bPages(model, S, logos, newPage, doc, sums, kind) {
 
 function sumsOf(e) {
   const a = { X: 0, C: 0, Q: 0, Y: 0, O: 0, otN: 0, otS: 0, tin: 0, tex: 0 };
-  for (const c of e.cells) { if (a[c.status] !== undefined) a[c.status]++; if (NORMAL.includes(c.status)) a.otN += c.ot; else if (SHIFT.includes(c.status)) a.otS += c.ot; a.tin += c.tin; a.tex += c.tex; }
+  for (const c of e.cells) {
+    const status = c.eff;
+    const baseStatus = status.endsWith('H') ? status.slice(0, -1) : status;
+    if (a[status] !== undefined) a[status]++;
+    if (NORMAL.includes(baseStatus)) a.otN += c.ot; else if (SHIFT.includes(baseStatus)) a.otS += c.ot;
+    a.tin += c.tin; a.tex += c.tex;
+  }
   return a;
 }
 
