@@ -63,7 +63,8 @@ const DW = [5.5, 29, 17, 10, 11, 8.5, 9.5, 10.5, 10.5, 10.5, 28];
 function dayPages(model, S, logos, newPage, doc) {
   const W = PW - 2 * M, u = W / DW.reduce((a, b) => a + b, 0), cw = DW.map((w) => w * u);
   const xs = cw.map((_, i) => M + cw.slice(0, i).reduce((a, b) => a + b, 0));
-  const RH = 18.5, HH = 22, SIGN = 70;
+  const RH = (model.employees.length < 25 || model.employees.length > 35) ? 20 : 20 - Math.ceil((model.employees.length - 25) / 2);  // fit the table on one page if possible
+  const HH = 22, SIGN = 70;
   model.days.forEach((dy, di) => {
     let i = 0, first = true;
     do {
