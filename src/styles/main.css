@@ -71,6 +71,9 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .chip { font-size: .8rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); }
 .chip.s-x, .chip.s-xh { background: var(--s-x-bg); color: var(--s-x-fg); border-color: transparent; }
 .chip.s-y, .chip.s-yh { background: var(--s-y-bg); color: var(--s-y-fg); border-color: transparent; }
+.pay-summary { appearance: none; cursor: pointer; color: var(--brand-dark); font: inherit; font-weight: 700; box-shadow: 0 2px 8px color-mix(in srgb, var(--brand) 18%, transparent); transition: transform .15s ease, box-shadow .15s ease; }
+.pay-summary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--brand) 26%, transparent); }
+.pay-summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .toasts { position: fixed; inset-block-end: 16px; inset-inline: 16px; display: grid; gap: 8px; justify-items: center; pointer-events: none; }
 .toast { background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: .9rem; }
 
@@ -105,6 +108,21 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .dlg:focus { outline: none; }
 .dlg::backdrop { background: rgba(0, 0, 0, .45); }
 .dlg h3 { margin: 0 0 12px; font-size: 1.05rem; }
+.pay-details { border-collapse: separate; border-spacing: 0; width: 100%; font-size: .88rem; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; }
+.pay-details-wrap { overflow-x: auto; margin-block-start: 4px; }
+.pay-details th, .pay-details td { padding: 10px 9px; border-block-end: 1px solid var(--line); text-align: start; vertical-align: middle; white-space: nowrap; }
+.pay-details thead th { background: color-mix(in srgb, var(--brand) 9%, var(--card)); color: var(--muted); font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.pay-details tbody tr:nth-child(even) { background: color-mix(in srgb, var(--muted) 6%, var(--card)); }
+.pay-details tbody tr:last-child th, .pay-details tbody tr:last-child td { border-block-end: 0; }
+.pay-details th:not(:first-child), .pay-details td:not(:first-child) { text-align: center; }
+.pay-details .pay-number { text-align: center; font-variant-numeric: tabular-nums; }
+.pay-details .pay-operator { width: 22px; padding-inline: 3px; color: var(--ok); font-size: 1.6rem; font-weight: 800; }
+.pay-details tbody td:last-child { position: relative; padding-block-end: 6px; }
+.pay-details tbody tr:not(:last-child) td:last-child::after, .pay-details tbody tr:last-child td:last-child::after { position: absolute; inset-inline-start: 50%; inset-block-end: 0; z-index: 1; display: inline-flex; align-items: center; justify-content: center; color: var(--ok); font-size: 1.6rem; font-weight: 800; line-height: 1; transform: translate(-50%, 50%); }
+.pay-details tbody tr:not(:last-child) td:last-child::after { content: '+'; }
+.pay-details tbody tr:last-child td:last-child::after { content: '='; }
+.pay-details tfoot { background: color-mix(in srgb, var(--brand) 12%, var(--card)); font-size: .95rem; }
+.pay-details tfoot th, .pay-details tfoot td { border-block-end: 0; font-weight: 800; }
 .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-block-start: 12px; flex-wrap: wrap; position: sticky; inset-block-end: -20px; background: var(--card); padding-block: 10px 0; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .field { display: grid; gap: 4px; margin-block-end: 8px; }

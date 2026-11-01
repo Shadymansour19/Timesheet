@@ -3,6 +3,8 @@ import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { fetchMonth, fetchEditWindow, setDayStatus, setDepartureMove, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
 import { fetchDepartment, setStatusRows } from '../api/admin.js';
+import { fetchPayRate } from '../api/pay-rates.js';
+import { calculateMonthlyPay } from '../lib/pay.js';
 import { openDialog, confirmDialog } from '../components/dialog.js';
 import { choice } from '../components/choice.js';
 import { icon, INFO, DOWNLOAD, PRINT, TRASH } from '../components/icons.js';
@@ -13,6 +15,7 @@ import * as live from '../live.js';
 import { toast } from '../components/toast.js';
 import { monthHead } from '../components/month-head.js';
 import { openDayEditor } from '../components/day-editor.js';
+import { paySummary } from '../components/pay-summary.js';
 
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
 const sameMonth = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => b[k] && a[k].status === b[k].status && a[k].eff === b[k].eff && a[k].ot === b[k].ot && (a[k].note ?? '') === (b[k].note ?? '') && a[k].hol === b[k].hol); };
@@ -26,6 +29,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
   const yOk = () => (admin ? person?.y_allowed : state.profile.y_allowed) !== false;       // may this person have Y (shift days)? if not, Y is left out of the legend, the totals and the cycle
   const root = h('section', { class: 'cal' });
   let data = {};                 // shown values by day (optimistic)
+  let pay = null;
   let editWindow = null;
   let mode = 'cycle';            // admin only: 'cycle' | 'details'
   const confirmed = {};          // day -> status last confirmed by the server
@@ -48,7 +52,14 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     if (quiet && busy.size) { refetch(); return; }          // a save is in flight: read after it
     const v0 = wver;
     let fresh, win = editWindow, mv = new Set();
-    try { let r; [r, win] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow()]); fresh = r.byDay; mv = r.moves; }
+    try {
+      let r, rate;
+      const p = personRow();
+      const ratePromise = p?.level != null && p?.position ? fetchPayRate(p.level, dept, p.position) : Promise.resolve(null);
+      [r, win, rate] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow(), ratePromise]);
+      fresh = r.byDay; mv = r.moves;
+      pay = rate ? calculateMonthlyPay({ days: fresh, rates: rate, moves: mv }) : null;
+    }
     catch { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
     if (quiet && (busy.size || v0 !== wver)) { refetch(); return; }   // a save started / finished while we were reading: this read may predate it
     const sig = JSON.stringify([...mv].sort());
@@ -233,7 +244,8 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
       h('div', { class: 'totals' },
         ['X', 'Y', 'XH', 'YH'].filter((s) => yOk() || s[0] !== 'Y').map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
         h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`),
-        h('span', { class: 'chip trips', title: t('trips_hint') }, `${t('trips')}: ${trips}`)));
+        h('span', { class: 'chip trips', title: t('trips_hint') }, `${t('trips')}: ${trips}`),
+        pay ? paySummary(pay) : null));
   }
 
   // drag-to-fill: press a day and drag over others -> they get the start day's status as you go (not in the admin's details mode)
