@@ -53,3 +53,11 @@ export async function updatePayRate(rate) {
     p_overtime_rate: rate.overtimeHourRate,
   });
 }
+
+export async function deletePayRate(rate) {
+  return rpc('delete_pay_rate', {
+    p_level: rate.level,
+    p_department: rate.departmentId,
+    p_position: rate.position,
+  });
+}

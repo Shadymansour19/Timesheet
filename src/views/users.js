@@ -11,6 +11,7 @@ import { openDialog, confirmDialog } from '../components/dialog.js';
 import { field, randomPassword } from '../components/form.js';
 import { toast } from '../components/toast.js';
 import { icon, SEARCH, GRID, LIST, FILTER } from '../components/icons.js';
+import { openPayRatesEditor } from '../components/pay-rates-editor.js';
 import * as live from '../live.js';
 
 // Shared by the admin (own department) and the super admin (admins of any department).
@@ -214,7 +215,7 @@ export function usersView() {
     el.views = h('div', { class: 'seg view-seg', role: 'group', 'aria-label': t('users_view') });
     el.empty = h('div', { class: 'empty card', hidden: true });
     root.replaceChildren(
-      h('div', { class: 'cal-head' }, el.title, h('div', { class: 'actions' }, h('button', { class: 'btn small', onclick: () => openBulkAdd({ onDone: load }) }, t('bulk_add')), h('button', { class: 'btn small primary', onclick: addUser }, t('add_user')))),
+      h('div', { class: 'cal-head' }, el.title, h('div', { class: 'actions' }, h('button', { class: 'btn small', onclick: () => openPayRatesEditor(myDept()) }, t('pay_rates')), h('button', { class: 'btn small', onclick: () => openBulkAdd({ onDone: load }) }, t('bulk_add')), h('button', { class: 'btn small primary', onclick: addUser }, t('add_user')))),
       h('div', { class: 'team-row' }, h('div', { class: 'search-wrap' }, icon(SEARCH, 16), el.search, el.count), el.seg, el.views),
       el.onboard, el.hint, el.list, el.tableWrap, el.empty);
     built = true;
