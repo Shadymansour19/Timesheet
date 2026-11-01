@@ -118,7 +118,7 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .pay-details .pay-number { text-align: center; font-variant-numeric: tabular-nums; }
 .pay-details .pay-operator { width: 22px; padding-inline: 3px; color: var(--ok); font-size: 1.6rem; font-weight: 800; }
 .pay-details tbody td:last-child { position: relative; padding-block-end: 6px; }
-.pay-details tbody tr:not(:last-child) td:last-child::after, .pay-details tbody tr:last-child td:last-child::after { position: absolute; inset-inline-start: 50%; inset-block-end: 0; z-index: 1; display: inline-flex; align-items: center; justify-content: center; color: var(--ok); font-size: 1.6rem; font-weight: 800; line-height: 1; transform: translate(-50%, 50%); }
+.pay-details tbody tr:not(:last-child) td:last-child::after, .pay-details tbody tr:last-child td:last-child::after { position: absolute; left: 50%; inset-block-end: 0; z-index: 1; display: inline-flex; align-items: center; justify-content: center; color: var(--ok); font-size: 1.6rem; font-weight: 800; line-height: 1; transform: translate(-50%, 50%); }
 .pay-details tbody tr:not(:last-child) td:last-child::after { content: '+'; }
 .pay-details tbody tr:last-child td:last-child::after { content: '='; }
 .pay-details tfoot { background: color-mix(in srgb, var(--brand) 12%, var(--card)); font-size: .95rem; }
