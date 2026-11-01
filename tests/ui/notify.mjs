@@ -46,7 +46,7 @@ const notes = (p) => p.evaluate(() => window.__notes);
 // 1. off by default: nothing is shown until the admin switches it on in the account menu
 const A = await adminApp('ntadm', { granted: true });
 const U1 = await userApp('ntu1');
-await U1.locator(`.cal .day[data-d="${T}"]`).click(); await A.waitForTimeout(4500);
+await U1.locator(`.cal .day[data-d="${T}"]`).click(); await U1.locator('.cal-tools button:has-text("Save changes")').click(); await A.waitForTimeout(4500);
 ok('notifications are OFF until switched on: a user\'s activity shows nothing', (await notes(A)).length === 0);
 await A.click('.who'); 
 ok('the account menu offers the notification switch (installed desktop admin), showing Off', (await A.locator('.menu .menu-item:has-text("Notify me")').textContent()).includes('Off'));
@@ -58,7 +58,9 @@ await A.keyboard.press('Escape'); await A.mouse.click(5, 5);
 const u1day = (n) => U1.locator(`.cal .day[data-d="${sql(`select to_char(date_trunc('month',current_date)::date + ${n}, 'YYYY-MM-DD')`)}"]`);
 const U2 = await userApp('ntu2');
 for (const n of [3, 4, 5]) { await u1day(n).click(); await U1.waitForTimeout(500); }     // three clicks in ~1.5 s (E -> X)
+await U1.locator('.cal-tools button:has-text("Save changes")').click();
 await U2.locator(`.cal .day[data-d="${sql(`select to_char(date_trunc('month',current_date)::date + 9, 'YYYY-MM-DD')`)}"]`).click();     // another person, a little later
+await U2.locator('.cal-tools button:has-text("Save changes")').click();
 await A.waitForTimeout(600);
 ok('nothing yet while the people are still within their quiet time (no notification per click)', (await notes(A)).length === 0, JSON.stringify(await notes(A)));
 ok('then each PERSON gets their own notification after their own quiet time: one for user 1 (3+ changes), one for user 2', await eventually(async () => (await notes(A)).length >= 2, 60000), JSON.stringify(await notes(A)));
@@ -80,7 +82,7 @@ ok('the admin\'s own edits never notify himself', (await notes(A2)).length === 0
 const F = await adminApp('ntadm2', { granted: true, focused: true });
 await F.click('.who'); await F.locator('.menu .menu-item:has-text("Notify me")').click(); await F.waitForTimeout(500);
 const U3 = await userApp('ntu3');
-await U3.locator(`.cal .day[data-d="${T}"]`).click(); await F.waitForTimeout(16000);
+await U3.locator(`.cal .day[data-d="${T}"]`).click(); await U3.locator('.cal-tools button:has-text("Save changes")').click(); await F.waitForTimeout(16000);
 ok('while the app window has focus nothing is shown', (await notes(F)).length === 0, JSON.stringify(await notes(F)));
 
 // 5. a plain browser tab / phone sees no switch (installed desktop app only)

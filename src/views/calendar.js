@@ -1,13 +1,13 @@
 import { h } from '../dom.js';
 import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
-import { fetchMonth, fetchEditWindow, setDayStatus, setDepartureMove, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
+import { fetchMonth, fetchEditWindow, setDayStatus, saveMyCalendar, setDepartureMove, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
 import { fetchDepartment, setStatusRows } from '../api/admin.js';
 import { fetchPayRate } from '../api/pay-rates.js';
 import { calculateMonthlyPay } from '../lib/pay.js';
 import { openDialog, confirmDialog } from '../components/dialog.js';
 import { choice } from '../components/choice.js';
-import { icon, INFO, DOWNLOAD, PRINT, TRASH } from '../components/icons.js';
+import { icon, INFO, DOWNLOAD, PRINT, SAVE, TRASH } from '../components/icons.js';
 import { WEEK_START, nextStatus } from '../lib/core.js';
 import { enableDragFill } from '../lib/dragfill.js';
 import { departureOf } from '../export/model.js';
@@ -19,6 +19,9 @@ import { paySummary } from '../components/pay-summary.js';
 
 const fmt = (opts, date) => new Intl.DateTimeFormat(getLang() === 'ar' ? 'ar-u-nu-latn' : 'en', opts).format(date);
 const sameMonth = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => b[k] && a[k].status === b[k].status && a[k].eff === b[k].eff && a[k].ot === b[k].ot && (a[k].note ?? '') === (b[k].note ?? '') && a[k].hol === b[k].hol); };
+let normalCalendarDirty = false;
+const warnBeforeClose = (e) => { if (!normalCalendarDirty) return; e.preventDefault(); e.returnValue = ''; };
+window.addEventListener('beforeunload', warnBeforeClose);
 
 // Month calendar for ONE person. Default: the signed-in person recording their own days (tap cycles E -> X -> Y).
 // admin + userId: a department admin editing someone's timesheet (tap cycles, or opens the day editor with overtime).
@@ -33,8 +36,12 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
   let editWindow = null;
   let mode = 'cycle';            // admin only: 'cycle' | 'details'
   const confirmed = {};          // day -> status last confirmed by the server
+  const confirmedMoves = new Set(); // departure days last confirmed by the server
   const want = {};               // day -> latest status the user asked for
   const busy = new Set();        // days with a request in flight
+  const draftStatuses = new Map(); // day -> status waiting for the explicit Save
+  const draftMoves = new Map();    // work day -> departure position waiting for the explicit Save
+  let savingDraft = false;
   let moves = new Set(), lastSig = '';   // the departures moved onto their last working day
   let dragging = false, pendingDraw = false;      // while a drag-fill gesture runs nothing is re-rendered (the gesture would be lost)
   const redraw = () => { if (dragging) pendingDraw = true; else draw(); };
@@ -46,6 +53,12 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     const n = new Date(); n.setDate(n.getDate() - editWindow);
     return ymd(n.getFullYear(), n.getMonth(), n.getDate());
   };
+  const draftMode = !admin && uid === me && !readOnly;
+  const hasDraft = () => draftMode && (draftStatuses.size || draftMoves.size);
+  const discardDraft = () => {
+    draftStatuses.clear(); draftMoves.clear(); normalCalendarDirty = false;
+  };
+  const canLeaveDraft = () => !hasDraft() || window.confirm(t('unsaved_changes'));
 
   async function load({ quiet = false } = {}) {
     if (!quiet) root.replaceChildren(h('p', { class: 'muted center' }, t('loading')));
@@ -65,7 +78,15 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     const sig = JSON.stringify([...mv].sort());
     if (quiet && sameMonth(fresh, data) && sig === lastSig) return;   // nothing new
     data = fresh; editWindow = win; moves = mv; lastSig = sig;
+    confirmedMoves.clear(); mv.forEach((day) => confirmedMoves.add(day));
     for (const [day, v] of Object.entries(data)) if (!busy.has(day)) confirmed[day] = v.status;
+    if (draftMode) {
+      for (const [day, status] of draftStatuses) {
+        const v = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
+        data[day] = { ...v, status, eff: effOf(status, v.hol) };
+      }
+      for (const [day, on] of draftMoves) { if (on) moves.add(day); else moves.delete(day); }
+    }
     redraw();
   }
 
@@ -83,6 +104,16 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     const cur = data[day] ?? { status: 'E', eff: 'E', ot: 0, hol: false };
     if (cur.status === next && !patch) return;
     data[day] = { ...cur, status: next, eff: effOf(next, cur.hol) };
+    if (draftMode) {
+      if ((confirmed[day] ?? 'E') === next) draftStatuses.delete(day); else draftStatuses.set(day, next);
+      if (next === 'E' && moves.has(day)) {
+        if (confirmedMoves.has(day)) draftMoves.set(day, false); else draftMoves.delete(day);
+        moves.delete(day);
+      }
+      normalCalendarDirty = !!hasDraft();
+      if (patch) patch(); else redraw();
+      return;
+    }
     want[day] = next;
     if (patch) patch(); else redraw();
     if (busy.has(day)) return;
@@ -102,6 +133,23 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
         }
       }
     } finally { busy.delete(day); wver++; redraw(); }
+  }
+
+  async function saveDraft() {
+    if (!draftMode || !hasDraft() || savingDraft) return;
+    savingDraft = true; busy.add('__draft'); wver++; redraw();
+    try {
+      await saveMyCalendar(
+        [...draftStatuses].map(([day, status]) => ({ day, status })),
+        [...draftMoves].map(([day, on]) => ({ day, on })),
+      );
+      for (const [day, status] of draftStatuses) confirmed[day] = status;
+      for (const [day, on] of draftMoves) { if (on) confirmedMoves.add(day); else confirmedMoves.delete(day); }
+      draftStatuses.clear(); draftMoves.clear(); normalCalendarDirty = false;
+      toast(t('changes_saved'), 'success');
+    } catch (e) {
+      toast(e.code === '42501' ? t('edit_denied') : e.code === '22023' && e.message?.includes('Y is not allowed') ? t('y_not_allowed') : t('save_failed'));
+    } finally { savingDraft = false; busy.delete('__draft'); wver++; redraw(); }
   }
 
   // Help text lives behind the "i" button (keeps the calendar compact)
@@ -131,6 +179,10 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     const yes = await confirmDialog(t('clear_confirm').replace('{n}', days.length).replace('{month}', monthName),
       { danger: true, confirmLabel: t('clear'), detail: t('clear_detail') });
     if (!yes) return;
+    if (draftMode) {
+      days.forEach((d) => setTo(d, 'E'));
+      return;
+    }
     days.forEach((d) => { busy.add(d); want[d] = 'E'; data[d] = { ...data[d], status: 'E', eff: 'E' }; });     // hold live refreshes, show it at once
     wver++; redraw();
     try {
@@ -176,7 +228,14 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
   async function moveDeparture(workDate, on) {
     const lim = earliest();
     if (lim !== null && workDate < lim) { toast(t('edit_denied')); return; }
+    const serverOn = confirmedMoves.has(workDate);
     if (on) moves.add(workDate); else moves.delete(workDate);
+    if (draftMode) {
+      if (serverOn === on) draftMoves.delete(workDate); else draftMoves.set(workDate, on);
+      normalCalendarDirty = !!hasDraft();
+      redraw();
+      return;
+    }
     redraw();
     busy.add('mv' + workDate); wver++;
     try { await setDepartureMove(uid, workDate, on); }
@@ -226,12 +285,13 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     const ot = monthDates.reduce((a, d) => a + (data[d].ot || 0), 0);
     // trips of the month = arrivals (a work day after a rest day) + departures (the tag, wherever it sits)
     const trips = monthDates.reduce((a, d) => a + (data[d].status !== 'E' && statusOn(addDay(d, -1)) === 'E' ? 1 : 0) + (depOn(d) ? 1 : 0), 0);
-    const go = (delta) => { shiftMonth(delta); load(); };
+    const go = (delta) => { if (!canLeaveDraft()) return; if (hasDraft()) discardDraft(); shiftMonth(delta); load(); };
     const seg = admin && !readOnly ? h('div', { class: 'seg cal-mode', role: 'group', 'aria-label': t('tap_mode') },
       [['cycle', t('mode_cycle')], ['details', t('mode_details')]].map(([m, label]) =>
         h('button', { type: 'button', class: 'btn small' + (mode === m ? ' on' : ''), 'aria-pressed': String(mode === m), onclick: () => { mode = m; redraw(); } }, label))) : null;
 
     const tools = h('div', { class: 'cal-tools' },
+      draftMode && hasDraft() ? h('button', { type: 'button', class: 'btn small primary', disabled: savingDraft, onclick: saveDraft }, icon(SAVE, 16), t('save')) : null,
       readOnly ? null : h('button', { type: 'button', class: 'btn small danger-outline', onclick: clearMonth }, icon(TRASH, 16), t('clear')),
       h('button', { type: 'button', class: 'btn small', onclick: printMine }, icon(PRINT, 16), t('print')),
       h('button', { type: 'button', class: 'btn small', onclick: openExport }, icon(DOWNLOAD, 16), t('export')),

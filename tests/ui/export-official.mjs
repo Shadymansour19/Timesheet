@@ -261,18 +261,21 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   ok('day details: the Y option is disabled for this person', await dlg(p).locator('input[name=st][value=Y]').isDisabled()); await p.keyboard.press('Escape');
   const ub = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); const up2 = await ub.newPage();
   await up2.goto(BASE + '/'); await up2.fill('#username', 'xou2'); await up2.fill('#password', PW); await up2.click('button[type=submit]'); await up2.waitForSelector('.cal .day');
-  await up2.locator('.day.today').click(); ok('own calendar: E -> X', await eventually(() => stOf() === 'X'));
-  await up2.locator('.day.today').click(); ok('own calendar: X -> E (no Y)', await eventually(() => stOf() === 'E'));
+  const saveOwn = () => up2.locator('.cal-tools button:has-text("Save changes")').click();
+  await up2.locator('.day.today').click(); ok('own calendar: E -> X is drafted', (await up2.locator('.day.today .st').textContent()) === 'X' && stOf() === 'E'); await saveOwn(); ok('own calendar: Save writes X', await eventually(() => stOf() === 'X'));
+  await up2.locator('.day.today').click(); ok('own calendar: X -> E is drafted', (await up2.locator('.day.today .st').textContent()) === 'E' && stOf() === 'X'); await saveOwn(); ok('own calendar: Save writes E', await eventually(() => stOf() === 'E'));
   for (let i = 0; i < 5; i++) await up2.locator('.day.today').click();            // 5 rapid taps for a person without Y: X E X E X
-  ok('own calendar: 5 rapid taps (no Y) end at X in the database', await eventually(() => stOf() === 'X', 30000));
+  ok('own calendar: 5 rapid taps (no Y) end at X in the draft', (await up2.locator('.day.today .st').textContent()) === 'X' && stOf() === 'E'); await saveOwn();
+  ok('own calendar: Save writes the rapid-tap result', await eventually(() => stOf() === 'X', 30000));
   ok('...and the screen agrees', (await up2.locator('.day.today .st').textContent()) === 'X');
-  await up2.locator('.day.today').click(); ok('own calendar: one more tap clears it', await eventually(() => stOf() === 'E', 30000) && (await up2.locator('.day.today .st').textContent()) === 'E');
+  await up2.locator('.day.today').click(); ok('own calendar: one more tap drafts a clear', stOf() === 'X' && (await up2.locator('.day.today .st').textContent()) === 'E'); await saveOwn();
+  ok('own calendar: Save clears it', await eventually(() => stOf() === 'E', 30000) && (await up2.locator('.day.today .st').textContent()) === 'E');
   // flicker check on the calendar with SLOW reads (a live refresh that started before the 2nd tap returns after its save): only forward moves
   let slowGets = 0; await up2.route('**/rest/v1/day_status*', async (route) => { if (route.request().method() === 'GET') slowGets++; if (route.request().method() === 'GET') await new Promise((r) => setTimeout(r, 5000)); await route.continue(); });
   for (const gap of [1800, 2600, 3400]) {
     await up2.evaluate(() => { const val = () => (document.querySelector('.day.today .st')?.textContent ?? ''); window.__seq = [val()]; window.__obs?.disconnect(); window.__obs = new MutationObserver(() => { const v = val(); if (window.__seq.at(-1) !== v) window.__seq.push(v); }); window.__obs.observe(document.querySelector('.cal'), { childList: true, subtree: true, characterData: true }); });
     await up2.locator('.day.today').click(); await up2.waitForTimeout(gap); await up2.locator('.day.today').click();      // E -> X -> E (no Y)
-    await eventually(() => stOf() === 'E', 30000); await up2.waitForTimeout(10000);
+    await saveOwn(); await eventually(() => stOf() === 'E', 30000); await up2.waitForTimeout(10000);
     const seq = await up2.evaluate(() => window.__seq);
     ok(`own calendar, slow reads, ${gap} ms between two taps: the day only moves E > X > E (saw ${seq.join(' > ')})`, seq.join('>') === 'E>X>E', seq.join('>'));
   }
@@ -303,13 +306,14 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
     const ctx = await up2.locator('.cal .day.ctx').evaluateAll((els) => els.map((e) => [e.dataset.d, e.textContent]));
     ok('calendar: the last day of the previous month and the first day of the next month are shown (dimmed, editable)', ctx.length === 2 && ctx[0][0] === sql(`select to_char(${mf} - 1, 'YYYY-MM-DD')`) && ctx[1][0] === sql(`select to_char(date_trunc('month', current_date)::date + interval '1 month', 'YYYY-MM-DD')`) && /X/.test(ctx[0][1]), JSON.stringify(ctx));
     const prevCtx = up2.locator(`.cal .day.ctx[data-d="${ctx[0][0]}"]`);
-    ok('calendar: the outer days are real buttons (editable): a tap on the previous month\'s last day cycles it X -> E', (await prevCtx.evaluate((e) => e.tagName)) === 'BUTTON' && (await (async () => { await prevCtx.click(); return eventually(() => sql(`select coalesce((select status from public.day_status where user_id='${u2}' and day=${mf} - 1),'E')`) === 'E', 30000); })()));
-    await prevCtx.click(); await eventually(() => sql(`select status from public.day_status where user_id='${u2}' and day=${mf} - 1`) === 'X', 30000);
+    ok('calendar: the outer days are real buttons (editable): a tap drafts X -> E', (await prevCtx.evaluate((e) => e.tagName)) === 'BUTTON' && (await (async () => { await prevCtx.click(); return sql(`select status from public.day_status where user_id='${u2}' and day=${mf} - 1`) === 'X' && (await prevCtx.locator('.st').textContent()) === 'E'; })())); await saveOwn(); await eventually(() => sql(`select coalesce((select status from public.day_status where user_id='${u2}' and day=${mf} - 1),'E')`) === 'E', 30000);
+    await prevCtx.click(); await saveOwn(); await eventually(() => sql(`select status from public.day_status where user_id='${u2}' and day=${mf} - 1`) === 'X', 30000);
     ok('calendar: a Trips chip counts arrivals + departures of the month (days 20-22 worked: arrival 1 + departure 1 + the prev-month block departure on day 1 = 3)', (await up2.locator('.chip.trips').textContent()).includes('3'), await up2.locator('.chip.trips').textContent());
     ok('calendar: the previous month\'s last day is X and day 1 is a rest day, so the departure tag of that block sits on day 1 (first rest day)', (await up2.locator(`.cal .day[data-d="${dayStr(0)}"] .dep.dep-rest`).count()) === 1);
     ok('calendar: the departure tag sits on the FIRST REST DAY after the working period (day 23), not on the last working day', (await dep(22).count()) === 1 && (await dep(21).count()) === 0 && (await dep(22).getAttribute('class')).includes('dep-rest'));
     await dep(22).click(); await up2.waitForTimeout(300);
-    ok('tapping the tag moves it onto the last working day (22) and stores the move', (await dep(21).count()) === 1 && (await dep(22).count()) === 0 && await eventually(() => mvRows() === '22', 30000), mvRows());
+    ok('tapping the tag drafts a move onto the last working day (22)', (await dep(21).count()) === 1 && (await dep(22).count()) === 0 && mvRows() === '', mvRows()); await saveOwn();
+    ok('Save stores the departure move', await eventually(() => mvRows() === '22', 30000), mvRows());
     const adm = await p.context().newPage(); await adm.goto(BASE + '/#/person/' + u2); await adm.waitForSelector('.cal .day');
     ok('the ADMIN sees the same departure tag (on day 22) in the person timesheet', (await adm.locator(`.cal .day[data-d="${dayStr(21)}"] .dep.dep-work`).count()) === 1);
     await adm.locator(`.cal .day[data-d="${dayStr(21)}"] .dep`).click(); await adm.waitForTimeout(300);
@@ -324,30 +328,30 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
     const centre = async (loc) => { const b = await loc.boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
     const txt = async (pg, n) => (await dayBtn(pg, n).locator('.st').textContent());
     await up2.reload(); await up2.waitForSelector('.cal .day');
-    await dayBtn(up2, 5).click(); ok('drag setup: day 5 tapped to X', await eventually(() => stAt(5) === 'X'));
+    await dayBtn(up2, 5).click(); ok('drag setup: day 5 tapped to X', (await txt(up2, 5)) === 'X' && stAt(5) === 'E'); await saveOwn(); await eventually(() => stAt(5) === 'X');
     const [x3, y3] = await centre(dayBtn(up2, 5)); const [x4, y4] = await centre(dayBtn(up2, 6)); const [x6, y6] = await centre(dayBtn(up2, 8));
     await up2.mouse.move(x3, y3); await up2.mouse.down(); await up2.mouse.move(x4, y4, { steps: 6 });
     ok('mouse drag: day 4 is filled WHILE the button is still down', (await txt(up2, 6)) === 'X' && (await txt(up2, 7)) === 'E');
     await up2.mouse.move(x6, y6, { steps: 10 });
     ok('...and days 7 and 8 as the pointer reaches them', (await txt(up2, 7)) === 'X' && (await txt(up2, 8)) === 'X');
     await up2.mouse.up();
-    ok('after release the drag saved days 5-8 as X and the release day did not cycle', await eventually(() => [5, 6, 7, 8].every((n) => stAt(n) === 'X'), 60000) && (await txt(up2, 8)) === 'X');
-    await dayBtn(up2, 6).click(); ok('a plain click still cycles (X -> E for a person without Y)', await eventually(() => stAt(6) === 'E', 30000));
+    await saveOwn(); ok('after Save the drag writes days 5-8 as X and the release day did not cycle', await eventually(() => [5, 6, 7, 8].every((n) => stAt(n) === 'X'), 60000) && (await txt(up2, 8)) === 'X');
+    await dayBtn(up2, 6).click(); ok('a plain click drafts (X -> E for a person without Y)', (await txt(up2, 6)) === 'E' && stAt(6) === 'X'); await saveOwn(); await eventually(() => stAt(6) === 'E', 30000);
     const [x6b, y6b] = await centre(dayBtn(up2, 6));
     await up2.mouse.move(x6b, y6b); await up2.mouse.down(); await up2.mouse.move(x6, y6, { steps: 8 }); await up2.mouse.up();
-    ok('dragging from an E day clears the days it passes (E fills too)', await eventually(() => stAt(7) === 'E' && stAt(8) === 'E' && stAt(5) === 'X', 60000));
+    await saveOwn(); ok('Save commits dragging from an E day (E fills too)', await eventually(() => stAt(7) === 'E' && stAt(8) === 'E' && stAt(5) === 'X', 60000));
     // touch (a phone): drag at once, no hold needed; the page must not scroll
     const ut = await b.newContext({ viewport: { width: 420, height: 800 }, hasTouch: true, isMobile: true }); const tp = await ut.newPage();
     await tp.goto(BASE + '/'); await tp.fill('#username', 'xou2'); await tp.fill('#password', PW); await tp.click('button[type=submit]'); await tp.waitForSelector('.cal .day');
     const cdp = await ut.newCDPSession(tp);
     const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y })) });
     await tp.waitForTimeout(500);
-    await tp.tap('.cal .day[data-d$="-12"]'); ok('touch setup: day 12 tapped to X', await eventually(() => stAt(12) === 'X', 30000));
+    await tp.tap('.cal .day[data-d$="-12"]'); ok('touch setup: day 12 tapped to X', (await txt(tp, 12)) === 'X' && stAt(12) === 'E'); await tp.locator('.cal-tools button:has-text("Save changes")').click(); await eventually(() => stAt(12) === 'X', 30000);
     const [t8x, t8y] = await centre(dayBtn(tp, 12)); const [t9x] = await centre(dayBtn(tp, 13)); const [t10x] = await centre(dayBtn(tp, 14));
     await touch('touchStart', [[t8x, t8y]]); for (const x of [t8x + 10, t9x, t9x + 10, t10x]) { await touch('touchMove', [[x, t8y]]); await tp.waitForTimeout(40); }
     ok('touch drag: days 13 and 14 are filled while the finger is still down', (await txt(tp, 13)) === 'X' && (await txt(tp, 14)) === 'X');
     await touch('touchEnd', []);
-    ok('touch drag saved days 12-14 as X', await eventually(() => [12, 13, 14].every((n) => stAt(n) === 'X'), 60000));
+    await tp.locator('.cal-tools button:has-text("Save changes")').click(); ok('touch drag Save writes days 12-14 as X', await eventually(() => [12, 13, 14].every((n) => stAt(n) === 'X'), 60000));
     await ut.close(); }
 
   // the admin clears a person's month from the person timesheet (one transaction)
