@@ -261,7 +261,7 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
   ok('day details: the Y option is disabled for this person', await dlg(p).locator('input[name=st][value=Y]').isDisabled()); await p.keyboard.press('Escape');
   const ub = await b.newContext({ viewport: { width: 420, height: 800 }, acceptDownloads: true }); const up2 = await ub.newPage();
   await up2.goto(BASE + '/'); await up2.fill('#username', 'xou2'); await up2.fill('#password', PW); await up2.click('button[type=submit]'); await up2.waitForSelector('.cal .day');
-  const saveOwn = () => up2.locator('.cal-tools button:has-text("Save changes")').click();
+  const saveOwn = () => up2.locator('.cal-tools button:has-text("Save")').click();
   await up2.locator('.day.today').click(); ok('own calendar: E -> X is drafted', (await up2.locator('.day.today .st').textContent()) === 'X' && stOf() === 'E'); await saveOwn(); ok('own calendar: Save writes X', await eventually(() => stOf() === 'X'));
   await up2.locator('.day.today').click(); ok('own calendar: X -> E is drafted', (await up2.locator('.day.today .st').textContent()) === 'E' && stOf() === 'X'); await saveOwn(); ok('own calendar: Save writes E', await eventually(() => stOf() === 'E'));
   for (let i = 0; i < 5; i++) await up2.locator('.day.today').click();            // 5 rapid taps for a person without Y: X E X E X
@@ -346,12 +346,12 @@ ok('...the workbook itself stays the English company form', wba.getWorksheet('1'
     const cdp = await ut.newCDPSession(tp);
     const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y })) });
     await tp.waitForTimeout(500);
-    await tp.tap('.cal .day[data-d$="-12"]'); ok('touch setup: day 12 tapped to X', (await txt(tp, 12)) === 'X' && stAt(12) === 'E'); await tp.locator('.cal-tools button:has-text("Save changes")').click(); await eventually(() => stAt(12) === 'X', 30000);
+    await tp.tap('.cal .day[data-d$="-12"]'); ok('touch setup: day 12 tapped to X', (await txt(tp, 12)) === 'X' && stAt(12) === 'E'); await tp.locator('.cal-tools button:has-text("Save")').click(); await eventually(() => stAt(12) === 'X', 30000);
     const [t8x, t8y] = await centre(dayBtn(tp, 12)); const [t9x] = await centre(dayBtn(tp, 13)); const [t10x] = await centre(dayBtn(tp, 14));
     await touch('touchStart', [[t8x, t8y]]); for (const x of [t8x + 10, t9x, t9x + 10, t10x]) { await touch('touchMove', [[x, t8y]]); await tp.waitForTimeout(40); }
     ok('touch drag: days 13 and 14 are filled while the finger is still down', (await txt(tp, 13)) === 'X' && (await txt(tp, 14)) === 'X');
     await touch('touchEnd', []);
-    await tp.locator('.cal-tools button:has-text("Save changes")').click(); ok('touch drag Save writes days 12-14 as X', await eventually(() => [12, 13, 14].every((n) => stAt(n) === 'X'), 60000));
+    await tp.locator('.cal-tools button:has-text("Save")').click(); ok('touch drag Save writes days 12-14 as X', await eventually(() => [12, 13, 14].every((n) => stAt(n) === 'X'), 60000));
     await ut.close(); }
 
   // the admin clears a person's month from the person timesheet (one transaction)

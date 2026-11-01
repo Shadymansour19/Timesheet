@@ -13,7 +13,6 @@ export default {
   new_password: 'كلمة المرور الجديدة',
   confirm_password: 'تأكيد كلمة المرور الجديدة',
   save: 'حفظ',
-  save_changes: 'حفظ التغييرات',
   unsaved_changes: 'لديك تغييرات غير محفوظة في الجدول. هل تريد المغادرة دون حفظ؟',
   changes_saved: 'تم حفظ التغييرات.',
   password_changed: 'تم تغيير كلمة المرور. وتم تسجيل خروجك من أجهزتك الأخرى.',

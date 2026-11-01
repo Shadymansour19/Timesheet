@@ -13,7 +13,6 @@ export default {
   new_password: 'New password',
   confirm_password: 'Confirm new password',
   save: 'Save',
-  save_changes: 'Save changes',
   unsaved_changes: 'You have unsaved calendar changes. Leave without saving?',
   changes_saved: 'Changes saved.',
   password_changed: 'Password changed. Your other devices were signed out.',
