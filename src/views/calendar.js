@@ -3,7 +3,7 @@ import { t, getLang } from '../i18n/index.js';
 import { state, myDept } from '../auth/session.js';
 import { fetchMonth, fetchEditWindow, setDayStatus, saveMyCalendar, setDepartureMove, fetchPaddedMonthData, ymd, daysIn, cursor, shiftMonth, goToday, monthRange } from '../api/timesheet.js';
 import { fetchDepartment, setStatusRows } from '../api/admin.js';
-import { fetchPayRate } from '../api/pay-rates.js';
+import { fetchPayRate, fetchTripPayRate } from '../api/pay-rates.js';
 import { calculateMonthlyPay } from '../lib/pay.js';
 import { openDialog, confirmDialog } from '../components/dialog.js';
 import { choice } from '../components/choice.js';
@@ -66,12 +66,13 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     const v0 = wver;
     let fresh, win = editWindow, mv = new Set();
     try {
-      let r, rate;
+      let r, rate, tripRate;
       const p = personRow();
       const ratePromise = p?.level != null && p?.position ? fetchPayRate(p.level, dept, p.position) : Promise.resolve(null);
-      [r, win, rate] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow(), ratePromise]);
+      const tripRatePromise = p ? fetchTripPayRate(p.residence || 'inside') : Promise.resolve(null);
+      [r, win, rate, tripRate] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow(), ratePromise, tripRatePromise]);
       fresh = r.byDay; mv = r.moves;
-      pay = rate ? calculateMonthlyPay({ days: fresh, rates: rate, moves: mv }) : null;
+      pay = rate && tripRate ? calculateMonthlyPay({ days: fresh, rates: { ...rate, tripPayRate: tripRate.rate }, moves: mv }) : null;
     }
     catch { if (!quiet) root.replaceChildren(h('p', { class: 'error' }, t('load_error'))); return; }
     if (quiet && (busy.size || v0 !== wver)) { refetch(); return; }   // a save started / finished while we were reading: this read may predate it
