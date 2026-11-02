@@ -1,3 +1,17 @@
+-- Separate global trip rates by residence from department level/position rates.
+create table if not exists public.trip_pay_rates (
+  residence text not null,
+  rate double precision not null,
+  constraint trip_pay_rates_pkey primary key (residence)
+);
+
+alter table public.pay_rates drop column if exists trip_pay_rate;
+alter table public.trip_pay_rates enable row level security;
+revoke all on table public.trip_pay_rates from anon, authenticated;
+grant select on table public.trip_pay_rates to authenticated;
+drop policy if exists trip_pay_rates_select on public.trip_pay_rates;
+create policy trip_pay_rates_select on public.trip_pay_rates for select to authenticated using (true);
+
 -- The old pay-rate functions included p_trip_rate. Remove those signatures before
 -- creating the new contract; writes remain available only through these RPCs.
 drop function if exists public.create_pay_rate(text, uuid, text, double precision, double precision, double precision, double precision);
