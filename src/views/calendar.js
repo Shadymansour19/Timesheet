@@ -68,8 +68,8 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     try {
       let r, rate, tripRate;
       const p = personRow();
-      const ratePromise = p?.level != null && p?.position ? fetchPayRate(p.level, dept, p.position) : Promise.resolve(null);
-      const tripRatePromise = p ? fetchTripPayRate(p.residence || 'inside') : Promise.resolve(null);
+      const ratePromise = !admin && p?.level != null && p?.position ? fetchPayRate(p.level, dept, p.position) : Promise.resolve(null);
+      const tripRatePromise = !admin && p ? fetchTripPayRate(p.residence || 'inside') : Promise.resolve(null);
       [r, win, rate, tripRate] = await Promise.all([fetchMonth(uid, cursor.y, cursor.m), admin ? null : fetchEditWindow(), ratePromise, tripRatePromise]);
       fresh = r.byDay; mv = r.moves;
       pay = rate && tripRate ? calculateMonthlyPay({ days: fresh, rates: { ...rate, tripPayRate: tripRate.rate }, moves: mv }) : null;
@@ -306,7 +306,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
         ['X', 'Y', 'XH', 'YH'].filter((s) => yOk() || s[0] !== 'Y').map((s) => h('span', { class: 'chip s-' + s.toLowerCase() }, `${s}: ${count(s)}`)),
         h('span', { class: 'chip ot' }, `${t('overtime')}: ${ot}${t('hour_abbr')}`),
         h('span', { class: 'chip trips', title: t('trips_hint') }, `${t('trips')}: ${trips}`),
-        pay ? paySummary(pay) : null));
+        !admin && pay ? paySummary(pay) : null));
   }
 
   // drag-to-fill: press a day and drag over others -> they get the start day's status as you go (not in the admin's details mode)
