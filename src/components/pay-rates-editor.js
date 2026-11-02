@@ -28,9 +28,8 @@ function readRateFields(fields, departmentId) {
   };
 }
 
-function tripRateDialog(rate, onSaved) {
+function tripRateDialog(rate, residence, onSaved) {
   const rateField = field(t('pay_trip_rate'), { type: 'number', required: true, min: 0, step: 'any', value: rate?.rate ?? 0 });
-  const residence = rate?.residence ?? 'inside';
   openDialog({
     title: t('pay_edit_trip_rate'), content: h('div', { class: 'form' }, h('p', { class: 'muted' }, `${t('residence')}: ${residence === 'outside' ? t('residence_outside') : t('residence_inside')}`), rateField.row),
     buttons: [{ label: t('cancel') }, { label: t('save'), kind: 'primary', onClick: async () => {
@@ -84,7 +83,7 @@ export function openPayRatesEditor(departmentId) {
       h('thead', {}, h('tr', {}, h('th', {}, t('residence')), h('th', {}, t('pay_trip_rate')), h('th', { class: 'pay-rates-action-head' }, t('actions')))),
       h('tbody', {}, ...['inside', 'outside'].map((residence) => {
         const rate = tripRates.find((item) => item.residence === residence);
-        return h('tr', {}, h('th', { scope: 'row' }, residence === 'outside' ? t('residence_outside') : t('residence_inside')), h('td', {}, rate ? amount(rate.rate) : '-'), h('td', {}, h('button', { type: 'button', class: 'btn small', onclick: () => tripRateDialog(rate, load) }, rate ? t('edit') : t('add'))));
+        return h('tr', {}, h('th', { scope: 'row' }, residence === 'outside' ? t('residence_outside') : t('residence_inside')), h('td', {}, rate ? amount(rate.rate) : '-'), h('td', {}, h('button', { type: 'button', class: 'btn small', onclick: () => tripRateDialog(rate, residence, load) }, rate ? t('edit') : t('add'))));
       })),
     );
     content.replaceChildren(

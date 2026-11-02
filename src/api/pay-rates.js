@@ -2,6 +2,7 @@ import { supabase } from '../supabase.js';
 
 const PAY_RATE_COLS = 'level,department_id,position,x_pay_rate,y_pay_rate,overtime_hour_rate';
 const TRIP_PAY_RATE_COLS = 'residence,rate';
+const normalizeResidence = (residence) => String(residence ?? '').trim().toLowerCase();
 
 async function rpc(name, args) {
   const { data, error } = await supabase.rpc(name, args);
@@ -62,6 +63,7 @@ export async function deletePayRate(rate) {
 }
 
 export async function fetchTripPayRate(residence) {
+  residence = normalizeResidence(residence);
   const { data, error } = await supabase
     .from('trip_pay_rates')
     .select(TRIP_PAY_RATE_COLS)
@@ -77,15 +79,15 @@ export async function fetchTripPayRates() {
     .select(TRIP_PAY_RATE_COLS)
     .order('residence');
   if (error) throw error;
-  return data;
+  return data.map((rate) => ({ ...rate, residence: normalizeResidence(rate.residence) }));
 }
 
 export async function createTripPayRate(rate) {
-  return rpc('create_trip_pay_rate', { p_residence: rate.residence, p_rate: rate.rate });
+  return rpc('create_trip_pay_rate', { p_residence: normalizeResidence(rate.residence), p_rate: rate.rate });
 }
 
 export async function updateTripPayRate(rate) {
-  return rpc('update_trip_pay_rate', { p_residence: rate.residence, p_rate: rate.rate });
+  return rpc('update_trip_pay_rate', { p_residence: normalizeResidence(rate.residence), p_rate: rate.rate });
 }
 
 export async function deleteTripPayRate(residence) {
