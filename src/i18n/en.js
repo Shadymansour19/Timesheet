@@ -141,7 +141,7 @@ export default {
   tour_2_title: "Tap a day",
   tour_2_text: "Tap or click a day to change its status, in this order: E (off), then X (work), then Y (shift).",
   tour_3_title: "Fill many days",
-  tour_3_text: "Press a day and drag over the next days, with your finger or the mouse. They all get the same status as the first one.",
+  tour_3_text: "Press and hold a day for a moment, then drag over the next days, with your finger or the mouse. Every day you pass gets the same status as the day you started on (E clears them), filled as you drag. A single tap still changes the day.",
   tour_4_title: "Your totals",
   tour_4_text: "See your work days, shift days, overtime hours (yellow) and trips for the month.",
   tour_5_title: "Help",
