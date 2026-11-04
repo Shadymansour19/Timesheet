@@ -318,10 +318,23 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     canFill: (btn, status) => !btn.disabled && !(status === 'Y' && !yOk()),
     fill: (btn, status) => {
       const day = btn.dataset.d;
-      setTo(day, status, () => { const fresh = cell(day); btn.className = fresh.className; btn.replaceChildren(...fresh.childNodes); btn.setAttribute('aria-label', fresh.getAttribute('aria-label')); });
+      setTo(day, status, () => { 
+        const fresh = cell(day); 
+        btn.className = fresh.className; 
+        btn.replaceChildren(...fresh.childNodes); 
+        btn.setAttribute('aria-label', fresh.getAttribute('aria-label')); 
+      });
     },
     press: () => { dragging = true; },
-    release: () => { dragging = false; setTimeout(() => { if (pendingDraw && !dragging) { pendingDraw = false; draw(); } }, 0); },     // after the click event, which needs the pressed button to still be there
+    release: (drag) => { 
+      dragging = false; 
+      setTimeout(() => { 
+        if ((drag.active || pendingDraw) && !dragging) { 
+          pendingDraw = false; 
+          draw(); 
+        } 
+      }, 0); 
+    },     // after the click event, which needs the pressed button to still be there
     touchHold: 450,
     enabled: () => !readOnly && !(admin && mode === 'details'),
   });
