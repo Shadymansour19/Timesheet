@@ -322,7 +322,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
     },
     press: () => { dragging = true; },
     release: () => { dragging = false; setTimeout(() => { if (pendingDraw && !dragging) { pendingDraw = false; draw(); } }, 0); },     // after the click event, which needs the pressed button to still be there
-    touchHold: 350,
+    touchHold: 450,
     enabled: () => !readOnly && !(admin && mode === 'details'),
   });
 
