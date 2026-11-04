@@ -335,7 +335,7 @@ export function calendarView({ userId, admin = false, person = null, readOnly = 
         } 
       }, 0); 
     },     // after the click event, which needs the pressed button to still be there
-    touchHold: 450,
+    touchHold: 650,
     enabled: () => !readOnly && !(admin && mode === 'details'),
   });
 
