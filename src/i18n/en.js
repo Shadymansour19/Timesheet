@@ -384,7 +384,7 @@ export default {
   install_text: "Open it from your home screen like any app.",
   install_ios: "Tap Share, then 'Add to Home Screen'.",
   install_button: "Install",
-  hint_drag_cal: "Swipe to fill: press a day and drag over other days. Every day you pass gets the same status as the day you started on (E clears them), filled as you drag. A single tap still changes the day.",
+  hint_drag_cal: "Swipe to fill: on a touch screen press and hold the starting day for a moment, then drag over other days. Every day you pass gets the same status as the day you started on (E clears them), filled as you drag. A single tap still changes the day.",
   hint_drag_grid: "Swipe to fill: press a day and drag along the same person's row. Every day you pass gets the status of the day you started on (E clears), filled as you drag; Undo takes back the whole drag. On a touch screen press and hold the starting day for a moment first, then drag (a normal swipe still scrolls and changes the week).",
   payroll_short: "Payroll",
   users_view: "Users view",

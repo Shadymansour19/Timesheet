@@ -1,8 +1,7 @@
 // Drag-to-fill: press on a day, drag across other days of the same row (grid) / month (calendar): every day entered gets the
 // status the START day has, AS YOU GO (not on release). A press without moving is still a normal click.
 //  - mouse / pen: drag at once.
-//  - touch: `touchHold` = 0 (calendar): drag at once (cells use touch-action: none);
-//           touchHold > 0 (department grid, which scrolls and swipes weeks): press and HOLD that many ms, then drag; moving earlier = scroll.
+//  - touch: press and HOLD for `touchHold` ms, then drag; moving earlier cancels the fill.
 // The helper never re-renders anything; opts.fill patches cells in place (a re-render in the middle of a gesture would drop it).
 export function enableDragFill(root, { cellSelector, keyOf, rowCells, statusOf, canFill, fill, press, release, touchHold = 0, enabled = () => true }) {
   let d = null, swallow = false;
