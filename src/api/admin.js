@@ -51,6 +51,10 @@ export async function fetchDepartments() {
   return data;
 }
 
+// The acting-department picker only needs these two columns; keep it independent of optional report fields.
+export const fetchActingDepartments = () => fetchAll(() =>
+  supabase.from('departments').select('id,name').order('name').order('id'));
+
 export async function fetchDepartment(id) {
   const { data, error } = await supabase.from('departments').select('id,name,name_ar,report,code,sector,sector_ar,field,approved_engineer,approved_tech').eq('id', id).maybeSingle();
   if (error) throw error;

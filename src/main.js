@@ -12,7 +12,7 @@ import { initUpdates } from './update.js';
 import { maybeAutoGuide } from './components/guide.js';
 import { acting, ensureActing } from './acting.js';
 import { startNotifications, stopNotifications } from './notify.js';
-import { fetchDepartments } from './api/admin.js';
+import { fetchActingDepartments } from './api/admin.js';
 
 const root = document.getElementById('app');
 const banner = h('div', { class: 'offline-banner', role: 'status', hidden: true }, t('offline'));
@@ -48,7 +48,7 @@ function render() {
   if (!route) return; // redirecting to the landing page; hashchange re-renders
   if (['super_admin', 'super_manager'].includes(state.profile.role) && acting.active && !acting.list.length) {   // first admin tab of this session: choose / load the department
     root.append(h('p', { class: 'muted center' }, t('loading')));
-    ensureActing(fetchDepartments).then(render, () => { acting.list = [{ id: acting.dept, name: '' }]; render(); });
+    ensureActing(fetchActingDepartments).then(render, () => { acting.list = [{ id: acting.dept, name: '' }]; render(); });
     return;
   }
   root.append(shell(route.view(), { onLang: render }));
