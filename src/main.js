@@ -48,7 +48,15 @@ function render() {
   if (!route) return; // redirecting to the landing page; hashchange re-renders
   if (['super_admin', 'super_manager'].includes(state.profile.role) && acting.active && !acting.list.length) {   // first admin tab of this session: choose / load the department
     root.append(h('p', { class: 'muted center' }, t('loading')));
-    ensureActing(fetchActingDepartments).then(render, () => { acting.list = [{ id: acting.dept, name: '' }]; render(); });
+    ensureActing(fetchActingDepartments).then(
+      render,
+      (error) => {
+        console.error('[acting] failed to load departments:', error);
+        console.log('[acting] saved department:', acting.dept);
+        acting.list = [{ id: acting.dept, name: '' }];
+        render();
+      }
+    );
     return;
   }
   root.append(shell(route.view(), { onLang: render }));
