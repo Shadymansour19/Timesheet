@@ -1,10 +1,12 @@
 import { h } from '../dom.js';
 import { t, personName } from '../i18n/index.js';
-import { myDept } from '../auth/session.js';
-import { fetchAuditPage, fetchAuditPeople } from '../api/admin.js';
+import { myDept, state } from '../auth/session.js';
+import { fetchAuditPage, fetchAuditPeople, clearAuditBefore } from '../api/admin.js';
 import { explain } from '../api/errors.js';
 import { createColumnFilter } from '../components/column-filter.js';
 import { icon, FILTER } from '../components/icons.js';
+import { openDialog } from '../components/dialog.js';
+import { toast } from '../components/toast.js';
 
 const PAGE_SIZE = 50;
 const dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -50,7 +52,27 @@ export function auditView() {
   const prev = h('button', { type: 'button', class: 'btn small', onclick: () => { page--; load(); } }, t('prev_page'));
   const next = h('button', { type: 'button', class: 'btn small', onclick: () => { page++; load(); } }, t('next_page'));
   const pager = h('div', { class: 'audit-pager' }, prev, h('span', { class: 'muted' }), next);
-  root.replaceChildren(h('div', { class: 'cal-head' }, h('h2', {}, t('nav_audit'))), toolbar, status, error, table, empty, pager);
+  const clearButton = state.profile.role === 'super_admin' ? h('button', { type: 'button', class: 'btn small danger', onclick: clearDialog }, t('audit_clear')) : null;
+  root.replaceChildren(h('div', { class: 'cal-head' }, h('h2', {}, t('nav_audit')), clearButton), toolbar, status, error, table, empty, pager);
+
+  function clearDialog() {
+    const date = h('input', { type: 'date', required: true, 'aria-label': t('audit_clear_before_date') });
+    const content = h('div', { class: 'form' },
+      h('label', { for: 'audit-clear-date' }, t('audit_clear_before_date')),
+      date,
+      h('p', { class: 'muted' }, t('audit_clear_warning')));
+    date.id = 'audit-clear-date';
+    openDialog({
+      title: t('audit_clear_title'), content,
+      buttons: [{ label: t('cancel') }, { label: t('audit_clear_confirm'), kind: 'danger', onClick: async () => {
+        if (!date.value) throw new Error(t('audit_clear_date_required'));
+        const deleted = await clearAuditBefore(date.value);
+        page = 0;
+        await load();
+        toast(t('audit_clear_done').replace('{count}', String(deleted)), 'success');
+      } }],
+    });
+  }
 
   const readable = (value) => {
     if (value === null || value === undefined || value === '') return t('audit_blank');

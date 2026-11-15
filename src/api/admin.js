@@ -83,6 +83,14 @@ export async function fetchAuditPage({ deptId, from, to, columnFilters = {}, pag
   return { rows: data, count: count ?? 0 };
 }
 
+export async function clearAuditBefore(beforeDate) {
+  const { data, error } = await supabase.rpc('clear_all_audit_before', {
+    p_before: localDateBoundary(beforeDate),
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchDepartments() {
   const { data, error } = await supabase.from('departments').select('id,name,name_ar,code,sector,sector_ar,field,report,approved_engineer,approved_tech').order('name');
   if (error) throw error;
