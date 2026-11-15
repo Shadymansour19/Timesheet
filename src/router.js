@@ -9,7 +9,8 @@ import { usersView } from './views/users.js';
 import { departmentsView } from './views/departments.js';
 import { personView } from './views/person.js';
 import { superUsersView } from './views/super-users.js';
-import { GRID, CLOCK, USERS, CALENDAR, BUILDING, SHIELD } from './components/icons.js';
+import { auditView } from './views/audit.js';
+import { GRID, CLOCK, USERS, CALENDAR, BUILDING, SHIELD, LIST } from './components/icons.js';
 
 // Each role gets its own set of routes; the first is the landing page.
 const routes = {
@@ -18,6 +19,7 @@ const routes = {
     { path: '/team', label: 'nav_team', icon: GRID, view: teamView },
     { path: '/overtime', label: 'nav_overtime', icon: CLOCK, view: overtimeView },
     { path: '/users', label: 'nav_users', icon: USERS, view: usersView },
+    { path: '/audit', label: 'nav_audit', icon: LIST, view: auditView },
     { path: '/calendar', label: 'nav_calendar', icon: CALENDAR, view: calendarView },
   ],
   // department manager: the admin tabs without a timesheet of their own
@@ -25,6 +27,7 @@ const routes = {
     { path: '/team', label: 'nav_team', icon: GRID, view: teamView },
     { path: '/overtime', label: 'nav_overtime', icon: CLOCK, view: overtimeView },
     { path: '/users', label: 'nav_users', icon: USERS, view: usersView },
+    { path: '/audit', label: 'nav_audit', icon: LIST, view: auditView },
   ],
   // super manager: read-only view of every department's Team grid and Overtime (a department switcher, no editing)
   super_manager: [
@@ -37,6 +40,7 @@ const routes = {
     { path: '/team', label: 'nav_team', icon: GRID, view: teamView },
     { path: '/overtime', label: 'nav_overtime', icon: CLOCK, view: overtimeView },
     { path: '/users', label: 'nav_users', icon: USERS, view: usersView },
+    { path: '/audit', label: 'nav_audit', icon: LIST, view: auditView },
     { path: '/super', label: 'nav_super', icon: SHIELD, view: superUsersView },
   ],
 };

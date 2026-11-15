@@ -4,7 +4,7 @@
 import { h } from '../dom.js';
 import { t } from '../i18n/index.js';
 
-export function createColumnFilter({ rows, matches, cellText, filters, labelOf, onChange }) {
+export function createColumnFilter({ rows, matches, cellText, filters, labelOf, labelText = (_key, value) => value, valuesFor, onChange }) {
   let pop = null;
   const close = () => { if (pop) { pop.remove(); pop = null; } };
   document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !e.target.closest('.th-filter')) close(); }, true);
@@ -22,9 +22,10 @@ export function createColumnFilter({ rows, matches, cellText, filters, labelOf, 
 
   function open(k, btn) {
     const was = pop?.dataset.k === k; close(); if (was) return;
-    const values = [...new Set(rows().filter((p) => matches(p, k)).map((p) => cellText(p, k)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    const values = [...new Set([...rows().filter((p) => matches(p, k)).map((p) => cellText(p, k)), ...(valuesFor?.(k) ?? [])])]
+      .sort((a, b) => labelText(k, a).localeCompare(labelText(k, b), undefined, { numeric: true, sensitivity: 'base' }));
     const sel = new Set(filters[k] ?? values);
-    const shown = () => values.filter((v) => (v || t('filter_blanks')).toLowerCase().includes(search.value.trim().toLowerCase()));
+    const shown = () => values.filter((v) => (labelText(k, v) || t('filter_blanks')).toLowerCase().includes(search.value.trim().toLowerCase()));
     const apply = () => { if (values.every((v) => sel.has(v))) delete filters[k]; else filters[k] = new Set(sel); onChange(); };
     const search = h('input', { type: 'search', placeholder: t('search'), 'aria-label': t('search'), autocomplete: 'off' });
     const all = h('input', { type: 'checkbox', id: 'flt-all' });
@@ -32,7 +33,7 @@ export function createColumnFilter({ rows, matches, cellText, filters, labelOf, 
     function draw() {
       const vs = shown(), n = vs.filter((v) => sel.has(v)).length;
       all.checked = vs.length > 0 && n === vs.length; all.indeterminate = n > 0 && n < vs.length;
-      list.replaceChildren(...vs.map((v) => { const box = h('input', { type: 'checkbox', checked: sel.has(v), value: v }); box.addEventListener('change', () => { if (box.checked) sel.add(v); else sel.delete(v); apply(); draw(); }); return h('label', { class: 'flt-opt' }, box, v || t('filter_blanks')); }));
+      list.replaceChildren(...vs.map((v) => { const box = h('input', { type: 'checkbox', checked: sel.has(v), value: v }); box.addEventListener('change', () => { if (box.checked) sel.add(v); else sel.delete(v); apply(); draw(); }); return h('label', { class: 'flt-opt' }, box, labelText(k, v) || t('filter_blanks')); }));
       if (!vs.length) list.append(h('p', { class: 'muted' }, t('users_none_match')));
     }
     all.addEventListener('change', () => {          // acts on what the search shows; checking it while searching keeps ONLY the found values (like Excel)

@@ -45,6 +45,44 @@ export const fetchAllPeople = () => fetchAll(() =>
 export const fetchSuperUsers = () => fetchAll(() =>
   supabase.from('profiles').select(PEOPLE_COLS).eq('active', true).is('department_id', null).order('full_name').order('id'));
 
+export async function fetchAuditPeople(deptId) {
+  return fetchAll(() => supabase.from('profiles')
+    .select('id,username,full_name,full_name_ar,active')
+    .eq('department_id', deptId).order('full_name').order('id'));
+}
+
+const localDateBoundary = (value, nextDay = false) => {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day + Number(nextDay)).toISOString();
+};
+
+export async function fetchAuditPage({ deptId, from, to, columnFilters = {}, page = 0, pageSize = 50 }) {
+  let query = supabase.from('audit_log')
+    .select('id,at,actor,table_name,department_id,target_user,day,field,old_value,new_value', { count: 'exact' })
+    .eq('department_id', deptId)
+    .order('at', { ascending: false }).order('id', { ascending: false });
+  const start = localDateBoundary(from);
+  const end = localDateBoundary(to, true);
+  if (start) query = query.gte('at', start);
+  if (end) query = query.lt('at', end);
+  const columns = { at: 'at', person: 'target_user', day: 'day', actor: 'actor', action: 'table_name', field: 'field', old: 'old_value', new: 'new_value' };
+  for (const [key, values] of Object.entries(columnFilters)) {
+    const column = columns[key], selected = [...values];
+    if (!column || !selected.length) continue;
+    const includesNull = selected.includes('__audit_null__');
+    const present = selected.filter((value) => value !== '__audit_null__');
+    if (includesNull && !present.length) query = query.is(column, null);
+    else if (includesNull) {
+      const quoted = present.map((value) => `"${String(value).replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`).join(',');
+      query = query.or(`${column}.is.null,${column}.in.(${quoted})`);
+    } else query = query.in(column, present);
+  }
+  const { data, error, count } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
+  if (error) throw error;
+  return { rows: data, count: count ?? 0 };
+}
+
 export async function fetchDepartments() {
   const { data, error } = await supabase.from('departments').select('id,name,name_ar,code,sector,sector_ar,field,report,approved_engineer,approved_tech').order('name');
   if (error) throw error;
