@@ -53,7 +53,7 @@ export async function registerDevicePasskey() {
   catch { throw new Error('Could not save this device passkey.'); }
 }
 
-export async function unlockWithDevicePasskey() {
+export async function unlockWithDevicePasskey(signal) {
   const passkey = readPasskey();
   if (!passkey) throw new Error('No passkey is registered on this device.');
   const challenge = randomBytes(32);
@@ -62,6 +62,7 @@ export async function unlockWithDevicePasskey() {
     allowCredentials: [{ type: 'public-key', id: base64UrlToBytes(passkey.id) }],
     userVerification: 'required',
     timeout: 60000,
+    signal,
   } });
   if (!credential || bytesToBase64Url(credential.rawId) !== passkey.id) throw new Error('Passkey verification failed.');
 
