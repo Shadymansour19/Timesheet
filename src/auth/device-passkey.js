@@ -1,4 +1,5 @@
 const KEY = 'ts.devicePasskey';
+const LOCK_KEY = 'ts.deviceLock';
 
 const mobileDevice = () => matchMedia('(max-width: 900px)').matches && matchMedia('(pointer: coarse)').matches;
 const supported = () => window.isSecureContext && 'PublicKeyCredential' in window && !!navigator.credentials?.create && !!navigator.credentials?.get;
@@ -18,8 +19,22 @@ const base64UrlToBytes = (value) => {
 const randomBytes = (size) => crypto.getRandomValues(new Uint8Array(size));
 
 export const shouldOfferDevicePasskey = () => mobileDevice() && supported() && !readPasskey();
-export const requiresDevicePasskey = () => mobileDevice() && supported() && !!readPasskey();
-export const forgetDevicePasskey = () => { try { localStorage.removeItem(KEY); } catch { /* storage unavailable */ } };
+export const canUseDevicePasskeyLock = () => mobileDevice() && supported();
+export const isDeviceLockEnabled = () => {
+  if (!canUseDevicePasskeyLock() || !readPasskey()) return false;
+  try { return localStorage.getItem(LOCK_KEY) !== 'off'; } catch { return true; }
+};
+export const requiresDevicePasskey = isDeviceLockEnabled;
+export const forgetDevicePasskey = () => {
+  try { localStorage.removeItem(KEY); localStorage.removeItem(LOCK_KEY); } catch { /* storage unavailable */ }
+};
+
+export async function setDeviceLockEnabled(enabled) {
+  if (!canUseDevicePasskeyLock()) throw new Error('Passkeys are unavailable in this browser.');
+  if (!enabled) { localStorage.setItem(LOCK_KEY, 'off'); return; }
+  if (!readPasskey()) await registerDevicePasskey();
+  localStorage.setItem(LOCK_KEY, 'on');
+}
 
 export async function registerDevicePasskey() {
   if (!supported()) throw new Error('Passkeys are unavailable in this browser.');
@@ -34,7 +49,7 @@ export async function registerDevicePasskey() {
   } });
   if (!credential) throw new Error('Passkey registration was cancelled.');
   const record = { id: bytesToBase64Url(credential.rawId), createdAt: Date.now() };
-  try { localStorage.setItem(KEY, JSON.stringify(record)); }
+  try { localStorage.setItem(KEY, JSON.stringify(record)); localStorage.setItem(LOCK_KEY, 'on'); }
   catch { throw new Error('Could not save this device passkey.'); }
 }
 

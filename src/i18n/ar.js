@@ -28,6 +28,8 @@ export default {
   passkey_unlock: 'فتح بمفتاح المرور',
   passkey_reset_password: 'إعادة تعيين مفتاح المرور واستخدام كلمة المرور',
   passkey_failed: 'لم يكتمل التحقق بمفتاح المرور. حاول مرة أخرى أو استخدم كلمة المرور.',
+  app_lock: 'قفل التطبيق',
+  passkey_setup_failed: 'تعذّر تغيير قفل التطبيق. تحقق من دعم مفاتيح المرور وحاول مرة أخرى.',
   language: 'English',
   back: 'رجوع',
   role_user: 'مستخدم',

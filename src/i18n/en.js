@@ -28,6 +28,8 @@ export default {
   passkey_unlock: 'Unlock with passkey',
   passkey_reset_password: 'Reset passkey and use password',
   passkey_failed: 'Passkey verification did not complete. Try again or use your password.',
+  app_lock: 'App lock',
+  passkey_setup_failed: 'Could not change the app lock. Check passkey support and try again.',
   language: 'العربية',
   back: 'Back',
   role_user: 'User',

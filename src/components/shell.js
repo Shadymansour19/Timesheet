@@ -12,6 +12,7 @@ import { acting, setActing } from '../acting.js';
 import { toast } from './toast.js';
 import { credit } from './credit.js';
 import { guideAvailable, startGuide } from './guide.js';
+import { canUseDevicePasskeyLock, isDeviceLockEnabled, setDeviceLockEnabled } from '../auth/device-passkey.js';
 
 const initials = (name) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 let closeOnOutside;
@@ -37,6 +38,18 @@ function themeRow() {
   const paint = () => btns.forEach((b) => { const on = b.dataset.themeOpt === getTheme(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
   paint();
   return h('div', { class: 'menu-theme' }, h('p', { class: 'menu-title muted' }, t('theme')), h('div', { class: 'seg theme-seg', role: 'group', 'aria-label': t('theme') }, btns));
+}
+
+function deviceLockRow(det) {
+  if (!canUseDevicePasskeyLock()) return null;
+  const enabled = isDeviceLockEnabled();
+  const value = enabled ? t('on') : t('off');
+  return h('button', { class: 'menu-item lock-menu-item', type: 'button', 'aria-pressed': String(enabled), 'aria-label': `${t('app_lock')}: ${value}`, onclick: async () => {
+    det.open = false;
+    try { await setDeviceLockEnabled(!enabled); }
+    catch { toast(t('passkey_setup_failed')); }
+    setTimeout(() => { const fresh = accountMenu(); fresh.open = true; det.replaceWith(fresh); }, 0);
+  } }, h('span', {}, t('app_lock')), h('span', { class: 'lock-switch' + (enabled ? ' on' : ''), 'aria-hidden': 'true' }, h('span', {}, value)));
 }
 
 function accountMenu() {
@@ -76,6 +89,7 @@ function accountMenu() {
       h('ul', { class: 'acct-list' }, accounts.map(row)),
       h('button', { class: 'menu-item', type: 'button', onclick: () => { close(); addAccountDialog(); } }, icon(PLUS, 18), t('add_account')),
       h('a', { class: 'menu-item', href: '#/account', onclick: close }, icon(KEY, 18), t('change_password')),
+      deviceLockRow(det),
       guideAvailable() ? h('button', { class: 'menu-item', type: 'button', id: 'guide-open', onclick: () => { close(); startGuide({ landing: navFor()[0]?.path }); } }, icon(INFO, 18), t('guide_menu')) : null,
       themeRow(),
       notifyEligible() ? h('button', { class: 'menu-item', type: 'button', 'aria-pressed': String(notifyOn()), onclick: async () => {

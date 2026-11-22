@@ -214,6 +214,9 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .acct-pick, .menu-item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: start; font: inherit; color: var(--text); background: none; border: 0; padding: 8px; border-radius: 8px; cursor: pointer; min-height: 44px; }
 .menu-item { width: 100%; }
 .menu-item { text-decoration: none; }
+.lock-menu-item { justify-content: space-between; }
+.lock-switch { min-width: 62px; display: inline-flex; justify-content: center; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .75rem; }
+.lock-switch.on { background: color-mix(in srgb, var(--brand) 14%, var(--card)); color: var(--brand-dark); border-color: color-mix(in srgb, var(--brand) 45%, var(--line)); }
 .menu-item svg { flex: none; color: var(--muted); }
 .danger-text svg { color: currentColor; }
 [dir=rtl] svg.flip { transform: scaleX(-1); }
