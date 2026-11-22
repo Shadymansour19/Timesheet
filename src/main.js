@@ -1,7 +1,7 @@
 import './styles/main.css';
 import { h } from './dom.js';
 import { applyDir, t, otherLang, setLang } from './i18n/index.js';
-import { state, restore, onChange, takeNotice, refreshProfile, checkSession } from './auth/session.js';
+import { state, restore, onChange, takeNotice, refreshProfile, checkSession, clearSessionForPasswordLogin } from './auth/session.js';
 import * as live from './live.js';
 import { applyTheme } from './theme.js';
 import { loginView } from './views/login.js';
@@ -13,6 +13,8 @@ import { maybeAutoGuide } from './components/guide.js';
 import { acting, ensureActing } from './acting.js';
 import { startNotifications, stopNotifications } from './notify.js';
 import { fetchActingDepartments } from './api/admin.js';
+import { requiresDevicePasskey, unlockWithDevicePasskey, forgetDevicePasskey } from './auth/device-passkey.js';
+import { deviceLockView } from './views/device-lock.js';
 
 const root = document.getElementById('app');
 const banner = h('div', { class: 'offline-banner', role: 'status', hidden: true }, t('offline'));
@@ -73,5 +75,22 @@ document.addEventListener('focusout', syncKeyboard);
 window.addEventListener('hashchange', () => state.profile && render());
 onChange(() => { live.dispose(); watchedFor = null; stopNotifications(); if (!state.profile) location.hash = ''; render(); });
 
-root.append(h('p', { class: 'muted center' }, t('loading')));
-restore().then((key) => { notice = key; render(); });
+async function start() {
+  root.append(h('p', { class: 'muted center' }, t('loading')));
+  if (requiresDevicePasskey()) {
+    await new Promise((resolve) => {
+      const renderLock = () => root.replaceChildren(
+        h('button', { class: 'btn small floating', onclick: () => { setLang(otherLang()); renderLock(); } }, t('language')),
+        deviceLockView({
+          onUnlock: async () => { await unlockWithDevicePasskey(); resolve(); },
+          onPassword: async () => { forgetDevicePasskey(); await clearSessionForPasswordLogin(); resolve(); },
+        })
+      );
+      renderLock();
+    });
+  }
+  const key = await restore();
+  notice = key;
+  render();
+}
+start();

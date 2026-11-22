@@ -156,6 +156,14 @@ export async function removeAccount(id) {
   await revokeSession(a.access_token);
 }
 
+// Used only when a person chooses the password fallback from the device lock.
+export async function clearSessionForPasswordLogin() {
+  const { data } = await supabase.auth.getSession();
+  await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+  if (data.session) removeLocal(data.session.user.id);
+  state.profile = null;
+}
+
 // Re-read the signed-in person's profile (called when the database announces a change to it).
 // Deactivated -> back to the login screen; role or department changed -> the app re-renders with the new menus.
 let refreshing = null;

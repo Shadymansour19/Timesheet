@@ -3,6 +3,8 @@ import { t } from '../i18n/index.js';
 import { signIn } from '../auth/session.js';
 import { passwordInput } from '../components/form.js';
 import { credit } from '../components/credit.js';
+import { openDialog } from '../components/dialog.js';
+import { shouldOfferDevicePasskey, registerDevicePasskey } from '../auth/device-passkey.js';
 
 export function loginView({ notice } = {}) {
   const err = h('p', { class: 'error', role: 'alert' }, notice ? t(notice) : '');
@@ -16,6 +18,14 @@ export function loginView({ notice } = {}) {
     btn.disabled = true; btn.textContent = t('signing_in'); err.textContent = '';
     const key = await signIn(username.value, password.value);
     if (key) { err.textContent = t(key); btn.disabled = false; btn.textContent = t('sign_in'); password.value = ''; password.focus(); }
+    else if (shouldOfferDevicePasskey()) openDialog({
+      title: t('passkey_offer_title'),
+      content: h('p', { class: 'muted' }, t('passkey_offer_text')),
+      buttons: [
+        { label: t('not_now') },
+        { label: t('passkey_enable'), kind: 'primary', onClick: registerDevicePasskey },
+      ],
+    });
   } },
     h('h1', {}, t('app_name')),
     h('label', { for: 'username' }, t('username')), username,
