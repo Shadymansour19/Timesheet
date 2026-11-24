@@ -12,7 +12,7 @@ export function loginView({ notice, passkeyLogin = false, attemptPasskeyOnLoad =
   const username = h('input', { id: 'username', name: 'username', autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true });
   const pw = passwordInput({ id: 'password', name: 'password', autocomplete: 'current-password', required: true });
   const password = pw.input;
-  const btn = h('button', { type: 'submit', class: 'btn primary block' }, t('sign_in'));
+  const submitBtn = h('button', { type: 'submit', class: 'btn primary block' }, t('sign_in'));
   let passkeyController = null;
   let passkeyAttempt = 0;
   const tryPasskey = async (automatic = false) => {
@@ -26,17 +26,17 @@ export function loginView({ notice, passkeyLogin = false, attemptPasskeyOnLoad =
     catch { if (!automatic && attempt === passkeyAttempt) err.textContent = t('passkey_failed'); }
     finally { if (attempt === passkeyAttempt) passkeyBtn.disabled = false; }
   };
-  const passkeyBtn = passkeyLogin ? h('button', { type: 'button', class: 'btn passkey-icon', title: t('passkey_sign_in'), 'aria-label': t('passkey_sign_in'), onclick: () => tryPasskey() }, icon(BIOMETRIC, 20)) : null;
+  const passkeyBtn = passkeyLogin ? h('button', { type: 'button', class: 'btn passkey-icon', title: t('passkey_sign_in'), 'aria-label': t('passkey_sign_in'), onclick: () => tryPasskey() }, icon(BIOMETRIC, 48, 1.2, '#22d3ee')) : null;
   const passwordRow = h('div', { class: 'login-password-row' }, pw.wrap);
-  const submitRow = h('div', { class: 'login-submit-row' }, btn, passkeyBtn);
+  const submitRow = h('div', { class: 'login-submit-row' }, submitBtn, passkeyBtn);
 
   const form = h('form', { class: 'card form', onsubmit: async (e) => {
     e.preventDefault();
     passkeyController?.abort(); passkeyAttempt++;
     if (passkeyBtn) passkeyBtn.disabled = false;
-    btn.disabled = true; btn.textContent = t('signing_in'); err.textContent = '';
+    submitBtn.disabled = true; submitBtn.textContent = t('signing_in'); err.textContent = '';
     const key = await signIn(username.value, password.value);
-    if (key) { err.textContent = t(key); btn.disabled = false; btn.textContent = t('sign_in'); password.value = ''; password.focus(); }
+    if (key) { err.textContent = t(key); submitBtn.disabled = false; submitBtn.textContent = t('sign_in'); password.value = ''; password.focus(); }
     else if (shouldOfferDevicePasskey()) openDialog({
       title: t('passkey_offer_title'),
       content: h('p', { class: 'muted' }, t('passkey_offer_text')),

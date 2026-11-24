@@ -1,10 +1,32 @@
 // Small inline SVG icons (drawn paths, so they look identical in every font and text direction).
 const SVG = 'http://www.w3.org/2000/svg';
 
-export function icon(paths, size = 20, stroke = 2) {      // stroke: line width in the 24-unit drawing (a zoomed icon needs a thinner one to keep the same visual weight)
-  const s = document.createElementNS(SVG, 'svg');
-  for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', width: size, height: size, fill: 'none', stroke: 'currentColor', 'stroke-width': stroke, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' })) s.setAttribute(k, v);
-  for (const d of paths) { const p = document.createElementNS(SVG, 'path'); p.setAttribute('d', d); s.append(p); }
+let gradId = 0;   // each icon gets its own gradient id, so several icons can share a page
+
+export function icon(paths, size = 20, stroke = 2, accent = null) {
+  const mk = (tag, attrs = {}) => {
+    const el = document.createElementNS(SVG, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+  const s = mk('svg', { viewBox: '0 0 24 24', width: size, height: size, fill: 'none', stroke: 'currentColor', 'stroke-width': stroke, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' });
+
+  let grad = null;
+  if (accent) {
+    const id = `icon-fade-${gradId++}`;
+    const g = mk('linearGradient', { id, gradientUnits: 'userSpaceOnUse', x1: 5, y1: 0, x2: 19, y2: 0 });
+    g.append(mk('stop', { offset: 0.35, 'stop-color': 'currentColor' }), mk('stop', { offset: 1, 'stop-color': accent }));
+    const defs = mk('defs'); defs.append(g); s.append(defs);
+    grad = `url(#${id})`;
+  }
+
+  for (const item of paths) {
+    const obj = typeof item === 'object';
+    const p = mk('path', { d: obj ? item.d : item });
+    if (obj && item.fill) { p.setAttribute('fill', grad && item.fade ? grad : 'currentColor'); p.setAttribute('stroke', 'none'); }
+    else if (obj && item.fade && grad) p.setAttribute('stroke', grad);
+    s.append(p);
+  }
   return s;
 }
 
@@ -19,22 +41,25 @@ export const KEY = ['M21 2l-2 2', 'M15.5 7.5l3 3L22 7l-3-3', 'M11.4 11.6a5.5 5.5
 
 export const BIOMETRIC = [
   // Outer corner brackets
-  'M3 8V4a1 1 0 011-1h4',
-  'M16 3h4a1 1 0 011 1v4',
-  'M21 16v4a1 1 0 01-1 1h-4',
-  'M8 21H4a1 1 0 01-1-1v-4',
+  'M.6 5.6V1.6a1 1 0 011-1h4',
+  'M18.4 .6h4a1 1 0 011 1v4',
+  'M23.4 18.4v4a1 1 0 01-1 1h-4',
+  'M5.6 23.4H1.6a1 1 0 01-1-1v-4',
 
-  // Outer fingerprint ridge flowing into the face profile (forehead, nose, mouth, chin)
-  'M6.46 16.89V12.89A5 5 0 0114.86 9.29C14.92 9.36 15.11 9.56 15.22 9.71C15.33 9.85 15.43 10.01 15.52 10.17C15.61 10.33 15.69 10.49 15.76 10.66C15.83 10.83 15.89 11.01 15.94 11.18C16 11.36 16.04 11.54 16.08 11.72C16.11 11.9 16.14 12.08 16.16 12.26C16.18 12.44 16.14 12.65 16.21 12.81C16.28 12.97 16.45 13.09 16.57 13.22C16.7 13.35 16.87 13.46 16.97 13.6C17.07 13.74 17.22 13.94 17.19 14.08C17.17 14.22 16.93 14.32 16.81 14.45C16.69 14.58 16.52 14.71 16.49 14.87C16.46 15.03 16.62 15.22 16.64 15.39C16.66 15.57 16.66 15.76 16.61 15.93C16.56 16.1 16.39 16.24 16.34 16.41C16.28 16.58 16.28 16.77 16.28 16.95C16.28 17.13 16.39 17.33 16.35 17.5C16.31 17.66 16.17 17.82 16.04 17.93C15.9 18.04 15.71 18.1 15.54 18.16C15.36 18.21 15.18 18.24 15 18.27C14.82 18.29 14.63 18.29 14.45 18.29C14.26 18.29 14.08 18.27 13.9 18.25C13.72 18.22 13.54 18.19 13.36 18.14C13.18 18.09 13.01 18.03 12.84 17.96C12.67 17.88 12.44 17.73 12.36 17.69',
-
+  // Outer ridge (flows into the face start)
+  { d: 'M5.37 17.88V13.08A6 6 0 0115.45 8.76', fade: true },
+  
+  // Face profile: filled, tapered to a sharp tail
+  { d: 'M15.01 9.17C15.07 9.23 15.26 9.41 15.37 9.54C15.48 9.67 15.58 9.81 15.67 9.95C15.77 10.1 15.85 10.25 15.93 10.4C16.01 10.55 16.08 10.71 16.14 10.86C16.21 11.02 16.26 11.19 16.31 11.35C16.36 11.51 16.41 11.68 16.44 11.84C16.48 12.01 16.51 12.18 16.54 12.35C16.57 12.52 16.57 12.69 16.6 12.86C16.64 13.02 16.68 13.19 16.76 13.33C16.85 13.47 17 13.58 17.12 13.7C17.25 13.82 17.38 13.92 17.51 14.04C17.63 14.16 17.85 14.3 17.85 14.41C17.85 14.52 17.62 14.59 17.51 14.7C17.39 14.82 17.24 14.94 17.17 15.08C17.09 15.23 17.06 15.42 17.07 15.58C17.08 15.74 17.2 15.9 17.24 16.06C17.28 16.22 17.33 16.4 17.3 16.56C17.27 16.72 17.12 16.85 17.05 17.01C16.99 17.16 16.93 17.33 16.91 17.5C16.88 17.66 16.9 17.84 16.92 18.01C16.93 18.18 17.02 18.37 17.01 18.51C16.99 18.66 16.94 18.78 16.84 18.89C16.74 19 16.56 19.09 16.41 19.16C16.26 19.23 16.09 19.28 15.92 19.32C15.76 19.36 15.59 19.39 15.42 19.41C15.25 19.43 15.08 19.44 14.91 19.44C14.73 19.44 14.56 19.44 14.39 19.43C14.22 19.41 14.05 19.39 13.88 19.36C13.72 19.33 13.55 19.3 13.38 19.25C13.22 19.2 13.06 19.14 12.9 19.07C12.75 19 12.52 18.88 12.45 18.84L12.45 18.84C12.52 18.88 12.72 19.03 12.87 19.11C13.01 19.19 13.17 19.26 13.32 19.33C13.47 19.39 13.63 19.44 13.8 19.49C13.96 19.53 14.12 19.57 14.29 19.6C14.45 19.62 14.62 19.64 14.78 19.66C14.95 19.67 15.12 19.68 15.29 19.68C15.45 19.68 15.62 19.67 15.79 19.65C15.95 19.63 16.12 19.6 16.28 19.56C16.44 19.52 16.61 19.47 16.76 19.39C16.9 19.32 17.06 19.23 17.17 19.12C17.29 19 17.4 18.85 17.44 18.7C17.48 18.55 17.43 18.37 17.42 18.2C17.41 18.03 17.37 17.86 17.39 17.7C17.41 17.54 17.48 17.38 17.55 17.23C17.62 17.08 17.76 16.96 17.82 16.81C17.88 16.65 17.92 16.48 17.92 16.32C17.92 16.15 17.85 15.99 17.83 15.83C17.81 15.67 17.74 15.48 17.8 15.37C17.87 15.25 18.11 15.21 18.23 15.11C18.36 15 18.5 14.88 18.57 14.74C18.63 14.6 18.64 14.41 18.61 14.25C18.58 14.09 18.49 13.94 18.39 13.8C18.3 13.66 18.17 13.55 18.06 13.43C17.94 13.31 17.8 13.16 17.7 13.07C17.61 12.98 17.54 12.99 17.5 12.89C17.47 12.79 17.5 12.62 17.49 12.47C17.48 12.32 17.46 12.14 17.44 11.97C17.42 11.8 17.4 11.64 17.37 11.47C17.34 11.31 17.31 11.14 17.27 10.98C17.22 10.82 17.18 10.66 17.13 10.5C17.08 10.34 17.02 10.18 16.95 10.03C16.89 9.87 16.82 9.72 16.74 9.57C16.67 9.42 16.58 9.28 16.49 9.14C16.4 8.99 16.31 8.86 16.2 8.72C16.1 8.59 15.93 8.4 15.88 8.34Z', fill: true, fade: true},
+  
   // Top ridge
-  'M8.26 6.49A6 6 0 0113.56 5.99',
-
+  { d: 'M7.53 5.4A7.2 7.2 0 0113.89 4.8', fade: true },
+  
   // Inner loop
-  'M9.06 17.89V13.39a2.6 2.6 0 015.2 0v1.4',
-
+  { d: 'M8.49 19.08V13.68A3.12 3.12 0 0114.73 13.68V15.36', fade: true },
+  
   // Core
-  'M11.66 15.59V13.39',
+  { d: 'M11.61 16.32V13.68', fade: true },
 ];
 
 export const LOGOUT = ['M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4', 'M16 17l5-5-5-5', 'M21 12H9'];
