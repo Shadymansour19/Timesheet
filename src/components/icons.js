@@ -23,8 +23,14 @@ export function icon(paths, size = 20, stroke = 2, accent = null) {
   for (const item of paths) {
     const obj = typeof item === 'object';
     const p = mk('path', { d: obj ? item.d : item });
-    if (obj && item.fill) { p.setAttribute('fill', grad && item.fade ? grad : 'currentColor'); p.setAttribute('stroke', 'none'); }
-    else if (obj && item.fade && grad) p.setAttribute('stroke', grad);
+    if (obj && item.fill) { 
+      p.setAttribute('fill', grad && item.fade ? grad : 'currentColor'); 
+      p.setAttribute('stroke', 'none'); 
+    } else if (obj && item.fade && grad) {
+      p.setAttribute('stroke', grad);
+    } else if (obj && item.solid && accent) {
+      p.setAttribute('stroke', accent);
+    }
     s.append(p);
   }
   return s;
@@ -41,10 +47,10 @@ export const KEY = ['M21 2l-2 2', 'M15.5 7.5l3 3L22 7l-3-3', 'M11.4 11.6a5.5 5.5
 
 export const BIOMETRIC = [
   // Outer corner brackets
-  'M.6 5.6V1.6a1 1 0 011-1h4',
-  'M18.4 .6h4a1 1 0 011 1v4',
-  'M23.4 18.4v4a1 1 0 01-1 1h-4',
-  'M5.6 23.4H1.6a1 1 0 01-1-1v-4',
+  { d: 'M.6 5.6V1.6a1 1 0 011-1h4', solid: true}, 
+  { d: 'M18.4 .6h4a1 1 0 011 1v4', solid: true}, 
+  { d: 'M23.4 18.4v4a1 1 0 01-1 1h-4', solid: true}, 
+  { d: 'M5.6 23.4H1.6a1 1 0 01-1-1v-4', solid: true}, 
 
   // Outer ridge (flows into the face start)
   { d: 'M5.37 17.88V13.08A6 6 0 0115.45 8.76', fade: true },
