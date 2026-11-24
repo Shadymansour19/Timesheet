@@ -230,6 +230,8 @@ input:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid va
 .pw { position: relative; display: block; }
 .login-password-row { display: flex; align-items: stretch; gap: 8px; }
 .login-password-row .pw { flex: 1; min-width: 0; }
+.login-submit-row { display: flex; align-items: stretch; gap: 8px; }
+.login-submit-row .btn.block { flex: 1; min-width: 0; width: auto; }
 .passkey-icon { flex: none; width: 48px; min-height: 48px; aspect-ratio: 1; display: grid; place-items: center; padding: 0; }
 .pw input { padding-inline-end: 46px; }
 .pw-toggle { position: absolute; inset-inline-end: 2px; inset-block: 2px; width: 42px; display: grid; place-items: center; background: none; border: 0; border-radius: 8px; color: var(--muted); cursor: pointer; }

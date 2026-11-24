@@ -5,7 +5,7 @@ import { passwordInput } from '../components/form.js';
 import { credit } from '../components/credit.js';
 import { openDialog } from '../components/dialog.js';
 import { shouldOfferDevicePasskey, registerDevicePasskey } from '../auth/device-passkey.js';
-import { icon, KEY } from '../components/icons.js';
+import { icon, BIOMETRIC } from '../components/icons.js';
 
 export function loginView({ notice, passkeyLogin = false, attemptPasskeyOnLoad = false, onPasskey } = {}) {
   const err = h('p', { class: 'error', role: 'alert' }, notice ? t(notice) : '');
@@ -26,8 +26,9 @@ export function loginView({ notice, passkeyLogin = false, attemptPasskeyOnLoad =
     catch { if (!automatic && attempt === passkeyAttempt) err.textContent = t('passkey_failed'); }
     finally { if (attempt === passkeyAttempt) passkeyBtn.disabled = false; }
   };
-  const passkeyBtn = passkeyLogin ? h('button', { type: 'button', class: 'btn passkey-icon', title: t('passkey_sign_in'), 'aria-label': t('passkey_sign_in'), onclick: () => tryPasskey() }, icon(KEY, 20)) : null;
-  const passwordRow = h('div', { class: 'login-password-row' }, pw.wrap, passkeyBtn);
+  const passkeyBtn = passkeyLogin ? h('button', { type: 'button', class: 'btn passkey-icon', title: t('passkey_sign_in'), 'aria-label': t('passkey_sign_in'), onclick: () => tryPasskey() }, icon(BIOMETRIC, 20)) : null;
+  const passwordRow = h('div', { class: 'login-password-row' }, pw.wrap);
+  const submitRow = h('div', { class: 'login-submit-row' }, btn, passkeyBtn);
 
   const form = h('form', { class: 'card form', onsubmit: async (e) => {
     e.preventDefault();
@@ -48,7 +49,7 @@ export function loginView({ notice, passkeyLogin = false, attemptPasskeyOnLoad =
     h('h1', {}, t('app_name')),
     h('label', { for: 'username' }, t('username')), username,
     h('label', { for: 'password' }, t('password')), passwordRow,
-    err, btn);
+    err, submitRow);
   const view = h('div', {}, form, credit());
   if (attemptPasskeyOnLoad && passkeyLogin) requestAnimationFrame(() => tryPasskey(true));
   return view;
