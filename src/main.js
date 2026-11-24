@@ -28,6 +28,7 @@ window.addEventListener('online', syncOnline);
 window.addEventListener('offline', syncOnline);
 let notice = null;
 let watchedFor = null;     // whose profile we are watching for live changes
+let passkeyAutoAttempted = false;
 
 function render() {
   syncOnline();
@@ -39,8 +40,10 @@ function render() {
     root.append(lang, loginView({
       notice,
       passkeyLogin: requiresDevicePasskey(),
-      onPasskey: async () => {
-        await unlockWithDevicePasskey();
+      attemptPasskeyOnLoad: requiresDevicePasskey() && !passkeyAutoAttempted,
+      onPasskey: async (signal) => {
+        passkeyAutoAttempted = true;
+        await unlockWithDevicePasskey(signal);
         notice = await restore();
         if (!notice && !state.profile) notice = 'passkey_no_saved_session';
         render();
