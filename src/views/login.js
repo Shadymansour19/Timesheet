@@ -6,12 +6,18 @@ import { credit } from '../components/credit.js';
 import { openDialog } from '../components/dialog.js';
 import { shouldOfferDevicePasskey, registerDevicePasskey } from '../auth/device-passkey.js';
 
-export function loginView({ notice } = {}) {
+export function loginView({ notice, passkeyLogin = false, onPasskey } = {}) {
   const err = h('p', { class: 'error', role: 'alert' }, notice ? t(notice) : '');
   const username = h('input', { id: 'username', name: 'username', autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true });
   const pw = passwordInput({ id: 'password', name: 'password', autocomplete: 'current-password', required: true });
   const password = pw.input;
   const btn = h('button', { type: 'submit', class: 'btn primary block' }, t('sign_in'));
+  const passkeyBtn = passkeyLogin ? h('button', { type: 'button', class: 'btn block', onclick: async () => {
+    passkeyBtn.disabled = btn.disabled = true;
+    err.textContent = '';
+    try { await onPasskey?.(); }
+    catch { err.textContent = t('passkey_failed'); passkeyBtn.disabled = btn.disabled = false; }
+  } }, t('passkey_sign_in')) : null;
 
   const form = h('form', { class: 'card form', onsubmit: async (e) => {
     e.preventDefault();
@@ -30,6 +36,6 @@ export function loginView({ notice } = {}) {
     h('h1', {}, t('app_name')),
     h('label', { for: 'username' }, t('username')), username,
     h('label', { for: 'password' }, t('password')), pw.wrap,
-    err, btn);
+    err, btn, passkeyBtn);
   return h('div', {}, form, credit());
 }

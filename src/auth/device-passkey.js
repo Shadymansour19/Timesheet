@@ -25,10 +25,6 @@ export const isDeviceLockEnabled = () => {
   try { return localStorage.getItem(LOCK_KEY) !== 'off'; } catch { return true; }
 };
 export const requiresDevicePasskey = isDeviceLockEnabled;
-export const forgetDevicePasskey = () => {
-  try { localStorage.removeItem(KEY); localStorage.removeItem(LOCK_KEY); } catch { /* storage unavailable */ }
-};
-
 export async function setDeviceLockEnabled(enabled) {
   if (!canUseDevicePasskeyLock()) throw new Error('Passkeys are unavailable in this browser.');
   if (!enabled) { localStorage.setItem(LOCK_KEY, 'off'); return; }
